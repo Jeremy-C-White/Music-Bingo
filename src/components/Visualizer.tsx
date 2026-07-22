@@ -334,6 +334,13 @@ export default function Visualizer() {
     return () => clearInterval(interval);
   }, []);
 
+  const formatTimer = (secs: number) => {
+    if (isNaN(secs) || secs <= 0) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
   const themes = [
     { a: '#33d8ff', b: '#ff4fd8', c: '#ffd76a' },
     { a: '#7cf7d4', b: '#5aa7ff', c: '#d8ff6a' },
@@ -367,7 +374,7 @@ export default function Visualizer() {
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-[1]">
         {/* Spotlights */}
         <div className="absolute -top-[20%] left-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#33d8ff]/30 to-transparent origin-top animate-[spotlight_8s_ease-in-out_infinite_alternate] blur-2xl"></div>
-        <div className="absolute -top-[20%] right-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#ff4fd8]/30 to-transparent origin-top animate-[spotlight_10s_ease-in-out_infinite_alternate-reverse] blur-2xl"></div>
+        <div className="absolute -top-[20%] right-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#ff4fd8]/30 to-transparent origin-top animate-[spotlight_10s_ease-in-out_infinite-reverse] blur-2xl"></div>
         
         {/* Floating Notes */}
         <div className="absolute top-1/4 left-[15%] animate-[float_15s_linear_infinite] opacity-30 text-[#ffd76a]">
@@ -390,13 +397,13 @@ export default function Visualizer() {
       {!gameState?.started && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-transparent overflow-hidden">
           
-          <div className="w-full max-w-[900px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10 mt-10">
+          <div className="w-full max-w-[900px] 2xl:max-w-[1400px] 3xl:max-w-[1800px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10 mt-10">
             
             {/* Integrated Logo Section */}
             <div className="relative flex flex-col items-center justify-center w-full mb-12 animate-[logoFloat_4s_ease-in-out_infinite]">
               
               {/* Spinning Vinyl Background Element */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] md:w-[400px] md:h-[400px] rounded-full bg-gradient-to-br from-[#1a0826]/80 to-[#050814]/80 border-[2px] border-white/10 shadow-[0_0_80px_rgba(255,79,216,0.3)] z-0 overflow-hidden animate-[spin_8s_linear_infinite] backdrop-blur-md opacity-60">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] md:w-[400px] md:h-[400px] 2xl:w-[560px] 2xl:h-[560px] 3xl:w-[700px] 3xl:h-[700px] rounded-full bg-gradient-to-br from-[#1a0826]/80 to-[#050814]/80 border-[2px] border-white/10 shadow-[0_0_80px_rgba(255,79,216,0.3)] z-0 overflow-hidden animate-[spin_8s_linear_infinite] backdrop-blur-md opacity-60">
                 <div className="absolute inset-4 rounded-full border border-white/5"></div>
                 <div className="absolute inset-10 rounded-full border border-white/5"></div>
                 <div className="absolute inset-16 rounded-full border border-white/5"></div>
@@ -405,12 +412,12 @@ export default function Visualizer() {
               {/* Giant Music Bingo Title */}
               <div className="relative z-20 text-center select-none pt-4">
                 <div className="flex justify-center items-center gap-4 mb-2">
-                  <Music className="w-10 h-10 md:w-14 md:h-14 text-[#33d8ff] animate-pulse drop-shadow-[0_0_15px_rgba(51,216,255,0.8)]" />
-                  <Disc className="w-10 h-10 md:w-14 md:h-14 text-[#ffd76a] animate-[spin_3s_linear_infinite] drop-shadow-[0_0_15px_rgba(255,215,106,0.8)]" />
-                  <Music className="w-10 h-10 md:w-14 md:h-14 text-[#ff4fd8] animate-pulse drop-shadow-[0_0_15px_rgba(255,79,216,0.8)]" />
+                  <Music className="w-10 h-10 md:w-14 md:h-14 2xl:w-20 2xl:h-20 text-[#33d8ff] animate-pulse drop-shadow-[0_0_15px_rgba(51,216,255,0.8)]" />
+                  <Disc className="w-10 h-10 md:w-14 md:h-14 2xl:w-20 2xl:h-20 text-[#ffd76a] animate-[spin_3s_linear_infinite] drop-shadow-[0_0_15px_rgba(255,215,106,0.8)]" />
+                  <Music className="w-10 h-10 md:w-14 md:h-14 2xl:w-20 2xl:h-20 text-[#ff4fd8] animate-pulse drop-shadow-[0_0_15px_rgba(255,79,216,0.8)]" />
                 </div>
                 
-                <h1 className="text-[clamp(64px,12vw,140px)] font-black leading-[0.9] tracking-tighter uppercase m-0 flex flex-col items-center drop-shadow-2xl">
+                <h1 className="text-[clamp(64px,12vw,220px)] font-black leading-[0.9] tracking-tighter uppercase m-0 flex flex-col items-center drop-shadow-2xl">
                   <span className="bg-gradient-to-r from-white via-[#33d8ff] to-white bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(51,216,255,0.5)] z-20 px-5 animate-[gradientShift_3s_linear_infinite]">MUSIC</span>
                   <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#ffd76a] bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,79,216,0.6)] z-20 px-5 animate-[gradientShift_3s_linear_infinite_reverse]">BINGO</span>
                 </h1>
@@ -418,117 +425,220 @@ export default function Visualizer() {
             </div>
 
             {/* Stage Screen Tag */}
-            <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-[#ff4fd8]/40 bg-[#ff4fd8]/15 text-[#ff4fd8] text-xs md:text-sm font-black tracking-[0.25em] uppercase mb-8 shadow-[0_0_25px_rgba(255,79,216,0.3)] backdrop-blur-md">
-              <Flame className="w-5 h-5 text-[#ffd76a] animate-bounce" />
+            <div className="inline-flex items-center gap-2 px-6 py-2.5 2xl:px-8 2xl:py-3.5 rounded-full border border-[#ff4fd8]/40 bg-[#ff4fd8]/15 text-[#ff4fd8] text-xs md:text-sm 2xl:text-base font-black tracking-[0.25em] uppercase mb-8 shadow-[0_0_25px_rgba(255,79,216,0.3)] backdrop-blur-md">
+              <Flame className="w-5 h-5 2xl:w-6 2xl:h-6 text-[#ffd76a] animate-bounce" />
               The Ultimate Party Game • Stage Screen Ready
             </div>
 
-            <p className="text-white/90 text-xl md:text-3xl leading-relaxed tracking-tight font-bold max-w-2xl m-0 mb-8 drop-shadow-lg text-center">
+            <p className="text-white/90 text-xl md:text-3xl 2xl:text-4xl leading-relaxed tracking-tight font-bold max-w-2xl 2xl:max-w-4xl m-0 mb-8 drop-shadow-lg text-center">
               Waiting for Host to Launch the Next Game...
             </p>
 
-            <div className="flex items-center gap-3 px-8 py-3 rounded-full bg-white/10 border border-white/15 text-sm md:text-base text-white/90 font-bold backdrop-blur-md shadow-xl">
-              <span className="w-3 h-3 rounded-full bg-[#4ade80] animate-pulse shadow-[0_0_15px_#4ade80]"></span>
+            <div className="flex items-center gap-3 px-8 py-3 2xl:px-10 2xl:py-4 rounded-full bg-white/10 border border-white/15 text-sm md:text-base 2xl:text-xl text-white/90 font-bold backdrop-blur-md shadow-xl">
+              <span className="w-3 h-3 2xl:w-4 2xl:h-4 rounded-full bg-[#4ade80] animate-pulse shadow-[0_0_15px_#4ade80]"></span>
               Live Stage Sync Active
             </div>
 
           </div>
         </div>
-      )}      {gameState?.started && (
-        <div className="absolute inset-0 z-10 flex p-2 sm:p-6 md:p-10 gap-4 md:gap-8 transition-all min-h-0">
-          <div className="flex-1 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-3xl md:rounded-[36px] p-4 sm:p-8 md:p-12 flex flex-col shadow-2xl relative overflow-hidden min-h-0">
+      )}
+
+      {gameState?.started && (
+        <div className="absolute inset-0 z-10 flex p-3 sm:p-6 md:p-8 2xl:p-12 gap-4 md:gap-6 transition-all min-h-0">
+          <div className="flex-1 bg-[#0e1226]/75 backdrop-blur-3xl border border-white/10 rounded-2xl sm:rounded-3xl md:rounded-[32px] 2xl:rounded-[40px] p-4 sm:p-6 md:p-8 2xl:p-12 flex flex-col justify-between shadow-2xl relative overflow-hidden min-h-0">
             
-            {/* Round info overlay */}
-            <div className="absolute top-4 right-4 sm:top-8 sm:right-10 flex items-center gap-2 sm:gap-4 z-30 scale-75 sm:scale-100 origin-top-right">
-              {totalClaims > 0 && (
-                <div className="flex flex-col items-center justify-center w-[84px] h-[84px] rounded-2xl border border-[var(--scene-c)]/50 bg-black/60 backdrop-blur-md shadow-[0_0_30px_var(--scene-c)] animate-bounce">
-                  <span className="text-[9px] font-black tracking-widest text-[var(--scene-c)] uppercase">Bingos</span>
-                  <strong className="text-3xl font-black text-[var(--scene-c)] tabular-nums leading-none mt-1">{String(totalClaims).padStart(2, '0')}</strong>
+            {/* Top Stage Header Bar */}
+            <div className="flex-none flex items-center justify-between border-b border-white/10 pb-3 sm:pb-4 mb-3 sm:mb-4 z-30">
+              <div className="flex items-center gap-3">
+                <div className="p-2 sm:p-2.5 rounded-xl border border-white/20 bg-gradient-to-br from-[#ff4fd8]/20 to-[#33d8ff]/20">
+                  <Radio className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
                 </div>
-              )}
-              <div className="flex flex-col items-center justify-center w-[84px] h-[84px] rounded-2xl border border-[var(--scene-b)]/40 bg-black/60 backdrop-blur-md shadow-[0_0_30px_var(--scene-b)]">
-                <span className="text-[9px] font-black tracking-widest text-white/50 uppercase">Track</span>
-                <strong className="text-3xl font-black text-white tabular-nums leading-none mt-1">{String(gameState.history.length + (gameState.nowPlaying ? 1 : 0)).padStart(2, '0')}</strong>
+                <div>
+                  <h1 className="text-base sm:text-xl 2xl:text-2xl font-black uppercase tracking-wider text-white m-0 flex items-center gap-2">
+                    <span>Music Bingo</span> <span className="text-[var(--scene-c)] font-extrabold">Stage Console</span>
+                  </h1>
+                  <p className="text-[10px] sm:text-xs text-white/50 m-0 hidden sm:block">Live Venue Broadcast • Automatic Screen Sync</p>
+                </div>
+              </div>
+
+              {/* Badges */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {totalClaims > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-[var(--scene-c)]/50 bg-[#ffd76a]/15 text-[#ffd76a] font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(255,215,106,0.3)] animate-bounce">
+                    <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#ffd76a]" />
+                    <span>Bingos: {String(totalClaims).padStart(2, '0')}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-white/10 bg-black/50 text-white font-bold text-xs sm:text-sm uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse"></span>
+                  <span>Track #{String(gameState.history.length + (gameState.nowPlaying ? 1 : 0)).padStart(2, '0')}</span>
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 sm:gap-12 relative z-20 min-h-0 pt-16 sm:pt-0">
+            {/* Main Stage Grid - Screen Filling Layout */}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-[280px_1fr] xl:grid-cols-[360px_1fr] 2xl:grid-cols-[460px_1fr] 3xl:grid-cols-[540px_1fr] gap-6 sm:gap-8 items-center min-h-0 relative z-20 py-1">
               
-              {/* Album Art Deck */}
-              <div className="relative w-[160px] h-[160px] sm:w-[280px] sm:h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center flex-none">
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 400 400">
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="8" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
-                </svg>
-                
-                <div className="w-[72%] h-[72%] rounded-full bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-4 border-[var(--scene-c)]/40 shadow-[0_0_60px_var(--scene-b)] relative overflow-hidden flex items-center justify-center">
-                  {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-70 grayscale blur-sm mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
-                  <div className="text-8xl md:text-[130px] font-black text-[var(--scene-c)] drop-shadow-[0_0_40px_var(--scene-c)] z-10 animate-pulse">?</div>
+              {/* Left Column: Album Art Deck / Vinyl Turntable */}
+              <div className="flex flex-col items-center justify-center relative">
+                <div className="relative w-[180px] h-[180px] sm:w-[240px] sm:h-[240px] md:w-[300px] md:h-[300px] xl:w-[360px] xl:h-[360px] 2xl:w-[440px] 2xl:h-[440px] flex items-center justify-center flex-none">
+                  {/* Glowing Ring countdown border */}
+                  <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 400 400">
+                    <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                    <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="8" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
+                  </svg>
+                  
+                  <div className={`w-[74%] h-[74%] rounded-full bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-4 border-[var(--scene-c)]/40 shadow-[0_0_80px_var(--scene-b)] relative overflow-hidden flex items-center justify-center ${previewData?.previewUrl ? 'animate-[spin_10s_linear_infinite]' : ''}`}>
+                    {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-70 grayscale blur-sm mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
+                    <div className="text-7xl sm:text-8xl md:text-[120px] 2xl:text-[160px] font-black text-[var(--scene-c)] drop-shadow-[0_0_40px_var(--scene-c)] z-10 animate-pulse select-none">?</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 px-4 py-1.5 rounded-full bg-black/60 border border-white/15 text-[10px] sm:text-xs font-bold text-white/70 uppercase tracking-widest flex items-center gap-2 backdrop-blur-md">
+                  <Sparkles className="w-3.5 h-3.5 text-[var(--scene-c)]" />
+                  <span>{gameState.nowPlaying ? 'Audio Stream Playing' : 'Stage Audio Standing By'}</span>
                 </div>
               </div>
 
-              {/* Mystery Track Header */}
-              <div className="flex-1 text-center lg:text-left min-h-0 overflow-y-auto custom-scrollbar pr-1 sm:pr-2 pb-4">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 sm:px-5 sm:py-2 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-r from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-[10px] sm:text-xs font-black tracking-widest uppercase mb-4 sm:mb-6 shadow-lg">
-                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Mystery Track Live
-                </div>
-                
-                <div className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-white/40 mb-2 sm:mb-3">Now Playing</div>
-                <h2 className="text-2xl sm:text-4xl md:text-6xl xl:text-7xl font-black leading-[1.1] tracking-tight mb-2 sm:mb-4 text-balance drop-shadow-2xl">
-                  {gameState.nowPlaying ? `Mystery Track #${gameState.history.length + 1}` : 'Ready?'}
-                </h2>
-                <div className="text-sm sm:text-lg md:text-2xl font-medium text-white/70 mb-4">
-                  {gameState.nowPlaying ? 'Listen closely to the hook! Find this song on your 5x5 board.' : 'Next track incoming...'}
-                </div>
-
-                {/* Stage Screen Song Fun Fact Teaser */}
-                {gameState.nowPlaying && (
-                  <div className="mt-4 sm:mt-6 p-4 sm:p-5 md:p-8 rounded-2xl md:rounded-3xl bg-black/60 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl max-w-3xl shadow-2xl animate-[fadeIn_0.5s_ease-out] group">
-                    <div className="flex flex-wrap items-center justify-between mb-2 sm:mb-3 border-b border-white/10 pb-2 gap-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-[var(--scene-c)] font-black text-[10px] sm:text-xs md:text-sm uppercase tracking-widest">
-                        <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)] animate-pulse" />
-                        <span>Did You Know?</span>
-                      </div>
-                      <button 
-                        onClick={() => setTriviaScale(prev => prev === 'normal' ? 'large' : prev === 'large' ? 'huge' : 'normal')}
-                        className="opacity-100 sm:opacity-0 group-hover:opacity-100 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[10px] sm:text-xs font-bold transition-opacity duration-300 cursor-pointer flex items-center gap-1 sm:gap-1.5"
-                        title="Adjust text size for venue TV/projector screens"
-                      >
-                        <Type className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[var(--scene-c)]" /> <span className="hidden sm:inline">Text Size:</span> <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>
-                      </button>
+              {/* Right Column: Mystery Track Details OR Waiting State Guides */}
+              <div className="flex-1 flex flex-col justify-center min-h-0 overflow-y-auto custom-scrollbar pr-1">
+                {gameState.nowPlaying ? (
+                  /* Active Song Screen Content */
+                  <div className="animate-[fadeIn_0.4s_ease-out]">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-r from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-xs sm:text-sm font-black tracking-widest uppercase mb-3 sm:mb-4 shadow-lg">
+                      <Sparkles className="w-4 h-4" /> Mystery Track Live In Play
                     </div>
-                    <p className={`text-white/95 leading-relaxed font-bold m-0 transition-all ${
-                      triviaScale === 'normal' ? 'text-xs sm:text-sm md:text-lg' :
-                      triviaScale === 'large' ? 'text-sm sm:text-base md:text-2xl xl:text-3xl' :
-                      'text-base sm:text-lg md:text-3xl xl:text-4xl'
-                    }`}>
-                      "{getSongFact(gameState.nowPlaying)}"
+                    
+                    <div className="text-xs sm:text-sm 2xl:text-base font-bold tracking-[0.3em] uppercase text-white/40 mb-1 sm:mb-2">Now Playing</div>
+                    <h2 className="text-3xl sm:text-5xl md:text-6xl xl:text-7xl 2xl:text-8xl font-black leading-[1.05] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
+                      Mystery Track #{gameState.history.length + 1}
+                    </h2>
+                    <p className="text-base sm:text-xl md:text-2xl 2xl:text-3xl font-medium text-white/80 mb-4 sm:mb-6">
+                      Listen closely to the hook! Search your 5x5 bingo card for this song.
                     </p>
+
+                    {/* Did You Know Trivia Box */}
+                    <div className="p-4 sm:p-6 md:p-8 2xl:p-10 rounded-2xl md:rounded-3xl bg-black/60 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl shadow-2xl group">
+                      <div className="flex flex-wrap items-center justify-between mb-2 sm:mb-3 border-b border-white/10 pb-2 gap-2">
+                        <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-xs sm:text-sm md:text-base uppercase tracking-widest">
+                          <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)] animate-pulse" />
+                          <span>Did You Know?</span>
+                        </div>
+                        <button 
+                          onClick={() => setTriviaScale(prev => prev === 'normal' ? 'large' : prev === 'large' ? 'huge' : 'normal')}
+                          className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                          title="Adjust text size for venue TV/projector screens"
+                        >
+                          <Type className="w-3.5 h-3.5 text-[var(--scene-c)]" /> <span className="hidden sm:inline">Text Size:</span> <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>
+                        </button>
+                      </div>
+                      <p className={`text-white/95 leading-relaxed font-bold m-0 transition-all ${
+                        triviaScale === 'normal' ? 'text-sm sm:text-base md:text-xl 2xl:text-2xl' :
+                        triviaScale === 'large' ? 'text-base sm:text-lg md:text-2xl 2xl:text-3xl' :
+                        'text-lg sm:text-xl md:text-3xl 2xl:text-4xl'
+                      }`}>
+                        "{getSongFact(gameState.nowPlaying)}"
+                      </p>
+                    </div>
+
+                    {/* Recent Called Songs Ticker */}
+                    {gameState.history.length > 0 && (
+                      <div className="mt-4 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
+                        <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 whitespace-nowrap">Recently Called:</span>
+                        {gameState.history.slice(-4).reverse().map((song, idx) => {
+                          const { title, artist } = splitSong(song);
+                          return (
+                            <div key={idx} className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-semibold text-white/80 whitespace-nowrap flex items-center gap-1.5">
+                              <Music className="w-3 h-3 text-[#33d8ff]" />
+                              <span>{title}</span> <span className="text-white/40">• {artist}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Waiting State Screen Content (When Game is Started but no song actively called) */
+                  <div className="animate-[fadeIn_0.4s_ease-out] flex flex-col justify-center gap-4">
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#33d8ff]/40 bg-[#33d8ff]/15 text-[#33d8ff] text-xs sm:text-sm font-black tracking-widest uppercase mb-2 shadow-lg">
+                        <Sparkles className="w-4 h-4" /> Host Studio Ready
+                      </div>
+                      <h2 className="text-3xl sm:text-5xl md:text-6xl xl:text-7xl font-black leading-tight tracking-tight text-white mb-2 text-balance drop-shadow-2xl">
+                        GET READY FOR TRACK #{gameState.history.length + 1}!
+                      </h2>
+                      <p className="text-sm sm:text-lg md:text-xl text-white/70 m-0 font-medium max-w-2xl">
+                        The Host is about to play the next song preview! Check your bingo card and get ready.
+                      </p>
+                    </div>
+
+                    {/* How To Play Stage Guide Cards (Fills screen nicely) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-1">
+                      <div className="p-4 rounded-2xl bg-black/50 border border-white/10 flex flex-col items-center text-center shadow-lg">
+                        <div className="p-2.5 rounded-xl bg-[#33d8ff]/20 text-[#33d8ff] mb-2">
+                          <Music className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-extrabold text-sm uppercase text-white m-0 mb-1">1. Listen</h4>
+                        <p className="text-xs text-white/60 m-0 leading-snug">Catch the 30s track hook playing over the speakers</p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-black/50 border border-white/10 flex flex-col items-center text-center shadow-lg">
+                        <div className="p-2.5 rounded-xl bg-[#ff4fd8]/20 text-[#ff4fd8] mb-2">
+                          <Disc className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-extrabold text-sm uppercase text-white m-0 mb-1">2. Match</h4>
+                        <p className="text-xs text-white/60 m-0 leading-snug">Find the matching song or artist on your 5x5 card</p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-black/50 border border-white/10 flex flex-col items-center text-center shadow-lg">
+                        <div className="p-2.5 rounded-xl bg-[#ffd76a]/20 text-[#ffd76a] mb-2">
+                          <Trophy className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-extrabold text-sm uppercase text-white m-0 mb-1">3. Win</h4>
+                        <p className="text-xs text-white/60 m-0 leading-snug">Get 5 in a row & hit BINGO to claim your prize!</p>
+                      </div>
+                    </div>
+
+                    {/* Called History Summary if any songs were called earlier */}
+                    {gameState.history.length > 0 && (
+                      <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-white/70 uppercase tracking-wider">
+                          <Radio className="w-4 h-4 text-[#ffd76a]" />
+                          <span>Songs Called So Far: {gameState.history.length}</span>
+                        </div>
+                        <div className="text-xs text-white/50 font-medium">
+                          Last Call: <strong className="text-white">{splitSong(gameState.history[gameState.history.length - 1]).title}</strong>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Footer Audio Vis */}
-            <div className="flex-none mt-4 sm:mt-8">
-              <div className="flex justify-between items-end mb-2 sm:mb-3">
-                <div className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-white/40">Track Preview Countdown</div>
-                <div className={`text-3xl sm:text-4xl md:text-6xl font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_30px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
-                  0:{String(remaining).padStart(2, '0')}
+            {/* Footer Audio Vis & Countdown */}
+            <div className="flex-none border-t border-white/10 pt-3 sm:pt-4 mt-2">
+              <div className="flex justify-between items-end mb-2">
+                <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold tracking-[0.2em] uppercase text-white/60">
+                  <Sparkles className="w-4 h-4 text-[var(--scene-c)]" />
+                  <span>Track Preview Countdown</span>
+                </div>
+                <div className={`text-3xl sm:text-5xl md:text-6xl 2xl:text-7xl font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_30px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
+                  {formatTimer(remaining)}
                 </div>
               </div>
               
-              <div className="w-full h-1.5 sm:h-2 rounded-full bg-white/10 mb-4 sm:mb-6 overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-white/10 mb-3 overflow-hidden shadow-inner">
                 <div className="h-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-all ease-linear shadow-[0_0_20px_var(--scene-a)]" style={{width: `${progress * 100}%`}}></div>
               </div>
               
-              <div className="relative w-full h-[50px] sm:h-[90px]">
+              <div className="relative w-full h-[50px] sm:h-[75px]">
                 <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
-                  {Array.from({ length: 32 }).map((_, i) => (
+                  {Array.from({ length: 40 }).map((_, i) => (
                     <div 
                       key={i} 
                       ref={el => barsRef.current[i] = el}
-                      className="flex-1 min-w-[2px] sm:min-w-[3px] rounded-t-full bg-gradient-to-b from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-[height] duration-75 ease-out h-[10%]"
+                      className="flex-1 min-w-[3px] rounded-t-full bg-gradient-to-b from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-[height] duration-75 ease-out h-[12%]"
                     ></div>
                   ))}
                 </div>
