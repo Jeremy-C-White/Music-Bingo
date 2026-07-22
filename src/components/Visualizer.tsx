@@ -89,23 +89,48 @@ export default function Visualizer() {
 
   useEffect(() => {
     if (gameState?.nowPlaying) {
-      const encouragements = [
-        "Keep the energy up!",
-        "Who's getting close?",
-        "Eyes on your cards!",
-        "Feel the rhythm!",
-        "Is it Bingo time yet?",
-        "Someone's about to win!",
-        "Dance break!",
-        "Mark those cards!"
-      ];
+      let encouragements: string[] = [];
+      const trackCount = gameState.history.length;
+      
+      if (totalClaims > 0) {
+        encouragements = [
+          "We have winners, but keep playing!",
+          "Who's next to yell BINGO?",
+          "More Bingos coming right up!",
+          "The prizes are flying!"
+        ];
+      } else if (trackCount <= 5) {
+        encouragements = [
+          "Let's get this party started!",
+          "First few tracks are in!",
+          "Eyes on your cards!",
+          "Warm up those daubers!"
+        ];
+      } else if (trackCount <= 15) {
+        encouragements = [
+          "Keep the energy up!",
+          "Who's getting close?",
+          "Check your board!",
+          "The board is filling up!",
+          "Mark those cards!"
+        ];
+      } else {
+        encouragements = [
+          "Is it Bingo time yet?",
+          "Someone's got to be close!",
+          "The tension is building!",
+          "It could be any track now!",
+          "Get ready to shout BINGO!"
+        ];
+      }
+
       setEncouragement(encouragements[Math.floor(Math.random() * encouragements.length)]);
       const timer = setTimeout(() => setEncouragement(null), 6000);
       return () => clearTimeout(timer);
     } else {
       setEncouragement(null);
     }
-  }, [gameState?.nowPlaying]);
+  }, [gameState?.nowPlaying, gameState?.history.length, totalClaims]);
 
   // Audio setup
   useEffect(() => {
