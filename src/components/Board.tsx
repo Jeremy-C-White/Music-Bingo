@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { subscribeToGameState, submitClaim, pingPresence } from '../lib/store';
+import { subscribeToGameState, submitClaim, pingPresence, sendReaction } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, WIN_PATTERNS, getSongFact } from '../lib/data';
 import confetti from 'canvas-confetti';
-import { BookOpen, Disc, Sparkles, Check, HelpCircle, X, Search, Volume2, Lightbulb, ChevronDown, ChevronUp, Share2 } from 'lucide-react';
+import { BookOpen, Disc, Sparkles, Check, HelpCircle, X, Search, Volume2, Lightbulb, ChevronDown, ChevronUp, Share2, SmilePlus } from 'lucide-react';
 import { playPopSound, playNearWinChime, playBingoFanfare } from '../lib/soundEffects';
 
 const BOARD_STATE_KEY = 'music_bingo_board_state_v3';
 const PLAYER_NAME_KEY = 'music_bingo_player_name';
+const EMOJI_OPTIONS = ['🔥', '🎉', '🎸', '❤️', '🤘', '🕺', '💃', '🤣'];
 
 export default function Board() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [playerName, setPlayerName] = useState('');
   const [inLobby, setInLobby] = useState(true);
   const [waiting, setWaiting] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   
   const [boardSongs, setBoardSongs] = useState<string[]>([]);
   const [selected, setSelected] = useState<boolean[]>(Array(25).fill(false));
@@ -239,6 +241,12 @@ export default function Board() {
     }
   };
 
+  const handleSendReaction = (emoji: string) => {
+    sendReaction(playerName, emoji);
+    setShowEmojiPicker(false);
+    showToast(`Sent ${emoji} to the big screen!`);
+  };
+
   if (inLobby) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans flex flex-col items-center justify-center p-4 overflow-hidden relative">
@@ -335,6 +343,33 @@ export default function Board() {
             >
               <BookOpen size={14} className="text-[#33d8ff]" /> <span className="hidden sm:inline">How To Play</span>
             </button>
+
+            <div className="relative">
+              <button 
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                title="Send a reaction to the stage screen"
+              >
+                <SmilePlus size={14} className="text-[#ff4fd8]" /> <span className="hidden sm:inline">React</span>
+              </button>
+              
+              {showEmojiPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)}></div>
+                  <div className="absolute top-full mt-2 right-0 bg-[#12182a]/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl flex gap-2 shadow-2xl z-50 animate-[popIn2_0.2s_ease-out]">
+                    {EMOJI_OPTIONS.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => handleSendReaction(emoji)}
+                        className="text-2xl hover:scale-125 transition-transform cursor-pointer"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
             <button 
               className={`relative px-5 md:px-6 py-2.5 rounded-xl font-black text-xs md:text-sm transition-all duration-300 cursor-pointer

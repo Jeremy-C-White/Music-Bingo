@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive } from '../lib/store';
+import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subscribeToReactions, Reaction } from '../lib/store';
 import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
@@ -9,6 +9,7 @@ export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [previewData, setPreviewData] = useState<{previewUrl: string; artworkUrl: string} | null>(null);
   const [totalClaims, setTotalClaims] = useState(0);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
   
   const [themeIndex, setThemeIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
@@ -72,10 +73,15 @@ export default function Visualizer() {
         setTotalClaims(claims.filter(c => c.sessionId === gameState?.sessionId).length);
       }
     });
+
+    const unsubReactions = subscribeToReactions((newReactions) => {
+      setReactions(newReactions);
+    });
     
     return () => {
       unsub();
       unsubClaims();
+      unsubReactions();
     };
   }, [gameState?.sessionId]);
 
@@ -357,49 +363,45 @@ export default function Visualizer() {
             </div>
           </div>
 
-          <div className="w-full max-w-[800px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10">
+          <div className="w-full max-w-[900px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10 mt-10">
             
-            {/* Spinning Vinyl Record Emblem */}
-            <div className="relative mb-12 group">
-              <div className="absolute -inset-6 rounded-full bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] opacity-40 blur-2xl group-hover:opacity-60 transition-opacity animate-pulse"></div>
+            {/* Integrated Logo Section */}
+            <div className="relative flex flex-col items-center justify-center w-full mb-12 animate-[logoFloat_4s_ease-in-out_infinite]">
               
-              <div className="w-36 h-36 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-[#1a0826] to-[#050814] border-[4px] border-white/20 flex items-center justify-center shadow-[0_0_60px_rgba(255,79,216,0.5)] relative z-10 overflow-hidden animate-[spin_4s_linear_infinite]">
-                {/* Vinyl Record Grooves */}
-                <div className="absolute inset-2 rounded-full border border-white/10"></div>
-                <div className="absolute inset-5 rounded-full border border-white/10"></div>
-                <div className="absolute inset-8 rounded-full border border-white/10"></div>
-                <div className="absolute inset-[44px] rounded-full border border-white/10"></div>
-                
-                {/* Center Label */}
-                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#ff4fd8] to-[#33d8ff] flex items-center justify-center relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
-                   <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[#050814] shadow-inner"></div>
-                </div>
+              {/* Spinning Vinyl Background Element */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] md:w-[400px] md:h-[400px] rounded-full bg-gradient-to-br from-[#1a0826]/80 to-[#050814]/80 border-[2px] border-white/10 shadow-[0_0_80px_rgba(255,79,216,0.3)] z-0 overflow-hidden animate-[spin_8s_linear_infinite] backdrop-blur-md opacity-60">
+                <div className="absolute inset-4 rounded-full border border-white/5"></div>
+                <div className="absolute inset-10 rounded-full border border-white/5"></div>
+                <div className="absolute inset-16 rounded-full border border-white/5"></div>
               </div>
-              
-              {/* Inner Floating Icon (doesn't spin with the record) */}
-              <Music className="w-10 h-10 md:w-12 md:h-12 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 animate-pulse drop-shadow-lg pointer-events-none" />
+
+              {/* Giant Music Bingo Title */}
+              <div className="relative z-20 text-center select-none pt-4">
+                <div className="flex justify-center items-center gap-4 mb-2">
+                  <Music className="w-10 h-10 md:w-14 md:h-14 text-[#33d8ff] animate-pulse drop-shadow-[0_0_15px_rgba(51,216,255,0.8)]" />
+                  <Disc className="w-10 h-10 md:w-14 md:h-14 text-[#ffd76a] animate-[spin_3s_linear_infinite] drop-shadow-[0_0_15px_rgba(255,215,106,0.8)]" />
+                  <Music className="w-10 h-10 md:w-14 md:h-14 text-[#ff4fd8] animate-pulse drop-shadow-[0_0_15px_rgba(255,79,216,0.8)]" />
+                </div>
+                
+                <h1 className="text-[clamp(64px,12vw,140px)] font-black leading-[0.9] tracking-tighter uppercase m-0 flex flex-col items-center drop-shadow-2xl">
+                  <span className="bg-gradient-to-r from-white via-[#33d8ff] to-white bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(51,216,255,0.5)] z-20 px-5 animate-[gradientShift_3s_linear_infinite]">MUSIC</span>
+                  <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#ffd76a] bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,79,216,0.6)] z-20 px-5 animate-[gradientShift_3s_linear_infinite_reverse]">BINGO</span>
+                </h1>
+              </div>
             </div>
 
             {/* Stage Screen Tag */}
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[#ff4fd8]/40 bg-[#ff4fd8]/15 text-[#ff4fd8] text-xs md:text-sm font-black tracking-[0.25em] uppercase mb-6 shadow-[0_0_20px_rgba(255,79,216,0.3)] backdrop-blur-md">
-              <Flame className="w-4 h-4 text-[#ffd76a] animate-bounce" />
+            <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-[#ff4fd8]/40 bg-[#ff4fd8]/15 text-[#ff4fd8] text-xs md:text-sm font-black tracking-[0.25em] uppercase mb-8 shadow-[0_0_25px_rgba(255,79,216,0.3)] backdrop-blur-md">
+              <Flame className="w-5 h-5 text-[#ffd76a] animate-bounce" />
               The Ultimate Party Game • Stage Screen Ready
             </div>
 
-            {/* Giant Music Bingo Title */}
-            <div className="relative inline-block mb-6 text-center select-none">
-              <h1 className="text-[clamp(56px,11vw,130px)] font-black leading-[0.9] tracking-tighter uppercase m-0 flex flex-col items-center drop-shadow-2xl">
-                <span className="bg-gradient-to-r from-white via-[#33d8ff] to-white bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(51,216,255,0.5)] z-20 px-5">MUSIC</span>
-                <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#ffd76a] bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,79,216,0.6)] z-20 px-5">BINGO</span>
-              </h1>
-            </div>
-
-            <p className="text-white/80 text-lg md:text-2xl leading-relaxed tracking-tight font-medium max-w-xl m-0 mb-6 drop-shadow-md">
+            <p className="text-white/90 text-xl md:text-3xl leading-relaxed tracking-tight font-bold max-w-2xl m-0 mb-8 drop-shadow-lg text-center">
               Waiting for Host to Launch the Next Game...
             </p>
 
-            <div className="flex items-center gap-3 px-6 py-2.5 rounded-full bg-white/10 border border-white/15 text-xs md:text-sm text-white/90 font-bold backdrop-blur-md shadow-lg">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#4ade80] animate-pulse shadow-[0_0_12px_#4ade80]"></span>
+            <div className="flex items-center gap-3 px-8 py-3 rounded-full bg-white/10 border border-white/15 text-sm md:text-base text-white/90 font-bold backdrop-blur-md shadow-xl">
+              <span className="w-3 h-3 rounded-full bg-[#4ade80] animate-pulse shadow-[0_0_15px_#4ade80]"></span>
               Live Stage Sync Active
             </div>
 
@@ -518,6 +520,33 @@ export default function Visualizer() {
           </div>
         </div>
       )}
+
+      {/* Floating Reactions */}
+      <div className="absolute inset-0 z-[60] pointer-events-none overflow-hidden">
+        {reactions.map((reaction) => {
+          // generate a deterministic pseudo-random start position from 10% to 90%
+          const charCode = reaction.id.charCodeAt(0) || 50;
+          const leftPercent = 10 + (charCode % 80);
+          // deterministic rotation
+          const rot = (charCode % 40) - 20; // -20 to 20
+          
+          return (
+            <div 
+              key={reaction.id}
+              className="absolute bottom-0 text-center flex flex-col items-center animate-[emojiFloat_6s_ease-out_forwards]"
+              style={{
+                left: `${leftPercent}%`,
+                '--rot': `${rot}deg`
+              } as React.CSSProperties}
+            >
+              <div className="text-4xl md:text-6xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] mb-1">{reaction.emoji}</div>
+              <div className="bg-black/60 backdrop-blur-sm border border-white/20 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap shadow-xl">
+                {reaction.playerName}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Audio controls popup */}
       <div className="absolute bottom-6 left-6 z-50">
