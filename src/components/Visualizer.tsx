@@ -11,6 +11,7 @@ export default function Visualizer() {
   const [previewData, setPreviewData] = useState<{previewUrl: string; artworkUrl: string} | null>(null);
   const [totalClaims, setTotalClaims] = useState(0);
   const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [encouragement, setEncouragement] = useState<string | null>(null);
   
   const [themeIndex, setThemeIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
@@ -55,10 +56,10 @@ export default function Visualizer() {
     const unsub = subscribeToGameState((state) => {
       setGameState(state);
       if (state) {
-        const callNumber = Math.max(1, state.history.length || 1);
-        const setNumber = Math.floor((callNumber - 1) / 5) + 1;
-        setThemeIndex((setNumber - 1) % 5);
-        setSceneIndex((callNumber - 1) % 5);
+        const trackNumber = (state.history?.length || 0) + (state.nowPlaying ? 1 : 0);
+        const setNumber = Math.max(0, Math.floor((trackNumber - 1) / 5));
+        setThemeIndex(setNumber % 5);
+        setSceneIndex(Math.max(0, trackNumber - 1) % 5);
         
         if (state.nowPlaying) {
           const { title, artist } = splitSong(state.nowPlaying);
@@ -85,6 +86,26 @@ export default function Visualizer() {
       unsubReactions();
     };
   }, [gameState?.sessionId]);
+
+  useEffect(() => {
+    if (gameState?.nowPlaying) {
+      const encouragements = [
+        "Keep the energy up!",
+        "Who's getting close?",
+        "Eyes on your cards!",
+        "Feel the rhythm!",
+        "Is it Bingo time yet?",
+        "Someone's about to win!",
+        "Dance break!",
+        "Mark those cards!"
+      ];
+      setEncouragement(encouragements[Math.floor(Math.random() * encouragements.length)]);
+      const timer = setTimeout(() => setEncouragement(null), 6000);
+      return () => clearTimeout(timer);
+    } else {
+      setEncouragement(null);
+    }
+  }, [gameState?.nowPlaying]);
 
   // Audio setup
   useEffect(() => {
@@ -523,6 +544,22 @@ export default function Visualizer() {
               </div>
             </div>
             
+          </div>
+        </div>
+      )}
+
+      {/* Encouragement Banner */}
+      {encouragement && (
+        <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] pointer-events-none w-full px-4 text-center">
+          <div className="inline-block animate-[popIn2_0.5s_ease-out_forwards,gentlePulse_2s_infinite]">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] blur-2xl opacity-40 rounded-full"></div>
+              <div className="relative bg-black/60 backdrop-blur-xl border-2 border-white/20 px-8 py-6 md:px-12 md:py-8 rounded-full shadow-2xl">
+                <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 uppercase tracking-widest leading-none m-0">
+                  {encouragement}
+                </h2>
+              </div>
+            </div>
           </div>
         </div>
       )}
