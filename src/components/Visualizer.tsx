@@ -395,6 +395,19 @@ export default function Visualizer() {
     { a: '#ff6b6b', b: '#ff3cac', c: '#ffe66d', ar: '255,107,107', br: '255,60,172', cr: '255,230,109' },
   ];
 
+  const HOOK_PROMPTS = [
+    'Listen closely to the hook and find this song on your board.',
+    'Catch the hook, scan your board, and dab that square.',
+    'Know it the second it drops? Mark it on your card.',
+    'Lock into the melody and hunt it down on your board.',
+    'This one on your board? Ears up — find the match.',
+    'Trust your gut. Spot this track and claim the square.',
+    'One line in and you know it? Get to marking.',
+    'Feel that hook? Sweep your board and tag it.',
+    'Name that tune in your head, then find it on your grid.',
+    'If it\u2019s on your board, don\u2019t sleep — mark it now.',
+  ];
+
   const theme = themes[themeIndex] || themes[0];
   const sceneParticles = Array.from({ length: 30 }, (_, i) => ({
     left: 4 + ((i * 29) % 92),
@@ -449,7 +462,7 @@ export default function Visualizer() {
         @keyframes mbRingPulse { 0%,100% { transform: scale(.97); opacity: .18; } 50% { transform: scale(1.055); opacity: .72; } }
         @keyframes mbReflectSweep { 0% { transform: translateX(-170%) skewX(-18deg); opacity: 0; } 18% { opacity: .65; } 52%,100% { transform: translateX(230%) skewX(-18deg); opacity: 0; } }
         @keyframes mbTrackBurst { 0% { opacity: .95; transform: scale(.18); } 45% { opacity: .52; } 100% { opacity: 0; transform: scale(2.4); } }
-        @keyframes mbVisualizerSweep { 0% { transform: translateX(-130%) skewX(-16deg); } 100% { transform: translateX(430%) skewX(-16deg); } }
+        @keyframes mbVisualizerSweep { 0% { transform: translateX(-120%) skewX(-16deg); } 100% { transform: translateX(520%) skewX(-16deg); } }
         @keyframes mbPanelShimmer { 0%,100% { opacity: .16; transform: translateX(-8%); } 50% { opacity: .34; transform: translateX(8%); } }
 
         .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
@@ -580,18 +593,21 @@ export default function Visualizer() {
               )}
 
               {sceneIndex === 1 && (
-                <div className="absolute inset-0 overflow-hidden">
+                <div
+                  className="absolute inset-0 overflow-hidden opacity-40"
+                  style={{ maskImage: 'radial-gradient(ellipse 62% 70% at 50% 60%, transparent 30%, black 78%)' }}
+                >
                   {Array.from({ length: 11 }).map((_, i) => {
                     const angle = -48 + i * 9.5;
                     const rgb = i % 3 === 0 ? theme.ar : i % 3 === 1 ? theme.br : theme.cr;
                     return (
                       <div
                         key={i}
-                        className="absolute left-1/2 bottom-[-18%] h-[118%] w-[2px] origin-bottom"
+                        className="absolute left-1/2 bottom-[-18%] h-[118%] w-[2px] origin-bottom blur-[1px]"
                         style={{
                           '--laser-angle': `${angle}deg`,
-                          background: `linear-gradient(to top, rgba(${rgb}, .92), rgba(${rgb}, .10) 72%, transparent)`,
-                          boxShadow: `0 0 16px rgba(${rgb}, .72)`,
+                          background: `linear-gradient(to top, rgba(${rgb}, .55), rgba(${rgb}, .06) 72%, transparent)`,
+                          boxShadow: `0 0 10px rgba(${rgb}, .35)`,
                           animation: `mbLaserSweep ${3.2 + (i % 4) * .6}s ease-in-out ${-(i * .23)}s infinite`,
                         } as React.CSSProperties}
                       />
@@ -716,15 +732,15 @@ export default function Visualizer() {
             </header>
 
             {/* Main stage content */}
-            <div className="relative z-20 flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(390px,1.35fr)_minmax(320px,0.85fr)] items-center gap-[clamp(16px,2.4vw,42px)] py-[clamp(8px,1.4vh,18px)] overflow-y-auto md:overflow-hidden">
+            <div className="relative z-20 flex-1 min-h-0 w-full max-w-[1400px] mx-auto grid grid-cols-1 md:grid-cols-[minmax(300px,0.95fr)_minmax(360px,1.05fr)] items-center gap-[clamp(16px,2.4vw,42px)] py-[clamp(8px,1.4vh,18px)] overflow-y-auto md:overflow-hidden">
 
               {/* Large audio-reactive album art, vinyl, and timer centerpiece */}
               <div className="flex items-center justify-center min-h-0 min-w-0">
                 <div
                   className="mb-album-bass relative max-w-full aspect-square flex items-center justify-center flex-none"
                   style={{
-                    width: 'min(620px, 58vh, 100%)',
-                    height: 'min(620px, 58vh, 100%)',
+                    width: 'min(480px, 46vh, 100%)',
+                    height: 'min(480px, 46vh, 100%)',
                     filter: 'brightness(calc(.92 + var(--bass-glow, .3))) drop-shadow(0 0 42px rgba(var(--scene-a-rgb), var(--bass-glow, .3)))',
                   }}
                 >
@@ -743,7 +759,7 @@ export default function Visualizer() {
                           height: light % 2 ? 8 : 11,
                           background: light % 3 === 0 ? theme.a : light % 3 === 1 ? theme.b : theme.c,
                           boxShadow: `0 0 20px ${light % 3 === 0 ? theme.a : light % 3 === 1 ? theme.b : theme.c}`,
-                          transform: `rotate(${light * 60}deg) translateY(max(-292px, -27vh, -46vw))`,
+                          transform: `rotate(${light * 60}deg) translateY(max(-232px, -22vh, -40vw))`,
                           transformOrigin: '0 0',
                         }}
                       />
@@ -783,13 +799,13 @@ export default function Visualizer() {
                     )}
                     <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 45%, rgba(${theme.cr}, .08), transparent 52%), linear-gradient(145deg, rgba(${theme.ar}, .14), transparent 48%, rgba(${theme.br}, .12))` }} />
                     <div className="mb-reflect-sweep absolute -top-[20%] -bottom-[20%] left-[-35%] w-[24%] bg-gradient-to-r from-transparent via-white/55 to-transparent blur-[2px] mix-blend-screen" />
-                    <div className="relative z-10 text-[clamp(106px,17vh,190px)] font-black text-[var(--scene-c)] animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: `0 0 52px rgba(${theme.cr}, .72), 3px 0 0 rgba(${theme.br}, .58), -3px 0 0 rgba(${theme.ar}, .58)` }}>?</div>
+                    <div className="relative z-10 text-[clamp(88px,14vh,150px)] font-black text-[var(--scene-c)] animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: `0 0 52px rgba(${theme.cr}, .72), 3px 0 0 rgba(${theme.br}, .58), -3px 0 0 rgba(${theme.ar}, .58)` }}>?</div>
                   </div>
                 </div>
               </div>
 
               {/* Track information zone */}
-              <div className="min-w-0 min-h-0 flex flex-col justify-center text-center md:text-left">
+              <div className="relative z-30 min-w-0 min-h-0 flex flex-col justify-center text-center md:text-left">
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2 sm:mb-3">
                   <div className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-white/45">Now Playing</div>
                   {gameState.nowPlaying && (
@@ -799,16 +815,21 @@ export default function Visualizer() {
                   )}
                 </div>
 
-                <h2 className="text-[clamp(2rem,5.3vw,4.8rem)] font-black leading-[0.98] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
+                <h2 className="text-[clamp(2rem,4.6vw,4rem)] font-black leading-[0.98] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
                   {gameState.nowPlaying ? `Mystery Track #${gameState.history.length + 1}` : 'Ready?'}
                 </h2>
 
-                <div className="text-[clamp(0.9rem,1.7vw,1.45rem)] font-medium leading-snug text-white/70 mb-[clamp(10px,2vh,20px)] max-w-3xl">
-                  {gameState.nowPlaying ? 'Listen closely to the hook and find this song on your 5x5 board.' : 'Next track incoming...'}
+                <div
+                  key={gameState.history.length}
+                  className="text-[clamp(0.9rem,1.7vw,1.45rem)] font-medium leading-snug text-white/70 mb-[clamp(10px,2vh,20px)] max-w-3xl animate-[fadeIn_0.45s_ease-out]"
+                >
+                  {gameState.nowPlaying
+                    ? HOOK_PROMPTS[gameState.history.length % HOOK_PROMPTS.length]
+                    : 'Next track incoming...'}
                 </div>
 
                 {gameState.nowPlaying && (
-                  <div className="p-[clamp(12px,1.6vw,22px)] rounded-2xl lg:rounded-3xl bg-black/45 border border-[var(--scene-c)]/35 backdrop-blur-xl max-w-3xl shadow-xl animate-[fadeIn_0.5s_ease-out] group">
+                  <div className="relative z-30 p-[clamp(12px,1.6vw,22px)] rounded-2xl lg:rounded-3xl bg-black/60 border border-[var(--scene-c)]/50 backdrop-blur-xl max-w-3xl shadow-[0_0_46px_rgba(var(--scene-c-rgb),0.22),0_10px_40px_rgba(0,0,0,0.5)] animate-[fadeIn_0.5s_ease-out] group">
                     <div className="flex flex-wrap items-center justify-between mb-2 border-b border-white/10 pb-2 gap-2">
                       <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-[10px] sm:text-xs uppercase tracking-widest">
                         <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)] animate-pulse" />
@@ -839,7 +860,7 @@ export default function Visualizer() {
             {/* Compact visualizer and countdown zone */}
             <div className="relative z-20 flex-none rounded-2xl lg:rounded-3xl border border-white/10 bg-black/25 px-3 sm:px-5 pt-2 sm:pt-3 pb-3 sm:pb-4">
               <div className="relative w-full h-[clamp(64px,12vh,132px)] mb-2 sm:mb-3 overflow-hidden">
-                <div className="mb-visualizer-sweep absolute -top-[15%] bottom-0 left-0 z-20 w-[18%] bg-gradient-to-r from-transparent via-white/25 to-transparent blur-md pointer-events-none" />
+                <div className="mb-visualizer-sweep absolute inset-y-0 left-0 z-20 w-1/4 bg-gradient-to-r from-transparent via-white/20 to-transparent blur-md pointer-events-none" />
                 <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1 sm:gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
                   {Array.from({ length: 32 }).map((_, i) => (
                     <div
@@ -907,39 +928,54 @@ export default function Visualizer() {
       {/* Floating Reactions */}
       {createPortal(
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          {reactions.map((reaction, i) => {
-            // generate a deterministic pseudo-random start position from 5% to 95%
-            const charCode = reaction.id.charCodeAt(0) || 50;
-            const charCode2 = reaction.id.charCodeAt(1) || 50;
-            const leftPercent = 5 + ((charCode * 7 + i * 13) % 90);
-            
-            // deterministic rotation
-            const rot = ((charCode * 3 + i * 7) % 60) - 30; // -30 to 30
-            
-            // Adjust scale based on volume of reactions
-            const scale = reactions.length > 20 ? 0.6 : (reactions.length > 10 ? 0.8 : 1.0);
-            
-            // Stagger the animations so they don't all appear exactly at the same moment
-            const delay = ((charCode + charCode2 + i) % 15) * 0.15;
-            
-            return (
-              <div 
-                key={reaction.id}
-                className="absolute bottom-[-100px] text-center flex flex-col items-center animate-emojiFloat"
-                style={{
-                  left: `${leftPercent}%`,
-                  '--rot': `${rot}deg`,
-                  animationDelay: `${delay}s`,
-                  transform: `scale(${scale})`
-                } as React.CSSProperties}
-              >
-                <div className="text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
-                <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
-                  {reaction.playerName}
+          {(() => {
+            const N = reactions.length;
+            // Number of vertical "lanes" scales with the crowd so we never cram
+            // everyone into the same few columns. Clamped to keep things sane.
+            const lanes = Math.min(16, Math.max(6, Math.ceil(Math.sqrt(N) * 2)));
+            // Widen the launch window as more people react so per-second density
+            // stays roughly constant instead of piling into a fixed ~2s window.
+            const launchWindow = Math.max(2.1, N * 0.12);
+
+            return reactions.map((reaction, i) => {
+              // Golden-angle horizontal spread (137.5°) — a low-discrepancy
+              // sequence, so consecutive items never cluster the way a fixed
+              // step (e.g. +13) can. Position depends only on index, not on the
+              // reaction id, so it's robust to low-entropy / sequential ids.
+              const leftPercent = 5 + ((i * 137.5) % 90);
+
+              // Round-robin lanes: items sharing a lane are spread across
+              // different launch times, so same-lane emojis never rise together.
+              const lane = i % lanes;
+              const row = Math.floor(i / lanes);
+              const delay = lane * (launchWindow / lanes) + row * 0.08;
+
+              // Shrink glyphs as the crowd grows — more effective horizontal
+              // room, and less visual overlap.
+              const scale = N > 25 ? 0.55 : N > 12 ? 0.75 : 1.0;
+
+              // Deterministic tilt for variety.
+              const rot = ((i * 47) % 60) - 30; // -30 to 30
+
+              return (
+                <div
+                  key={reaction.id}
+                  className="absolute bottom-[-100px] text-center flex flex-col items-center animate-emojiFloat"
+                  style={{
+                    left: `${leftPercent}%`,
+                    '--rot': `${rot}deg`,
+                    animationDelay: `${delay}s`,
+                    transform: `scale(${scale})`
+                  } as React.CSSProperties}
+                >
+                  <div className="text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
+                  <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
+                    {reaction.playerName}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>,
         document.body
       )}
