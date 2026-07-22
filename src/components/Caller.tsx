@@ -3,8 +3,155 @@ import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNo
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
-import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, Lightbulb, MessageSquareQuote, Maximize2, Minimize2 } from 'lucide-react';
+import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Maximize2, Minimize2, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { playCallSound } from '../lib/soundEffects';
+
+type HostCue = {
+  kicker: string;
+  title: string;
+  script: string;
+  followUp?: string;
+};
+
+const STANDARD_DJ_LINES = [
+  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
+    `Track ${trackNumber} is live. This is “${title}” by ${artist}. Listen for the hook, check every corner of that card, and mark it only if you have it.`,
+  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
+    `Alright music detectives, Track ${trackNumber} has entered the mix. You are hearing “${title}” from ${artist}. Find it, tap it, and keep that bingo line moving.`,
+  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
+    `Turn those ears all the way up. Track ${trackNumber} is “${title}” by ${artist}. If that song is sitting on your board, now is the time to lock it in.`,
+  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
+    `The next square could change everything. Track ${trackNumber} is “${title}” by ${artist}. Scan the board, trust your music memory, and make your move.`,
+  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
+    `We are keeping the party rolling with Track ${trackNumber}, “${title}” by ${artist}. Catch the chorus, hunt down the match, and stay ready to call bingo.`
+];
+
+function getPregameCues(activePlayers: number): HostCue[] {
+  const roomStatus = activePlayers > 0
+    ? `${activePlayers} player${activePlayers === 1 ? '' : 's'} are already checked in, and we are about to turn this room into a music party.`
+    : 'As everyone finishes joining, get your bingo card open and make sure you can hear the shared music.';
+
+  return [
+    {
+      kicker: 'Opening • Welcome the Room',
+      title: 'Welcome to Music Bingo',
+      script: `What is up, everybody! Welcome to Music Bingo, where your playlist knowledge meets a little bit of luck. ${roomStatus}`,
+      followUp: 'Tonight, you do not need to sing on key, know every artist, or have perfect dance moves. You just need to listen, find the songs on your card, and be ready to make some noise.'
+    },
+    {
+      kicker: 'Rules • Listen and Identify',
+      title: 'How Each Track Works',
+      script: 'I will play a short clip from one song at a time. Listen closely for the title, artist, chorus, or any clue that helps you recognize it.',
+      followUp: 'You can enjoy the music, but keep one eye on your card because the clips keep moving and every track could be the square you need.'
+    },
+    {
+      kicker: 'Rules • Mark the Card',
+      title: 'Find It and Tap It',
+      script: 'If the song appears anywhere on your five-by-five card, tap that tile to mark it. Your center FREE space is already marked and ready to help you.',
+      followUp: 'Only mark songs that have actually played. You can tap a tile again to unmark it if you make a mistake.'
+    },
+    {
+      kicker: 'Rules • Call Bingo',
+      title: 'How to Win',
+      script: 'Complete five marked tiles in one horizontal, vertical, or diagonal line. The moment your line is complete, hit the CALL BINGO button on your board.',
+      followUp: 'Your card comes straight to the host desk for verification, so do not wait, do not whisper it, and definitely do not let somebody else beat you to the button.'
+    },
+    {
+      kicker: 'Final Check • Build the Energy',
+      title: 'Ready to Start the Show',
+      script: 'Use the reaction button during the game to send some energy to the big screen. Fire, dancing, rock hands, whatever matches the moment, let us see it.',
+      followUp: 'Cards ready? Volume up? Competitive spirit activated? Then let us start Music Bingo!'
+    }
+  ];
+}
+
+function getLiveHostCue(
+  gameState: GameState | null,
+  claims: Claim[],
+  poolLength: number,
+  variation: number
+): HostCue {
+  if (!gameState?.started) {
+    return {
+      kicker: 'Lobby Open',
+      title: 'Welcome the Players',
+      script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.',
+      followUp: 'Open the full teleprompter for the complete introduction and rules before starting the round.'
+    };
+  }
+
+  const sessionClaims = claims.filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId);
+  const validClaims = sessionClaims.filter(claim => claim.status === 'valid');
+  const latestWinner = validClaims.slice().sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0];
+
+  if (latestWinner) {
+    return {
+      kicker: 'Winner Moment • Pause the Music',
+      title: 'We Have an Official Bingo',
+      script: `Hold everything! We have a verified bingo from ${latestWinner.playerName}. That card is official, that line is complete, and we have our winner!`,
+      followUp: 'Everybody light up the reactions and make some noise for our Music Bingo champion. Host note: pause the round and celebrate before resetting.'
+    };
+  }
+
+  if (!gameState.nowPlaying) {
+    return {
+      kicker: 'Game Live • First Track Ready',
+      title: 'Kick Off the Music',
+      script: 'The room is ready, the cards are live, and the only thing missing is the music. Let us drop the first track and get this game moving.',
+      followUp: 'Remind players to mark a square only when they hear a song that appears on their own card.'
+    };
+  }
+
+  const { title, artist } = splitSong(gameState.nowPlaying);
+  const trackNumber = gameState.history.length + 1;
+  const setNumber = Math.floor((trackNumber - 1) / 5) + 1;
+
+  if (trackNumber === 1) {
+    return {
+      kicker: 'Opening Drop • Track 01',
+      title: 'The Game Is Officially Live',
+      script: `Here we go! Your first track of the night is “${title}” by ${artist}. Find it on your card, tap it if you have it, and let the bingo hunt begin!`,
+      followUp: 'This is only the first square, so settle in, listen closely, and get familiar with your board.'
+    };
+  }
+
+  if (poolLength <= 5) {
+    return {
+      kicker: 'Final Stretch • Pressure Is Up',
+      title: 'Every Track Matters Now',
+      script: `We are deep in the final stretch. Track ${trackNumber} is “${title}” by ${artist}, and this could be the song that completes somebody’s line.`,
+      followUp: 'Check those near-bingo squares carefully. If five are connected, hit CALL BINGO immediately.'
+    };
+  }
+
+  if (trackNumber > 1 && trackNumber % 5 === 1) {
+    return {
+      kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`,
+      title: 'Fresh Set, Fresh Chances',
+      script: `New set, new energy! Track ${trackNumber} is “${title}” by ${artist}. Reset your focus, scan that whole board, and see where this next run takes you.`,
+      followUp: 'If you are one square away, this is your reminder that the next few tracks can change everything.'
+    };
+  }
+
+  if (trackNumber % 5 === 0) {
+    return {
+      kicker: `Milestone • ${trackNumber} Tracks Called`,
+      title: 'Board Check',
+      script: `That brings us to Track ${trackNumber}, “${title}” by ${artist}. Take a quick look across your full card because a winning line can sneak up on you.`,
+      followUp: 'Check rows, columns, and both diagonals. If you see five connected marks, call it now.'
+    };
+  }
+
+  const line = STANDARD_DJ_LINES[Math.abs(variation) % STANDARD_DJ_LINES.length];
+  return {
+    kicker: `Live Mix • Track ${String(trackNumber).padStart(2, '0')}`,
+    title: 'DJ Talk Track',
+    script: line({ title, artist, trackNumber }),
+    followUp: trackNumber >= 12
+      ? 'We are far enough into the round that every mark matters. Watch for a complete row, column, or diagonal.'
+      : 'Stay patient, keep the board clean, and remember that the center FREE space is already working for you.'
+  };
+}
  
 export default function Caller() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -22,6 +169,8 @@ export default function Caller() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showTeleprompter, setShowTeleprompter] = useState(false);
   const [scriptFontSize, setScriptFontSize] = useState<'normal' | 'large' | 'xl'>('large');
+  const [teleprompterStep, setTeleprompterStep] = useState(0);
+  const [cueVariation, setCueVariation] = useState(0);
   
   // Auto-Caller Mode state
   const [autoCallerActive, setAutoCallerActive] = useState(false);
@@ -114,6 +263,7 @@ export default function Caller() {
   }, [volume, isAudioLocked]);
  
   const handleStartGame = async () => {
+    setCueVariation(0);
     await startNewGame();
   };
  
@@ -124,6 +274,9 @@ export default function Caller() {
   const confirmResetGame = async () => {
     setShowResetModal(false);
     setAutoCallerActive(false);
+    setShowTeleprompter(false);
+    setTeleprompterStep(0);
+    setCueVariation(0);
     try {
       await resetGame();
       setPool(shuffle(songs));
@@ -148,6 +301,7 @@ export default function Caller() {
     try {
       await setNowPlaying(nextSong, nextHistory);
       setAutoCountdown(autoIntervalSeconds);
+      setCueVariation(0);
     } catch (e) {
       console.error('Could not call next track:', e);
     } finally {
@@ -156,6 +310,18 @@ export default function Caller() {
   };
  
   const validWinnersCount = claims.filter(c => c.status === 'valid').length;
+  const pregameCues = getPregameCues(activePlayers);
+  const currentPregameStep = Math.min(teleprompterStep, pregameCues.length - 1);
+  const activeHostCue = gameState?.started
+    ? getLiveHostCue(gameState, claims, pool.length, cueVariation)
+    : pregameCues[currentPregameStep];
+  const currentTrack = gameState?.nowPlaying ? splitSong(gameState.nowPlaying) : null;
+  const currentTrackNumber = gameState?.nowPlaying ? gameState.history.length + 1 : 0;
+  const teleprompterTextClass = scriptFontSize === 'normal'
+    ? 'text-lg sm:text-xl md:text-2xl'
+    : scriptFontSize === 'large'
+      ? 'text-xl sm:text-2xl md:text-4xl'
+      : 'text-2xl sm:text-3xl md:text-5xl';
  
   return (
     <div className="host-shell min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans p-3 sm:p-4 xl:p-5 relative overflow-x-hidden selection:bg-[#ff4fd8] selection:text-white">
@@ -216,67 +382,100 @@ export default function Caller() {
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).artist : (gameState?.started ? "Click 'Play First Song' to begin" : 'Waiting to start the game')}
           </div>
  
-          {/* Host Mic Script & Fun Fact */}
-          {gameState?.nowPlaying && (
-            <div className="host-script-card w-full max-w-[660px] mb-4 p-4 sm:p-5 bg-black/55 border border-[#33d8ff]/28 rounded-2xl text-left relative overflow-hidden shadow-xl backdrop-blur-md">
-              <div className="flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
-                <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-[11px] sm:text-xs uppercase tracking-widest">
-                  <Lightbulb className="w-4 h-4 text-[#33d8ff]" />
-                  <span>Host Mic Script & Trivia</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] font-bold">
-                    <button 
-                      onClick={() => setScriptFontSize('normal')} 
-                      className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
-                      title="Standard text size"
-                    >
-                      A
-                    </button>
-                    <button 
-                      onClick={() => setScriptFontSize('large')} 
-                      className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
-                      title="Large text size"
-                    >
-                      A+
-                    </button>
-                    <button 
-                      onClick={() => setScriptFontSize('xl')} 
-                      className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
-                      title="Extra Large text size"
-                    >
-                      A++
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setShowTeleprompter(true)}
-                    className="px-2.5 py-1.5 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
-                    title="Open Fullscreen Host Teleprompter"
+          {/* Dynamic Host Mic Script, DJ Talk Track & Trivia */}
+          <div className="host-script-card w-full max-w-[700px] mb-4 p-4 sm:p-5 bg-black/55 border border-[#33d8ff]/28 rounded-2xl text-left relative overflow-hidden shadow-xl backdrop-blur-md">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.10),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.08),transparent_32%)]" />
+            <div className="relative flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
+              <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-[11px] sm:text-xs uppercase tracking-widest">
+                <Mic2 className="w-4 h-4 text-[#33d8ff]" />
+                <span>{activeHostCue.kicker}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] font-bold">
+                  <button 
+                    onClick={() => setScriptFontSize('normal')} 
+                    className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                    title="Standard text size"
                   >
-                    <Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Teleprompter</span>
+                    A
+                  </button>
+                  <button 
+                    onClick={() => setScriptFontSize('large')} 
+                    className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                    title="Large text size"
+                  >
+                    A+
+                  </button>
+                  <button 
+                    onClick={() => setScriptFontSize('xl')} 
+                    className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                    title="Extra Large text size"
+                  >
+                    A++
                   </button>
                 </div>
-              </div>
-              <div className="host-script-copy max-h-[190px] overflow-y-auto custom-scrollbar pr-1">
-                <p className={`text-white/95 leading-relaxed m-0 transition-all ${
-                  scriptFontSize === 'normal' ? 'text-sm md:text-base font-medium' : 
-                  scriptFontSize === 'large' ? 'text-base md:text-lg xl:text-xl font-semibold' : 'text-lg md:text-xl xl:text-2xl font-bold'
-                }`}>
-                  "{getSongFact(gameState.nowPlaying)}"
-                </p>
+                {gameState?.nowPlaying && (
+                  <button
+                    onClick={() => setCueVariation(prev => prev + 1)}
+                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+                    title="Show another DJ line"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowTeleprompter(true)}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
+                  title="Open Fullscreen Host Teleprompter"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Teleprompter</span>
+                </button>
               </div>
             </div>
-          )}
+            <div className="relative host-script-copy max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ffd76a] mb-1.5">
+                {activeHostCue.title}
+              </div>
+              <p className={`text-white/95 leading-relaxed m-0 transition-all ${
+                scriptFontSize === 'normal' ? 'text-sm md:text-base font-medium' : 
+                scriptFontSize === 'large' ? 'text-base md:text-lg xl:text-xl font-semibold' : 'text-lg md:text-xl xl:text-2xl font-bold'
+              }`}>
+                “{activeHostCue.script}”
+              </p>
+              {activeHostCue.followUp && (
+                <p className="mt-2.5 mb-0 text-xs sm:text-sm leading-relaxed text-white/60 font-medium border-l-2 border-[#ff4fd8]/45 pl-3">
+                  Optional follow-up: “{activeHostCue.followUp}”
+                </p>
+              )}
+              {gameState?.nowPlaying && (
+                <div className="mt-3 rounded-xl border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] px-3 py-2 text-[11px] sm:text-xs leading-relaxed text-white/72">
+                  <span className="font-black uppercase tracking-wider text-[#ffd76a]">Bonus trivia:</span>{' '}
+                  {getSongFact(gameState.nowPlaying)}
+                </div>
+              )}
+            </div>
+          </div>
  
           {/* Action Controls & Auto-Caller Switch */}
           <div className="host-actions w-full max-w-[560px] flex flex-col gap-3">
             {!gameState?.started ? (
-              <button 
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-sm md:text-base font-black tracking-widest uppercase hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_26px_rgba(255,79,216,0.36)]"
-                onClick={handleStartGame}
-              >
-                Start Game
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  className="w-full py-4 rounded-2xl bg-black/35 hover:bg-[#33d8ff]/15 border border-[#33d8ff]/35 text-[#7fe8ff] text-sm font-black tracking-widest uppercase transition-all cursor-pointer flex items-center justify-center gap-2 shadow-inner"
+                  onClick={() => {
+                    setTeleprompterStep(0);
+                    setShowTeleprompter(true);
+                  }}
+                >
+                  <Mic2 className="w-5 h-5" /> Open DJ Intro
+                </button>
+                <button 
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-sm md:text-base font-black tracking-widest uppercase hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_26px_rgba(255,79,216,0.36)]"
+                  onClick={handleStartGame}
+                >
+                  <Play className="w-5 h-5 fill-current" /> Start Game
+                </button>
+              </div>
             ) : (
               <>
                 <button 
@@ -489,55 +688,160 @@ export default function Caller() {
         </div>
       )}
  
-      {/* Fullscreen Host Teleprompter Modal */}
-      {showTeleprompter && gameState?.nowPlaying && (
-        <div className="fixed inset-0 bg-[#0a0b1e]/95 backdrop-blur-2xl z-[600] flex flex-col p-4 sm:p-6 md:p-10 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
-          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-between">
-            <div className="flex items-center justify-between pb-6 border-b border-white/20 mb-6">
-              <div className="flex items-center gap-3 text-[#33d8ff]">
-                <Lightbulb className="w-8 h-8 text-[#33d8ff] animate-pulse" />
-                <span className="font-black text-lg md:text-2xl uppercase tracking-widest text-white">
-                  Host Stage Teleprompter
-                </span>
-              </div>
-              <button
-                onClick={() => setShowTeleprompter(false)}
-                className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold cursor-pointer flex items-center gap-2 text-xs uppercase tracking-wider transition-colors"
-              >
-                <Minimize2 className="w-5 h-5" /> Close
-              </button>
-            </div>
- 
-            <div className="my-auto py-6">
-              <div className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-[#ff4fd8] mb-2">
-                Currently Calling Track:
-              </div>
-              <h2 className="text-3xl md:text-6xl font-black text-white tracking-tight mb-1">
-                {splitSong(gameState.nowPlaying).title}
-              </h2>
-              <div className="text-xl md:text-3xl font-bold text-[#33d8ff] mb-8">
-                {splitSong(gameState.nowPlaying).artist}
-              </div>
- 
-              <div className="p-6 md:p-9 bg-black/80 border-2 border-[#33d8ff]/50 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.2)]">
-                <div className="text-xs md:text-sm font-black uppercase tracking-widest text-[#ffd76a] mb-4 flex items-center gap-2">
-                  <MessageSquareQuote className="w-5 h-5 text-[#ffd76a]" />
-                  Mic Script & Song Trivia
+      {/* Fullscreen Dynamic Host Teleprompter Modal */}
+      {showTeleprompter && gameState && (
+        <div className="fixed inset-0 bg-[#070914]/96 backdrop-blur-2xl z-[600] flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+          <div className="max-w-5xl mx-auto w-full min-h-full flex flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/20 mb-5">
+              <div className="flex items-center gap-3 text-[#33d8ff] min-w-0">
+                <div className="p-2.5 rounded-2xl border border-[#33d8ff]/30 bg-[#33d8ff]/10 shadow-[0_0_24px_rgba(51,216,255,0.15)]">
+                  <Mic2 className="w-6 h-6 md:w-7 md:h-7 text-[#33d8ff]" />
                 </div>
-                <p className="text-xl sm:text-2xl md:text-4xl text-white font-bold leading-relaxed m-0 text-balance">
-                  "{getSongFact(gameState.nowPlaying)}"
-                </p>
+                <div className="min-w-0">
+                  <span className="block font-black text-base md:text-xl uppercase tracking-widest text-white truncate">
+                    Host DJ Teleprompter
+                  </span>
+                  <span className="block mt-1 text-[10px] md:text-xs font-bold uppercase tracking-[0.24em] text-white/45">
+                    {!gameState.started ? `Opening cue ${currentPregameStep + 1} of ${pregameCues.length}` : currentTrack ? `Live • Track ${String(currentTrackNumber).padStart(2, '0')}` : 'Game live • First track ready'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center bg-white/10 rounded-xl p-0.5 border border-white/10 text-xs font-bold">
+                  <button onClick={() => setScriptFontSize('normal')} className={`px-2.5 py-1.5 rounded-lg ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black' : 'text-white/70 hover:text-white'}`}>A</button>
+                  <button onClick={() => setScriptFontSize('large')} className={`px-2.5 py-1.5 rounded-lg ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black' : 'text-white/70 hover:text-white'}`}>A+</button>
+                  <button onClick={() => setScriptFontSize('xl')} className={`px-2.5 py-1.5 rounded-lg ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black' : 'text-white/70 hover:text-white'}`}>A++</button>
+                </div>
+                <button
+                  onClick={() => setShowTeleprompter(false)}
+                  className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold cursor-pointer flex items-center gap-2 text-xs uppercase tracking-wider transition-colors"
+                >
+                  <Minimize2 className="w-5 h-5" /> <span className="hidden sm:inline">Close</span>
+                </button>
               </div>
             </div>
+
+            {!gameState.started && (
+              <div className="mb-5 grid grid-cols-5 gap-2" aria-label="Introduction progress">
+                {pregameCues.map((cue, index) => (
+                  <button
+                    key={cue.title}
+                    onClick={() => setTeleprompterStep(index)}
+                    className={`h-2 rounded-full transition-all cursor-pointer ${index === currentPregameStep ? 'bg-gradient-to-r from-[#ff4fd8] to-[#33d8ff] shadow-[0_0_14px_rgba(51,216,255,0.4)]' : index < currentPregameStep ? 'bg-white/35' : 'bg-white/10 hover:bg-white/20'}`}
+                    title={`Cue ${index + 1}: ${cue.title}`}
+                    aria-label={`Open cue ${index + 1}: ${cue.title}`}
+                  />
+                ))}
+              </div>
+            )}
  
-            <div className="pt-6 border-t border-white/20 flex justify-between items-center text-xs md:text-sm text-white/60 font-bold uppercase tracking-widest">
-              <span>Press Close or Done to exit</span>
-              <button 
-                onClick={() => setShowTeleprompter(false)}
-                className="px-6 py-3 rounded-xl bg-[#33d8ff] text-black font-black uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                Done Reading
-              </button>
+            <div className="flex-1 flex flex-col justify-center py-3 md:py-6">
+              <div className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-[#ff4fd8] mb-2">
+                {activeHostCue.kicker}
+              </div>
+
+              {currentTrack ? (
+                <>
+                  <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-1 text-balance">
+                    {currentTrack.title}
+                  </h2>
+                  <div className="text-lg sm:text-xl md:text-3xl font-bold text-[#33d8ff] mb-5 md:mb-7">
+                    {currentTrack.artist}
+                  </div>
+                </>
+              ) : (
+                <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-5 md:mb-7 text-balance">
+                  {activeHostCue.title}
+                </h2>
+              )}
+ 
+              <div className="relative p-5 sm:p-7 md:p-9 bg-black/70 border-2 border-[#33d8ff]/45 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.16)] overflow-hidden">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.10),transparent_35%)]" />
+                <div className="relative text-xs md:text-sm font-black uppercase tracking-widest text-[#ffd76a] mb-4 flex items-center gap-2">
+                  <MessageSquareQuote className="w-5 h-5 text-[#ffd76a]" />
+                  Read On Mic
+                </div>
+                <p className={`relative text-white font-bold leading-[1.35] m-0 text-balance ${teleprompterTextClass}`}>
+                  “{activeHostCue.script}”
+                </p>
+                {activeHostCue.followUp && (
+                  <div className="relative mt-5 pt-5 border-t border-white/15">
+                    <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.24em] text-[#ff4fd8] mb-2">Optional Follow-Up</div>
+                    <p className="text-base sm:text-lg md:text-2xl text-white/72 font-semibold leading-relaxed m-0 text-balance">
+                      “{activeHostCue.followUp}”
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {gameState.nowPlaying && (
+                <div className="mt-4 rounded-2xl border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] p-4 text-sm md:text-base leading-relaxed text-white/70">
+                  <span className="font-black uppercase tracking-wider text-[#ffd76a]">Song trivia:</span>{' '}
+                  {getSongFact(gameState.nowPlaying)}
+                </div>
+              )}
+            </div>
+ 
+            <div className="pt-5 mt-4 border-t border-white/20 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+              {!gameState.started ? (
+                <>
+                  <button
+                    onClick={() => setTeleprompterStep(prev => Math.max(0, prev - 1))}
+                    disabled={currentPregameStep === 0}
+                    className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Previous Cue
+                  </button>
+                  <span className="text-center text-xs text-white/45 font-bold uppercase tracking-[0.22em]">
+                    Cue {currentPregameStep + 1} of {pregameCues.length}
+                  </span>
+                  {currentPregameStep < pregameCues.length - 1 ? (
+                    <button
+                      onClick={() => setTeleprompterStep(prev => Math.min(pregameCues.length - 1, prev + 1))}
+                      className="px-5 py-3 rounded-xl bg-[#33d8ff] text-black font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      Next Cue <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleStartGame}
+                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(255,79,216,0.3)]"
+                    >
+                      <Play className="w-4 h-4 fill-current" /> Start Game
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="text-xs md:text-sm text-white/50 font-bold uppercase tracking-widest text-center sm:text-left">
+                    {currentTrack ? 'Use a fresh line whenever you want more variety.' : 'The players are ready for the opening track.'}
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    {currentTrack ? (
+                      <button
+                        onClick={() => setCueVariation(prev => prev + 1)}
+                        className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" /> New DJ Line
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleCallNext}
+                        disabled={callInFlight || pool.length === 0}
+                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <Disc className="w-4 h-4" /> Play First Song
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setShowTeleprompter(false)}
+                      className="px-6 py-3 rounded-xl bg-[#33d8ff] text-black font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer"
+                    >
+                      Done Reading
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
