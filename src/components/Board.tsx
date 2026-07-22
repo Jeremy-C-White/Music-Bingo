@@ -3,7 +3,7 @@ import { subscribeToGameState, submitClaim, pingPresence } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, WIN_PATTERNS, getSongFact } from '../lib/data';
 import confetti from 'canvas-confetti';
-import { BookOpen, Disc, Sparkles, Check, HelpCircle, X, Search, Volume2, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
+import { BookOpen, Disc, Sparkles, Check, HelpCircle, X, Search, Volume2, Lightbulb, ChevronDown, ChevronUp, Share2 } from 'lucide-react';
 import { playPopSound, playNearWinChime, playBingoFanfare } from '../lib/soundEffects';
 
 const BOARD_STATE_KEY = 'music_bingo_board_state_v3';
@@ -47,14 +47,15 @@ export default function Board() {
 
   useEffect(() => {
     const storedName = localStorage.getItem(PLAYER_NAME_KEY);
-    if (storedName) setPlayerName(storedName.trim());
+    const activeName = storedName ? storedName.trim() : playerName.trim();
+    if (storedName && !playerName) setPlayerName(storedName.trim());
 
-    
     const unsubscribe = subscribeToGameState((state) => {
       setGameState(state);
-      
-      // If game ended, clear board state if session changed
-      if (state && state.sessionId) {
+      if (!state) return;
+
+      // Handle session reset / session change
+      if (state.sessionId) {
         const stored = localStorage.getItem(BOARD_STATE_KEY);
         if (stored) {
           try {
@@ -68,19 +69,22 @@ export default function Board() {
           } catch (e) {}
         }
       }
-      
-      if (state?.started && waiting) {
-        setInLobby(false);
-        setWaiting(false);
-        initBoard(state.sessionId);
-      } else if (!state?.started && !inLobby) {
+
+      // Auto-enter game if started and player name is set
+      if (state.started) {
+        if (activeName.length >= 2) {
+          setInLobby(false);
+          setWaiting(false);
+          initBoard(state.sessionId);
+        }
+      } else {
         setInLobby(true);
         setWaiting(true);
       }
     });
-    
+
     return () => unsubscribe();
-  }, [waiting, inLobby]);
+  }, [playerName]);
   
   useEffect(() => {
     if (boardSongs.length > 0) {
@@ -93,6 +97,15 @@ export default function Board() {
     setTimeout(() => {
       setToastMsg(prev => prev?.id === toastMsg?.id ? null : prev);
     }, 2200);
+  };
+
+  const copyShareLink = () => {
+    const shareUrl = window.location.href;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast('🔗 Direct Board link copied to clipboard!');
+    }).catch(() => {
+      showToast('🔗 Direct Board link: ' + shareUrl);
+    });
   };
 
   const joinLobby = () => {
@@ -307,6 +320,14 @@ export default function Board() {
             <span className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-white">
               👤 {playerName}
             </span>
+
+            <button 
+              onClick={copyShareLink} 
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer text-[#ffd76a]"
+              title="Share direct link to this bingo board"
+            >
+              <Share2 size={14} /> <span className="hidden sm:inline">Share Link</span>
+            </button>
 
             <button 
               onClick={() => setShowRulesModal(true)} 

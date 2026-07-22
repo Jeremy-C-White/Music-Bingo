@@ -3,7 +3,7 @@ import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive } fro
 import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
-import { Music, Volume2, VolumeX, Sparkles, Trophy, Disc, Radio, Settings, Lightbulb } from 'lucide-react';
+import { Music, Volume2, VolumeX, Sparkles, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame } from 'lucide-react';
 
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -12,6 +12,7 @@ export default function Visualizer() {
   
   const [themeIndex, setThemeIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
+  const [triviaScale, setTriviaScale] = useState<'normal' | 'large' | 'huge'>('large');
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [showAudioPanel, setShowAudioPanel] = useState(false);
@@ -330,19 +331,79 @@ export default function Visualizer() {
       </div>
 
       {!gameState?.started && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-5 text-center bg-transparent">
-          <div className="w-full max-w-[720px] flex flex-col items-center">
-             <div className="relative inline-block mb-6 text-center select-none">
-               <h1 className="text-[clamp(50px,10vw,120px)] font-black leading-[0.9] tracking-tighter uppercase m-0 flex flex-col items-center">
-                 <span className="bg-gradient-to-r from-white via-[var(--scene-a)] to-white bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(51,216,255,0.4)] z-20 px-5">MUSIC</span>
-                 <span className="bg-gradient-to-r from-[var(--scene-b)] via-[var(--scene-c)] to-[var(--scene-b)] bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,79,216,0.5)] z-20 px-5">BINGO</span>
-               </h1>
-             </div>
-             <div className="text-[var(--scene-a)] text-xs font-bold tracking-[0.32em] uppercase mb-5">Stage Screen Ready</div>
-             <h3 className="text-white text-[clamp(28px,4vmin,50px)] leading-[1.1] tracking-tight font-black m-0 mb-4 drop-shadow-lg">
-               Waiting for Host to Launch Game...
-             </h3>
-           </div>
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-transparent overflow-hidden">
+          
+          {/* Creative Party Effects - Spotlights & Floating Notes */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+            {/* Spotlights */}
+            <div className="absolute -top-[20%] left-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#33d8ff]/30 to-transparent origin-top animate-[spotlight_8s_ease-in-out_infinite_alternate] blur-2xl"></div>
+            <div className="absolute -top-[20%] right-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#ff4fd8]/30 to-transparent origin-top animate-[spotlight_10s_ease-in-out_infinite_alternate-reverse] blur-2xl"></div>
+            
+            {/* Floating Notes */}
+            <div className="absolute top-1/4 left-[15%] animate-[float_15s_linear_infinite] opacity-30 text-[#ffd76a]">
+              <Music size={48} />
+            </div>
+            <div className="absolute top-2/3 left-[10%] animate-[float_12s_linear_infinite_reverse] opacity-20 text-[#33d8ff]">
+              <Music size={32} />
+            </div>
+            <div className="absolute top-[30%] right-[15%] animate-[float_18s_linear_infinite] opacity-40 text-[#ff4fd8]">
+              <Music size={64} />
+            </div>
+            <div className="absolute bottom-[20%] right-[10%] animate-[float_14s_linear_infinite_reverse] opacity-20 text-white">
+              <Music size={24} />
+            </div>
+            <div className="absolute top-[15%] left-[45%] animate-[float_20s_linear_infinite] opacity-25 text-white/50">
+              <Music size={40} />
+            </div>
+          </div>
+
+          <div className="w-full max-w-[800px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10">
+            
+            {/* Spinning Vinyl Record Emblem */}
+            <div className="relative mb-12 group">
+              <div className="absolute -inset-6 rounded-full bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] opacity-40 blur-2xl group-hover:opacity-60 transition-opacity animate-pulse"></div>
+              
+              <div className="w-36 h-36 md:w-48 md:h-48 rounded-full bg-gradient-to-br from-[#1a0826] to-[#050814] border-[4px] border-white/20 flex items-center justify-center shadow-[0_0_60px_rgba(255,79,216,0.5)] relative z-10 overflow-hidden animate-[spin_4s_linear_infinite]">
+                {/* Vinyl Record Grooves */}
+                <div className="absolute inset-2 rounded-full border border-white/10"></div>
+                <div className="absolute inset-5 rounded-full border border-white/10"></div>
+                <div className="absolute inset-8 rounded-full border border-white/10"></div>
+                <div className="absolute inset-[44px] rounded-full border border-white/10"></div>
+                
+                {/* Center Label */}
+                <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-[#ff4fd8] to-[#33d8ff] flex items-center justify-center relative shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+                   <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-[#050814] shadow-inner"></div>
+                </div>
+              </div>
+              
+              {/* Inner Floating Icon (doesn't spin with the record) */}
+              <Music className="w-10 h-10 md:w-12 md:h-12 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 animate-pulse drop-shadow-lg pointer-events-none" />
+            </div>
+
+            {/* Stage Screen Tag */}
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[#ff4fd8]/40 bg-[#ff4fd8]/15 text-[#ff4fd8] text-xs md:text-sm font-black tracking-[0.25em] uppercase mb-6 shadow-[0_0_20px_rgba(255,79,216,0.3)] backdrop-blur-md">
+              <Flame className="w-4 h-4 text-[#ffd76a] animate-bounce" />
+              The Ultimate Party Game • Stage Screen Ready
+            </div>
+
+            {/* Giant Music Bingo Title */}
+            <div className="relative inline-block mb-6 text-center select-none">
+              <h1 className="text-[clamp(56px,11vw,130px)] font-black leading-[0.9] tracking-tighter uppercase m-0 flex flex-col items-center drop-shadow-2xl">
+                <span className="bg-gradient-to-r from-white via-[#33d8ff] to-white bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(51,216,255,0.5)] z-20 px-5">MUSIC</span>
+                <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#ffd76a] bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_35px_rgba(255,79,216,0.6)] z-20 px-5">BINGO</span>
+              </h1>
+            </div>
+
+            <p className="text-white/80 text-lg md:text-2xl leading-relaxed tracking-tight font-medium max-w-xl m-0 mb-6 drop-shadow-md">
+              Waiting for Host to Launch the Next Game...
+            </p>
+
+            <div className="flex items-center gap-3 px-6 py-2.5 rounded-full bg-white/10 border border-white/15 text-xs md:text-sm text-white/90 font-bold backdrop-blur-md shadow-lg">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#4ade80] animate-pulse shadow-[0_0_12px_#4ade80]"></span>
+              Live Stage Sync Active
+            </div>
+
+          </div>
         </div>
       )}
 
@@ -396,12 +457,25 @@ export default function Visualizer() {
 
                 {/* Stage Screen Song Fun Fact Teaser */}
                 {gameState.nowPlaying && (
-                  <div className="mt-4 p-4 rounded-2xl bg-black/40 border border-[var(--scene-c)]/30 backdrop-blur-md max-w-2xl animate-[fadeIn_0.5s_ease-out]">
-                    <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-xs uppercase tracking-widest mb-1.5">
-                      <Lightbulb className="w-4 h-4 text-[var(--scene-c)] animate-pulse" />
-                      Did You Know? (Song Trivia)
+                  <div className="mt-6 p-5 md:p-8 rounded-3xl bg-black/60 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl max-w-3xl shadow-2xl animate-[fadeIn_0.5s_ease-out]">
+                    <div className="flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2 gap-2">
+                      <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-xs md:text-sm uppercase tracking-widest">
+                        <Lightbulb className="w-5 h-5 text-[var(--scene-c)] animate-pulse" />
+                        <span>Did You Know? (Song Trivia)</span>
+                      </div>
+                      <button 
+                        onClick={() => setTriviaScale(prev => prev === 'normal' ? 'large' : prev === 'large' ? 'huge' : 'normal')}
+                        className="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                        title="Adjust text size for venue TV/projector screens"
+                      >
+                        <Type className="w-3.5 h-3.5 text-[var(--scene-c)]" /> <span className="hidden sm:inline">Text Size:</span> <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>
+                      </button>
                     </div>
-                    <p className="text-xs md:text-sm text-white/90 leading-relaxed font-medium m-0">
+                    <p className={`text-white/95 leading-relaxed font-bold m-0 transition-all ${
+                      triviaScale === 'normal' ? 'text-sm md:text-lg' :
+                      triviaScale === 'large' ? 'text-base md:text-2xl xl:text-3xl' :
+                      'text-lg md:text-3xl xl:text-4xl'
+                    }`}>
                       "{getSongFact(gameState.nowPlaying)}"
                     </p>
                   </div>

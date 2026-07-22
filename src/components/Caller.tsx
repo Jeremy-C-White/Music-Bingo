@@ -3,7 +3,7 @@ import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNo
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
-import { Disc, Play, Pause, RotateCcw, Volume2, Search, Zap, Radio, Trophy, CheckCircle, AlertTriangle, XCircle, Sparkles, Clock, Lightbulb, MessageSquareQuote } from 'lucide-react';
+import { Disc, Play, Pause, RotateCcw, Volume2, Search, Zap, Radio, Trophy, CheckCircle, AlertTriangle, XCircle, Sparkles, Clock, Lightbulb, MessageSquareQuote, Maximize2, Minimize2 } from 'lucide-react';
 import { playCallSound } from '../lib/soundEffects';
 
 export default function Caller() {
@@ -19,6 +19,9 @@ export default function Caller() {
   const [isAudioLocked, setIsAudioLocked] = useState(false);
   
   const [showPreviewModal, setShowPreviewModal] = useState<Claim | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showTeleprompter, setShowTeleprompter] = useState(false);
+  const [scriptFontSize, setScriptFontSize] = useState<'normal' | 'large' | 'xl'>('large');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Auto-Caller Mode state
@@ -115,11 +118,18 @@ export default function Caller() {
     await startNewGame();
   };
 
-  const handleResetGame = async () => {
-    if (confirm('Are you sure you want to end this round and reset the game?')) {
-      setAutoCallerActive(false);
+  const handleResetGame = () => {
+    setShowResetModal(true);
+  };
+
+  const confirmResetGame = async () => {
+    setShowResetModal(false);
+    setAutoCallerActive(false);
+    try {
       await resetGame();
       setPool(shuffle(songs));
+    } catch (e) {
+      console.error('Failed to reset game:', e);
     }
   };
 
@@ -140,8 +150,7 @@ export default function Caller() {
       await setNowPlaying(nextSong, nextHistory);
       setAutoCountdown(autoIntervalSeconds);
     } catch (e) {
-      console.error(e);
-      alert('Could not call next track');
+      console.error('Could not call next track:', e);
     } finally {
       setCallInFlight(false);
     }
@@ -153,7 +162,7 @@ export default function Caller() {
     <div className="min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans p-4 md:p-6 relative overflow-hidden selection:bg-[#ff4fd8] selection:text-white">
       <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.16)_0%,transparent_28%),radial-gradient(ellipse_at_82%_20%,rgba(51,216,255,0.16)_0%,transparent_30%),radial-gradient(ellipse_at_50%_85%,rgba(139,92,246,0.16)_0%,transparent_34%),linear-gradient(135deg,#0b1020,#170f2e_55%,#09121f)] opacity-100 transition-all duration-1000 pointer-events-none"></div>
 
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 h-full lg:h-[calc(100vh-48px)] relative z-10">
+      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 min-h-screen lg:min-h-[calc(100vh-48px)] relative z-10">
         
         {/* Header (Span full width) */}
         <div className="col-span-1 lg:col-span-full flex flex-wrap justify-between items-center p-5 px-6 bg-[#131728]/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl md:rounded-3xl">
@@ -210,16 +219,53 @@ export default function Caller() {
 
           {/* Host Mic Script & Fun Fact */}
           {gameState?.nowPlaying && (
-            <div className="w-full max-w-[480px] mb-8 p-5 bg-black/40 border border-white/20 rounded-2xl text-left relative overflow-hidden group shadow-inner">
-              <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+            <div className="w-full max-w-[560px] mb-8 p-5 bg-black/60 border border-[#33d8ff]/30 rounded-2xl text-left relative overflow-hidden group shadow-2xl backdrop-blur-md">
+              <div className="flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
                 <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-xs uppercase tracking-widest">
                   <Lightbulb className="w-4 h-4 text-[#33d8ff]" />
                   <span>Host Mic Script & Trivia</span>
                 </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] font-bold">
+                    <button 
+                      onClick={() => setScriptFontSize('normal')} 
+                      className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      title="Standard text size"
+                    >
+                      A
+                    </button>
+                    <button 
+                      onClick={() => setScriptFontSize('large')} 
+                      className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      title="Large text size"
+                    >
+                      A+
+                    </button>
+                    <button 
+                      onClick={() => setScriptFontSize('xl')} 
+                      className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      title="Extra Large text size"
+                    >
+                      A++
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowTeleprompter(true)}
+                    className="px-2.5 py-1 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider"
+                    title="Open Fullscreen Host Teleprompter"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Teleprompter</span>
+                  </button>
+                </div>
               </div>
-              <p className="text-sm text-white/90 leading-relaxed font-medium m-0">
-                "{getSongFact(gameState.nowPlaying)}"
-              </p>
+              <div className="max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
+                <p className={`text-white/95 leading-relaxed m-0 transition-all ${
+                  scriptFontSize === 'normal' ? 'text-sm md:text-base font-medium' : 
+                  scriptFontSize === 'large' ? 'text-base md:text-xl font-semibold' : 'text-lg md:text-2xl font-bold'
+                }`}>
+                  "{getSongFact(gameState.nowPlaying)}"
+                </p>
+              </div>
             </div>
           )}
 
@@ -433,6 +479,91 @@ export default function Caller() {
 
             <div className="flex justify-end mt-8">
               <button onClick={() => setShowPreviewModal(null)} className="px-8 py-3 rounded-xl bg-white text-black text-xs font-black tracking-widest uppercase hover:bg-neutral-200 transition-colors cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.2)]">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* End Round & Reset Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-[#0a0b1e]/90 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#131728] border border-white/15 rounded-3xl p-6 text-center shadow-2xl relative overflow-hidden animate-[popIn2_0.2s_ease-out]">
+            <div className="w-12 h-12 rounded-full bg-[#f87171]/20 border border-[#f87171]/40 flex items-center justify-center mx-auto mb-4 text-[#f87171]">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-2xl font-black uppercase text-white mb-2">End Round & Reset Game?</h3>
+            <p className="text-white/70 text-xs leading-relaxed mb-6">
+              This will end the active round, clear all player bingo claims, and return connected players to the lobby to prepare for a fresh game.
+            </p>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowResetModal(false)}
+                className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmResetGame}
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-[#f87171] to-[#ef4444] text-white font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(248,113,113,0.4)] hover:opacity-90 transition-all cursor-pointer"
+              >
+                End & Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Host Teleprompter Modal */}
+      {showTeleprompter && gameState?.nowPlaying && (
+        <div className="fixed inset-0 bg-[#0a0b1e]/95 backdrop-blur-2xl z-[600] flex flex-col p-6 md:p-12 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-between">
+            <div className="flex items-center justify-between pb-6 border-b border-white/20 mb-6">
+              <div className="flex items-center gap-3 text-[#33d8ff]">
+                <Lightbulb className="w-8 h-8 text-[#33d8ff] animate-pulse" />
+                <span className="font-black text-lg md:text-2xl uppercase tracking-widest text-white">
+                  Host Stage Teleprompter
+                </span>
+              </div>
+              <button
+                onClick={() => setShowTeleprompter(false)}
+                className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold cursor-pointer flex items-center gap-2 text-xs uppercase tracking-wider transition-colors"
+              >
+                <Minimize2 className="w-5 h-5" /> Close
+              </button>
+            </div>
+
+            <div className="my-auto py-6">
+              <div className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-[#ff4fd8] mb-2">
+                Currently Calling Track:
+              </div>
+              <h2 className="text-3xl md:text-6xl font-black text-white tracking-tight mb-1">
+                {splitSong(gameState.nowPlaying).title}
+              </h2>
+              <div className="text-xl md:text-3xl font-bold text-[#33d8ff] mb-8">
+                {splitSong(gameState.nowPlaying).artist}
+              </div>
+
+              <div className="p-8 md:p-12 bg-black/80 border-2 border-[#33d8ff]/50 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.2)]">
+                <div className="text-xs md:text-sm font-black uppercase tracking-widest text-[#ffd76a] mb-4 flex items-center gap-2">
+                  <MessageSquareQuote className="w-5 h-5 text-[#ffd76a]" />
+                  Mic Script & Song Trivia
+                </div>
+                <p className="text-2xl md:text-4xl text-white font-bold leading-relaxed m-0 text-balance">
+                  "{getSongFact(gameState.nowPlaying)}"
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-white/20 flex justify-between items-center text-xs md:text-sm text-white/60 font-bold uppercase tracking-widest">
+              <span>Press Close or Done to exit</span>
+              <button 
+                onClick={() => setShowTeleprompter(false)}
+                className="px-6 py-3 rounded-xl bg-[#33d8ff] text-black font-black uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Done Reading
+              </button>
             </div>
           </div>
         </div>
