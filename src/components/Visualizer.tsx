@@ -910,39 +910,54 @@ export default function Visualizer() {
       {/* Floating Reactions */}
       {createPortal(
         <div className="fixed inset-0 z-[9999] pointer-events-none">
-          {reactions.map((reaction, i) => {
-            // generate a deterministic pseudo-random start position from 5% to 95%
-            const charCode = reaction.id.charCodeAt(0) || 50;
-            const charCode2 = reaction.id.charCodeAt(1) || 50;
-            const leftPercent = 5 + ((charCode * 7 + i * 13) % 90);
-            
-            // deterministic rotation
-            const rot = ((charCode * 3 + i * 7) % 60) - 30; // -30 to 30
-            
-            // Adjust scale based on volume of reactions
-            const scale = reactions.length > 20 ? 0.6 : (reactions.length > 10 ? 0.8 : 1.0);
-            
-            // Stagger the animations so they don't all appear exactly at the same moment
-            const delay = ((charCode + charCode2 + i) % 15) * 0.15;
-            
-            return (
-              <div 
-                key={reaction.id}
-                className="absolute bottom-[-100px] text-center flex flex-col items-center animate-emojiFloat"
-                style={{
-                  left: `${leftPercent}%`,
-                  '--rot': `${rot}deg`,
-                  animationDelay: `${delay}s`,
-                  transform: `scale(${scale})`
-                } as React.CSSProperties}
-              >
-                <div className="text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
-                <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
-                  {reaction.playerName}
+          {(() => {
+            const N = reactions.length;
+            // Number of vertical "lanes" scales with the crowd so we never cram
+            // everyone into the same few columns. Clamped to keep things sane.
+            const lanes = Math.min(16, Math.max(6, Math.ceil(Math.sqrt(N) * 2)));
+            // Widen the launch window as more people react so per-second density
+            // stays roughly constant instead of piling into a fixed ~2s window.
+            const launchWindow = Math.max(2.1, N * 0.12);
+
+            return reactions.map((reaction, i) => {
+              // Golden-angle horizontal spread (137.5°) — a low-discrepancy
+              // sequence, so consecutive items never cluster the way a fixed
+              // step (e.g. +13) can. Position depends only on index, not on the
+              // reaction id, so it's robust to low-entropy / sequential ids.
+              const leftPercent = 5 + ((i * 137.5) % 90);
+
+              // Round-robin lanes: items sharing a lane are spread across
+              // different launch times, so same-lane emojis never rise together.
+              const lane = i % lanes;
+              const row = Math.floor(i / lanes);
+              const delay = lane * (launchWindow / lanes) + row * 0.08;
+
+              // Shrink glyphs as the crowd grows — more effective horizontal
+              // room, and less visual overlap.
+              const scale = N > 25 ? 0.55 : N > 12 ? 0.75 : 1.0;
+
+              // Deterministic tilt for variety.
+              const rot = ((i * 47) % 60) - 30; // -30 to 30
+
+              return (
+                <div
+                  key={reaction.id}
+                  className="absolute bottom-[-100px] text-center flex flex-col items-center animate-emojiFloat"
+                  style={{
+                    left: `${leftPercent}%`,
+                    '--rot': `${rot}deg`,
+                    animationDelay: `${delay}s`,
+                    transform: `scale(${scale})`
+                  } as React.CSSProperties}
+                >
+                  <div className="text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
+                  <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
+                    {reaction.playerName}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>,
         document.body
       )}
