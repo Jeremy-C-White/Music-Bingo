@@ -3,30 +3,104 @@ import { subscribeToGameState, submitClaim, pingPresence, sendReaction } from '.
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, WIN_PATTERNS } from '../lib/data';
 import confetti from 'canvas-confetti';
-import { BookOpen, Sparkles, X, SmilePlus } from 'lucide-react';
+import { BookOpen, Check, Sparkles, X, SmilePlus } from 'lucide-react';
 import { playPopSound, playNearWinChime, playBingoFanfare } from '../lib/soundEffects';
 
 const BOARD_STATE_KEY = 'music_bingo_board_state_v3';
 const PLAYER_NAME_KEY = 'music_bingo_player_name';
 const EMOJI_OPTIONS = ['🔥', '🎉', '🎸', '❤️', '🤘', '🕺', '💃', '🤣'];
 
-const surfaceBase =
-  'bg-white/[0.08] backdrop-blur-2xl backdrop-saturate-150 border border-white/[0.12] shadow-[0_24px_80px_rgba(0,0,0,0.35)]';
-const softSurface = 'bg-white/[0.05] backdrop-blur-xl border border-white/10';
+const primaryGlass = 'bg-[rgba(13,18,34,0.70)] backdrop-blur-[28px] backdrop-saturate-150 border border-white/[0.14] shadow-[0_28px_90px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.10)]';
+const secondaryGlass = 'bg-white/[0.055] backdrop-blur-xl backdrop-saturate-150 border border-white/[0.11] shadow-[0_12px_34px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.08)]';
+const floatingGlass = 'bg-[rgba(15,20,38,0.82)] backdrop-blur-[30px] backdrop-saturate-150 border border-white/[0.16] shadow-[0_26px_80px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.12)]';
 
-function StageBackground() {
+type AmbientTheme = {
+  name: string;
+  primary: string;
+  secondary: string;
+  accent: string;
+  fourth: string;
+};
+
+const AMBIENT_THEMES: AmbientTheme[] = [
+  { name: 'Pop Glow', primary: '255,79,216', secondary: '139,92,246', accent: '51,216,255', fourth: '255,215,106' },
+  { name: 'Rock Heat', primary: '255,116,64', secondary: '220,38,38', accent: '255,190,76', fourth: '255,79,120' },
+  { name: 'Slow Wave', primary: '48,160,255', secondary: '34,211,238', accent: '99,102,241', fourth: '110,231,255' },
+  { name: 'Electric Party', primary: '168,85,247', secondary: '236,72,153', accent: '45,212,191', fourth: '250,204,21' },
+];
+
+const CELEBRATION_THEME: AmbientTheme = {
+  name: 'Rainbow Win',
+  primary: '255,79,216',
+  secondary: '51,216,255',
+  accent: '255,215,106',
+  fourth: '74,222,128',
+};
+
+function hashSong(value: string) {
+  return value.split('').reduce((total, character) => ((total << 5) - total + character.charCodeAt(0)) | 0, 0);
+}
+
+function getAmbientTheme(nowPlaying: string | undefined, hasCompletedLine: boolean) {
+  if (hasCompletedLine) return CELEBRATION_THEME;
+  if (!nowPlaying) return AMBIENT_THEMES[0];
+  return AMBIENT_THEMES[Math.abs(hashSong(nowPlaying)) % AMBIENT_THEMES.length];
+}
+
+function StageBackground({ theme, celebratory = false }: { theme: AmbientTheme; celebratory?: boolean }) {
+  const orbTransition = 'background-color 1400ms ease, opacity 900ms ease, transform 1200ms ease';
+
   return (
     <>
-      <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,79,216,0.18),transparent_32%),radial-gradient(ellipse_at_top_right,rgba(51,216,255,0.18),transparent_34%),radial-gradient(ellipse_at_bottom_center,rgba(139,92,246,0.18),transparent_36%),linear-gradient(135deg,#070b16_0%,#120e28_44%,#091523_100%)]" />
+      <style>{`
+        @keyframes tileGlassShimmer {
+          0%, 18% { transform: translateX(-180%) skewX(-18deg); opacity: 0; }
+          30% { opacity: .75; }
+          62%, 100% { transform: translateX(260%) skewX(-18deg); opacity: 0; }
+        }
+        @keyframes bingoSparkleSweep {
+          0%, 12% { transform: translateX(-180%) skewX(-16deg); opacity: 0; }
+          24% { opacity: .9; }
+          54%, 100% { transform: translateX(260%) skewX(-16deg); opacity: 0; }
+        }
+        @keyframes completedLetterGlow {
+          0%, 100% { box-shadow: 0 0 20px rgba(255,215,106,.38), inset 0 1px 0 rgba(255,255,255,.45); }
+          50% { box-shadow: 0 0 34px rgba(255,215,106,.72), inset 0 1px 0 rgba(255,255,255,.65); }
+        }
+        @keyframes ambientRainbowFloat {
+          0%, 100% { filter: hue-rotate(0deg) saturate(1.05); transform: scale(1); }
+          50% { filter: hue-rotate(36deg) saturate(1.28); transform: scale(1.08); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .mb-ambient-motion,
+          .mb-tile-shimmer,
+          .mb-letter-sweep,
+          .mb-letter-pulse { animation: none !important; }
+        }
+      `}</style>
+
+      <div className="fixed inset-0 z-0 bg-[linear-gradient(135deg,#070b16_0%,#120e28_44%,#091523_100%)]" />
       <div className="fixed inset-0 z-[1] pointer-events-none overflow-hidden">
-        <div className="absolute left-[-4%] top-[8%] h-[260px] w-[260px] rounded-full bg-[#ff4fd8]/25 blur-3xl animate-[drift_18s_ease-in-out_infinite_alternate]" />
-        <div className="absolute right-[2%] top-[14%] h-[280px] w-[280px] rounded-full bg-[#33d8ff]/25 blur-3xl animate-[drift_22s_ease-in-out_infinite_alternate]" />
-        <div className="absolute left-[28%] bottom-[-4%] h-[280px] w-[280px] rounded-full bg-[#8b5cf6]/25 blur-3xl animate-[drift_24s_ease-in-out_infinite_alternate]" />
-        <div className="absolute right-[24%] bottom-[10%] h-[180px] w-[180px] rounded-full bg-[#ffd76a]/10 blur-3xl animate-[drift_20s_ease-in-out_infinite_alternate]" />
+        <div
+          className={`mb-ambient-motion absolute left-[-6%] top-[2%] h-[330px] w-[330px] rounded-full opacity-30 blur-[90px] ${celebratory ? 'animate-[ambientRainbowFloat_7s_ease-in-out_infinite]' : 'animate-[drift_18s_ease-in-out_infinite_alternate]'}`}
+          style={{ backgroundColor: `rgb(${theme.primary})`, transition: orbTransition }}
+        />
+        <div
+          className={`mb-ambient-motion absolute right-[-3%] top-[10%] h-[360px] w-[360px] rounded-full opacity-[0.28] blur-[95px] ${celebratory ? 'animate-[ambientRainbowFloat_8s_ease-in-out_infinite_reverse]' : 'animate-[drift_22s_ease-in-out_infinite_alternate]'}`}
+          style={{ backgroundColor: `rgb(${theme.secondary})`, transition: orbTransition }}
+        />
+        <div
+          className={`mb-ambient-motion absolute bottom-[-12%] left-[22%] h-[380px] w-[380px] rounded-full opacity-[0.28] blur-[100px] ${celebratory ? 'animate-[ambientRainbowFloat_9s_ease-in-out_infinite]' : 'animate-[drift_24s_ease-in-out_infinite_alternate]'}`}
+          style={{ backgroundColor: `rgb(${theme.accent})`, transition: orbTransition }}
+        />
+        <div
+          className={`mb-ambient-motion absolute bottom-[8%] right-[20%] h-[220px] w-[220px] rounded-full opacity-[0.18] blur-[85px] ${celebratory ? 'animate-[ambientRainbowFloat_6s_ease-in-out_infinite_reverse]' : 'animate-[drift_20s_ease-in-out_infinite_alternate]'}`}
+          style={{ backgroundColor: `rgb(${theme.fourth})`, transition: orbTransition }}
+        />
       </div>
-      <div className="fixed inset-0 z-[2] pointer-events-none opacity-40 bg-[radial-gradient(circle,rgba(255,255,255,0.08)_0_1.5px,transparent_1.5px_100%)] bg-[size:120px_120px] animate-[drift_28s_linear_infinite]" />
-      <div className="fixed inset-0 z-[3] pointer-events-none bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent_18%,transparent_82%,rgba(255,255,255,0.04))]" />
-      <div className="fixed inset-0 z-[4] pointer-events-none bg-black/[0.15]" />
+      <div className="fixed inset-0 z-[2] pointer-events-none opacity-40 bg-[radial-gradient(circle,rgba(255,255,255,0.075)_0_1.5px,transparent_1.5px_100%)] bg-[size:120px_120px] animate-[drift_28s_linear_infinite]" />
+      <div className="fixed inset-0 z-[3] pointer-events-none bg-[linear-gradient(180deg,rgba(255,255,255,0.055),transparent_18%,transparent_82%,rgba(255,255,255,0.035))]" />
+      <div className="fixed inset-0 z-[4] pointer-events-none bg-black/[0.16]" />
     </>
   );
 }
@@ -276,13 +350,16 @@ export default function Board() {
     }
   };
 
+  const hasCompletedLine = winningLines.length > 0;
+  const ambientTheme = getAmbientTheme(gameState?.nowPlaying, hasCompletedLine);
+
   if (inLobby) {
     return (
       <div className="relative min-h-screen overflow-hidden px-4 py-8 text-[#f7f8ff]">
-        <StageBackground />
+        <StageBackground theme={ambientTheme} />
 
         <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-lg items-center justify-center">
-          <div className={`relative w-full overflow-hidden rounded-[34px] p-[1px] ${surfaceBase}`}>
+          <div className={`relative w-full overflow-hidden rounded-[34px] p-[1px] ${primaryGlass}`}>
             <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_28%,transparent_70%,rgba(255,255,255,0.12))]" />
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
 
@@ -303,7 +380,7 @@ export default function Board() {
                 </p>
               </div>
 
-              <div className={`mb-5 rounded-[28px] p-[1px] ${softSurface}`}>
+              <div className={`mb-5 rounded-[28px] p-[1px] ${secondaryGlass}`}>
                 <div className="rounded-[27px] bg-black/20 p-4">
                   <label className="mb-2 ml-1 block text-[11px] font-black uppercase tracking-[0.28em] text-[#7fe8ff]">
                     Your Name
@@ -345,10 +422,10 @@ export default function Board() {
 
   return (
     <div className="relative min-h-screen overflow-hidden px-2 py-2 text-[#f7f8ff] md:px-4 md:py-4 selection:bg-[#ff4fd8] selection:text-white">
-      <StageBackground />
+      <StageBackground theme={ambientTheme} celebratory={hasCompletedLine} />
 
       <div className="relative z-10 mx-auto flex h-[calc(100vh-16px)] w-full max-w-4xl flex-1 flex-col gap-3 2xl:max-w-6xl 2xl:gap-5 3xl:max-w-7xl">
-        <header className={`relative flex flex-none flex-wrap items-center justify-between gap-3 overflow-visible rounded-[28px] px-4 py-3 md:px-6 2xl:px-8 2xl:py-5 ${surfaceBase}`}>
+        <header className={`relative flex flex-none flex-wrap items-center justify-between gap-3 overflow-visible rounded-[28px] px-4 py-3 md:px-6 2xl:px-8 2xl:py-5 ${primaryGlass}`}>
           <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_28%,transparent_78%,rgba(255,255,255,0.10))]" />
           <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/75 to-transparent" />
 
@@ -373,7 +450,7 @@ export default function Board() {
           <div className="relative flex items-center gap-2 2xl:gap-3">
             <button
               onClick={() => setShowRulesModal(true)}
-              className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${softSurface}`}
+              className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
             >
               <BookOpen size={14} className="text-[#33d8ff] 2xl:h-4 2xl:w-4" />
               <span className="hidden sm:inline">How To Play</span>
@@ -382,7 +459,7 @@ export default function Board() {
             <div className="relative">
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${softSurface}`}
+                className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
                 title="Send a reaction to the stage screen"
               >
                 <SmilePlus size={14} className="text-[#ff4fd8] 2xl:h-4 2xl:w-4" />
@@ -392,7 +469,7 @@ export default function Board() {
               {showEmojiPicker && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
-                  <div className={`absolute right-0 top-full z-[100] mt-2 grid w-48 grid-cols-4 place-items-center gap-3 rounded-2xl p-4 ${surfaceBase}`}>
+                  <div className={`absolute right-0 top-full z-[100] mt-2 grid w-48 grid-cols-4 place-items-center gap-3 rounded-2xl p-4 ${floatingGlass}`}>
                     <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_30%,transparent_70%,rgba(255,255,255,0.12))]" />
                     {EMOJI_OPTIONS.map((emoji) => (
                       <button
@@ -412,7 +489,7 @@ export default function Board() {
               className={`relative overflow-hidden rounded-xl px-5 py-2.5 text-xs font-black transition-all duration-300 md:px-6 md:text-sm 2xl:px-8 2xl:py-3 2xl:text-base ${
                 winningLines.length > 0 && !hasConfirmedWin
                   ? 'bg-gradient-to-br from-[#ffe083] via-[#ff74da] to-[#44dcff] text-[#1a0510] ring-1 ring-white/[0.25] shadow-[0_18px_44px_rgba(255,79,216,0.35)] animate-pulse'
-                  : `${softSurface} text-white/70 hover:bg-white/[0.09]`
+                  : `${secondaryGlass} text-white/70 hover:bg-white/[0.09]`
               }`}
               onClick={handleCallBingo}
               disabled={winningLines.length === 0 && !hasConfirmedWin}
@@ -423,7 +500,7 @@ export default function Board() {
           </div>
         </header>
 
-        <main className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[30px] ${surfaceBase}`}>
+        <main className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[30px] ${primaryGlass}`}>
           <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.12),transparent_22%,transparent_78%,rgba(255,255,255,0.08))]" />
           <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
 
@@ -432,7 +509,7 @@ export default function Board() {
               <h2 className="text-xs font-black uppercase tracking-[0.24em] text-white/90 md:text-sm 2xl:text-base">Your Bingo Card</h2>
               <p className="mt-0.5 text-[10px] text-white/60 md:text-xs 2xl:text-sm">Mark 5 tiles in a row, column, or diagonal to win.</p>
             </div>
-            <div className={`rounded-full px-3 py-1.5 text-[10px] font-bold 2xl:px-4 2xl:py-2 2xl:text-xs ${softSurface} text-[#7fe8ff]`}>
+            <div className={`rounded-full px-3 py-1.5 text-[10px] font-bold 2xl:px-4 2xl:py-2 2xl:text-xs ${secondaryGlass} text-[#7fe8ff]`}>
               {winningLines.length > 0
                 ? `🔥 ${winningLines.length / 5} Line${winningLines.length > 5 ? 's' : ''} Complete!`
                 : nearWins.length > 0
@@ -444,17 +521,29 @@ export default function Board() {
           <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-3 py-3 md:px-5 md:py-5 2xl:px-8 2xl:py-8">
             <div className="mb-1.5 grid w-full max-w-[min(100%,calc(100vh-280px))] grid-cols-5 gap-1 text-center text-sm font-black tracking-[0.28em] text-[#ffd76a] md:mb-2 md:gap-3 md:text-2xl 2xl:mb-3 2xl:max-w-[min(100%,calc(100vh-340px))] 2xl:gap-4 2xl:text-3xl 3xl:max-w-[min(100%,calc(100vh-400px))] 3xl:text-4xl">
               {['B', 'I', 'N', 'G', 'O'].map((letter, colIdx) => {
-                const isColComplete = [0, 1, 2, 3, 4].every((rowIdx) => selected[rowIdx * 5 + colIdx]);
+                const columnSelectedCount = [0, 1, 2, 3, 4].filter((rowIdx) => selected[rowIdx * 5 + colIdx]).length;
+                const isColComplete = columnSelectedCount === 5;
+
+                const letterStateClass = isColComplete
+                  ? 'mb-letter-pulse border-[#ffd76a]/70 bg-[linear-gradient(145deg,rgba(255,232,146,0.98),rgba(255,199,74,0.92))] text-[#251400] shadow-[0_0_28px_rgba(255,215,106,0.62),inset_0_1px_0_rgba(255,255,255,0.68)] animate-[completedLetterGlow_2.3s_ease-in-out_infinite]'
+                  : columnSelectedCount === 4
+                  ? 'mb-letter-pulse border-[#ffd76a]/55 bg-[linear-gradient(145deg,rgba(255,215,106,0.24),rgba(255,79,216,0.13))] text-[#ffe9a8] shadow-[0_0_22px_rgba(255,215,106,0.30),inset_0_1px_0_rgba(255,255,255,0.16)] animate-pulse'
+                  : columnSelectedCount >= 3
+                  ? 'border-white/20 bg-[linear-gradient(145deg,rgba(255,79,216,0.18),rgba(139,92,246,0.18),rgba(51,216,255,0.14))] text-white shadow-[0_0_18px_rgba(139,92,246,0.24),inset_0_1px_0_rgba(255,255,255,0.13)]'
+                  : columnSelectedCount >= 1
+                  ? 'border-white/[0.13] bg-white/[0.07] text-white/[0.88] shadow-[0_8px_24px_rgba(0,0,0,0.20),inset_0_1px_0_rgba(255,255,255,0.09)]'
+                  : `${secondaryGlass} text-white/[0.62]`;
+
                 return (
                   <div
                     key={letter}
-                    className={`rounded-xl py-1.5 transition-all 2xl:py-2 ${
-                      isColComplete
-                        ? 'bg-[#ffd76a]/[0.90] text-black shadow-[0_0_24px_rgba(255,215,106,0.55)]'
-                        : `${softSurface} text-white/[0.85]`
-                    }`}
+                    className={`relative overflow-hidden rounded-xl py-1.5 transition-all duration-500 2xl:py-2 ${letterStateClass}`}
+                    title={`${columnSelectedCount} of 5 tiles marked in column ${letter}`}
                   >
-                    {letter}
+                    {isColComplete && (
+                      <span className="mb-letter-sweep pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/80 to-transparent blur-[1px] animate-[bingoSparkleSweep_2.8s_ease-in-out_infinite]" />
+                    )}
+                    <span className="relative z-10">{letter}</span>
                   </div>
                 );
               })}
@@ -468,32 +557,50 @@ export default function Board() {
                 const isNear = nearWins.includes(i);
                 const { title, artist } = splitSong(song);
 
-                let cellClass =
-                  'group relative flex aspect-square w-full cursor-pointer select-none flex-col items-center justify-center overflow-hidden rounded-xl border p-0.5 text-center shadow-[0_14px_30px_rgba(0,0,0,0.24)] transition-all duration-200 md:rounded-2xl md:p-2 2xl:p-3 ';
+                let cellClass = 'group relative flex aspect-square w-full cursor-pointer select-none flex-col items-center justify-center overflow-hidden rounded-xl border p-0.5 text-center shadow-[0_14px_30px_rgba(0,0,0,0.24)] transition-all duration-200 md:rounded-2xl md:p-2 2xl:p-3 ';
 
                 if (isFree) {
-                  cellClass +=
-                    ' border-[#ffd76a]/[0.35] bg-[linear-gradient(145deg,rgba(255,215,106,0.18),rgba(255,79,216,0.18),rgba(51,216,255,0.18))] backdrop-blur-xl cursor-default shadow-[0_18px_38px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.18)]';
+                  cellClass += ' border-[#ffd76a]/[0.35] bg-[linear-gradient(145deg,rgba(255,215,106,0.18),rgba(255,79,216,0.18),rgba(51,216,255,0.18))] backdrop-blur-xl cursor-default shadow-[0_18px_38px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.18)]';
                 } else if (isSelected) {
-                  cellClass +=
-                    ' border-white/30 bg-[linear-gradient(145deg,rgba(255,79,216,0.44),rgba(139,92,246,0.50),rgba(51,216,255,0.34))] backdrop-blur-xl shadow-[0_18px_40px_rgba(109,56,170,0.36),inset_0_1px_0_rgba(255,255,255,0.28)] hover:-translate-y-0.5';
+                  cellClass += ' border-[#8ce8ff]/70 bg-[linear-gradient(145deg,rgba(13,20,38,0.86),rgba(35,24,67,0.84),rgba(13,31,48,0.82))] backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_0_22px_rgba(51,216,255,0.25),0_18px_42px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.16)] hover:-translate-y-0.5';
                 } else {
-                  cellClass +=
-                    ' border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-[0_14px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.09]';
+                  cellClass += ' border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-[0_14px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.09]';
                 }
 
                 if (isWin) {
-                  cellClass +=
-                    ' ring-2 ring-white/90 ring-offset-2 ring-offset-black/50 shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_0_24px_rgba(255,215,106,0.75)]';
+                  cellClass += ' ring-2 ring-white/90 ring-offset-2 ring-offset-black/50 shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_0_24px_rgba(255,215,106,0.75)]';
                 } else if (isNear && !isSelected) {
                   cellClass += ' border-[#33d8ff]/60 shadow-[0_0_18px_rgba(51,216,255,0.35)] animate-pulse';
                 }
 
                 return (
-                  <div key={i} className={cellClass} onClick={() => toggleCell(i)}>
+                  <div
+                    key={i}
+                    className={`${cellClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7fe8ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d18]`}
+                    onClick={() => toggleCell(i)}
+                    onKeyDown={(event) => {
+                      if (!isFree && (event.key === 'Enter' || event.key === ' ')) {
+                        event.preventDefault();
+                        toggleCell(i);
+                      }
+                    }}
+                    role={isFree ? undefined : 'button'}
+                    tabIndex={isFree ? -1 : 0}
+                    aria-pressed={isFree ? undefined : isSelected}
+                    aria-label={isFree ? 'Free space' : `${isSelected ? 'Unmark' : 'Mark'} ${title} by ${artist}`}
+                  >
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_54%)]" />
                     <div className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
                     <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_35%,transparent_70%,rgba(0,0,0,0.10))]" />
+
+                    {isSelected && !isFree && (
+                      <>
+                        <span className="absolute right-1 top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-white/30 bg-white/[0.14] text-white shadow-[0_4px_14px_rgba(0,0,0,0.30),0_0_14px_rgba(51,216,255,0.28)] backdrop-blur-md sm:h-5 sm:w-5 md:right-1.5 md:top-1.5 md:h-6 md:w-6">
+                          <Check className="h-2.5 w-2.5 stroke-[3.25] sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+                        </span>
+                        <span className="mb-tile-shimmer pointer-events-none absolute inset-y-[-15%] left-[-45%] z-[5] w-[34%] bg-gradient-to-r from-transparent via-white/30 to-transparent blur-[1px] animate-[tileGlassShimmer_3.4s_ease-in-out_infinite]" />
+                      </>
+                    )}
 
                     {isFree ? (
                       <div className="relative z-10 flex flex-col items-center font-black uppercase leading-tight">
@@ -505,11 +612,7 @@ export default function Board() {
                         <div className="line-clamp-3 text-balance text-[8px] font-black leading-[1.1] text-white drop-shadow-md sm:text-[10px] sm:leading-tight md:text-[13px] 2xl:text-[16px] 3xl:text-[19px]">
                           {title}
                         </div>
-                        <div
-                          className={`mt-0.5 line-clamp-2 text-balance text-[6px] font-bold drop-shadow-md sm:text-[8px] md:mt-1 md:text-[9px] 2xl:text-[12px] 3xl:text-[14px] ${
-                            isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'
-                          }`}
-                        >
+                        <div className={`mt-0.5 line-clamp-2 text-balance text-[6px] font-bold drop-shadow-md sm:text-[8px] md:mt-1 md:text-[9px] 2xl:text-[12px] 3xl:text-[14px] ${isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'}`}>
                           {artist}
                         </div>
                       </div>
@@ -523,9 +626,7 @@ export default function Board() {
       </div>
 
       {toastMsg && (
-        <div
-          className={`fixed left-1/2 top-6 z-[100] -translate-x-1/2 whitespace-nowrap rounded-full px-6 py-3 text-xs font-black text-white shadow-[0_16px_42px_rgba(0,0,0,0.42)] md:text-sm ${surfaceBase}`}
-        >
+        <div className={`fixed left-1/2 top-6 z-[100] -translate-x-1/2 whitespace-nowrap rounded-full px-6 py-3 text-xs font-black text-white shadow-[0_16px_42px_rgba(0,0,0,0.42)] md:text-sm ${floatingGlass}`}>
           <div className="pointer-events-none absolute inset-0 rounded-full bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_28%,transparent_78%,rgba(255,255,255,0.10))]" />
           <span className="relative">{toastMsg.msg}</span>
         </div>
@@ -533,17 +634,14 @@ export default function Board() {
 
       {showRulesModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className={`relative w-full max-w-lg overflow-hidden rounded-[30px] p-[1px] ${surfaceBase}`}>
+          <div className={`relative w-full max-w-lg overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
             <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.18),transparent_30%,transparent_72%,rgba(255,255,255,0.12))]" />
             <div className="relative rounded-[29px] bg-[linear-gradient(180deg,rgba(16,22,37,0.92),rgba(12,17,31,0.95))] p-6">
               <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
                 <h2 className="flex items-center gap-2 text-xl font-black uppercase text-white">
                   <BookOpen className="text-[#33d8ff]" /> How To Play
                 </h2>
-                <button
-                  onClick={() => setShowRulesModal(false)}
-                  className="rounded-full bg-white/10 p-1 text-white/70 transition-all hover:bg-white/20 hover:text-white"
-                >
+                <button onClick={() => setShowRulesModal(false)} className="rounded-full bg-white/10 p-1 text-white/70 transition-all hover:bg-white/20 hover:text-white">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -576,16 +674,14 @@ export default function Board() {
 
       {showWinModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#03060e]/80 p-4 backdrop-blur-md">
-          <div className={`relative w-full max-w-md overflow-hidden rounded-[30px] p-[1px] ${surfaceBase}`}>
+          <div className={`relative w-full max-w-md overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
             <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.18),transparent_30%,transparent_72%,rgba(255,255,255,0.12))]" />
             <div className="relative rounded-[29px] bg-[linear-gradient(180deg,rgba(16,22,37,0.92),rgba(12,17,31,0.96))] p-6 text-center">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,79,216,0.10),transparent_36%),radial-gradient(circle_at_bottom,rgba(51,216,255,0.10),transparent_34%)]" />
 
               {!winClaim?.status ? (
                 <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">
-                    Checking...
-                  </h2>
+                  <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Checking...</h2>
                   <div className="mb-6 flex items-center justify-center gap-2 text-sm text-white/80">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
                     Validating your bingo with the host...
@@ -593,9 +689,7 @@ export default function Board() {
                 </>
               ) : winClaim.status === 'valid' ? (
                 <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-4xl font-black uppercase tracking-[-0.05em] text-transparent drop-shadow-[0_0_15px_rgba(255,215,106,0.3)]">
-                    BINGO!
-                  </h2>
+                  <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-4xl font-black uppercase tracking-[-0.05em] text-transparent drop-shadow-[0_0_15px_rgba(255,215,106,0.3)]">BINGO!</h2>
                   <p className="mb-4 text-sm text-white/80">Your claim is in. The host has been notified.</p>
                   {winClaim.winningLines?.[0] && <p className="mb-4 text-sm font-bold text-[#33d8ff]">{winClaim.winningLines[0].label}</p>}
                   {winClaim.position && (
@@ -612,9 +706,7 @@ export default function Board() {
                 </>
               ) : winClaim.status === 'cheating' ? (
                 <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#f87171] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">
-                    Not Quite Right
-                  </h2>
+                  <h2 className="mb-2 bg-gradient-to-br from-[#f87171] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Not Quite Right</h2>
                   <p className="mb-6 text-sm text-white/80">
                     Hmm. Your board does not match the songs that have actually been called.
                     <br />
@@ -624,10 +716,8 @@ export default function Board() {
                 </>
               ) : (
                 <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#fb923c] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">
-                    Almost!
-                  </h2>
-                  <p className="mb-6 text-sm text-white/80">{winClaim.reason || 'The host did not find a complete line on your board. Keep going!'}</p>
+                  <h2 className="mb-2 bg-gradient-to-br from-[#fb923c] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Almost!</h2>
+                  <p className="mb-6 text-sm text-white/80">{winClaim.reason || "The host did not find a complete line on your board. Keep going!"}</p>
                 </>
               )}
 
