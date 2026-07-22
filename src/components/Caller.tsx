@@ -13,17 +13,19 @@ type HostCue = {
   followUp?: string;
 };
 
+// NOTE: On-mic DJ lines intentionally never reveal the song title or artist.
+// Players identify the track by ear — the host just keeps the energy up.
 const STANDARD_DJ_LINES = [
-  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
-    `Track ${trackNumber} is live. This is “${title}” by ${artist}. Listen for the hook, check every corner of that card, and mark it only if you have it.`,
-  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
-    `Alright music detectives, Track ${trackNumber} has entered the mix. You are hearing “${title}” from ${artist}. Find it, tap it, and keep that bingo line moving.`,
-  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
-    `Turn those ears all the way up. Track ${trackNumber} is “${title}” by ${artist}. If that song is sitting on your board, now is the time to lock it in.`,
-  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
-    `The next square could change everything. Track ${trackNumber} is “${title}” by ${artist}. Scan the board, trust your music memory, and make your move.`,
-  ({ title, artist, trackNumber }: { title: string; artist: string; trackNumber: number }) =>
-    `We are keeping the party rolling with Track ${trackNumber}, “${title}” by ${artist}. Catch the chorus, hunt down the match, and stay ready to call bingo.`
+  ({ trackNumber }: { trackNumber: number }) =>
+    `Track ${trackNumber} is live and in the air. Listen for the hook, check every corner of that card, and mark it only if you know you've got it.`,
+  ({ trackNumber }: { trackNumber: number }) =>
+    `Alright music detectives, Track ${trackNumber} has entered the mix. Trust those ears, find the match, and keep that bingo line moving.`,
+  ({ trackNumber }: { trackNumber: number }) =>
+    `Turn those ears all the way up. Track ${trackNumber} is rolling. If this one is sitting on your board, now is the time to lock it in.`,
+  ({ trackNumber }: { trackNumber: number }) =>
+    `The next square could change everything. Track ${trackNumber} is playing now. Scan the board, trust your music memory, and make your move.`,
+  ({ trackNumber }: { trackNumber: number }) =>
+    `We are keeping the party rolling with Track ${trackNumber}. Catch the chorus, hunt down your match, and stay ready to call bingo.`
 ];
 
 function getPregameCues(activePlayers: number): HostCue[] {
@@ -41,13 +43,13 @@ function getPregameCues(activePlayers: number): HostCue[] {
     {
       kicker: 'Rules • Listen and Identify',
       title: 'How Each Track Works',
-      script: 'I will play a short clip from one song at a time. Listen closely for the title, artist, chorus, or any clue that helps you recognize it.',
+      script: 'I will play a short clip from one song at a time. Listen closely for the melody, the chorus, or any clue that helps you recognize it — I will not be naming the track, that part is on your ears!',
       followUp: 'You can enjoy the music, but keep one eye on your card because the clips keep moving and every track could be the square you need.'
     },
     {
       kicker: 'Rules • Mark the Card',
       title: 'Find It and Tap It',
-      script: 'If the song appears anywhere on your five-by-five card, tap that tile to mark it. Your center FREE space is already marked and ready to help you.',
+      script: 'If you recognize the song and it appears anywhere on your five-by-five card, tap that tile to mark it. Your center FREE space is already marked and ready to help you.',
       followUp: 'Only mark songs that have actually played. You can tap a tile again to unmark it if you make a mistake.'
     },
     {
@@ -98,11 +100,10 @@ function getLiveHostCue(
       kicker: 'Game Live • First Track Ready',
       title: 'Kick Off the Music',
       script: 'The room is ready, the cards are live, and the only thing missing is the music. Let us drop the first track and get this game moving.',
-      followUp: 'Remind players to mark a square only when they hear a song that appears on their own card.'
+      followUp: 'Remind players to mark a square only when they recognize a song that appears on their own card.'
     };
   }
 
-  const { title, artist } = splitSong(gameState.nowPlaying);
   const trackNumber = gameState.history.length + 1;
   const setNumber = Math.floor((trackNumber - 1) / 5) + 1;
 
@@ -110,8 +111,8 @@ function getLiveHostCue(
     return {
       kicker: 'Opening Drop • Track 01',
       title: 'The Game Is Officially Live',
-      script: `Here we go! Your first track of the night is “${title}” by ${artist}. Find it on your card, tap it if you have it, and let the bingo hunt begin!`,
-      followUp: 'This is only the first square, so settle in, listen closely, and get familiar with your board.'
+      script: 'Here we go! Your very first track of the night is on the air. Listen close, hunt it down on your card, tap it if you have it, and let the bingo chase begin!',
+      followUp: 'This is only the first square, so settle in, tune those ears, and get familiar with your board.'
     };
   }
 
@@ -119,7 +120,7 @@ function getLiveHostCue(
     return {
       kicker: 'Final Stretch • Pressure Is Up',
       title: 'Every Track Matters Now',
-      script: `We are deep in the final stretch. Track ${trackNumber} is “${title}” by ${artist}, and this could be the song that completes somebody’s line.`,
+      script: `We are deep in the final stretch. Track ${trackNumber} is in the air right now, and this could be the one that completes somebody's line.`,
       followUp: 'Check those near-bingo squares carefully. If five are connected, hit CALL BINGO immediately.'
     };
   }
@@ -128,7 +129,7 @@ function getLiveHostCue(
     return {
       kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`,
       title: 'Fresh Set, Fresh Chances',
-      script: `New set, new energy! Track ${trackNumber} is “${title}” by ${artist}. Reset your focus, scan that whole board, and see where this next run takes you.`,
+      script: `New set, new energy! Track ${trackNumber} is rolling. Reset your focus, scan that whole board, and see where this next run takes you.`,
       followUp: 'If you are one square away, this is your reminder that the next few tracks can change everything.'
     };
   }
@@ -137,7 +138,7 @@ function getLiveHostCue(
     return {
       kicker: `Milestone • ${trackNumber} Tracks Called`,
       title: 'Board Check',
-      script: `That brings us to Track ${trackNumber}, “${title}” by ${artist}. Take a quick look across your full card because a winning line can sneak up on you.`,
+      script: `That brings us to Track ${trackNumber}. Take a quick look across your full card, because a winning line can sneak up on you.`,
       followUp: 'Check rows, columns, and both diagonals. If you see five connected marks, call it now.'
     };
   }
@@ -146,7 +147,7 @@ function getLiveHostCue(
   return {
     kicker: `Live Mix • Track ${String(trackNumber).padStart(2, '0')}`,
     title: 'DJ Talk Track',
-    script: line({ title, artist, trackNumber }),
+    script: line({ trackNumber }),
     followUp: trackNumber >= 12
       ? 'We are far enough into the round that every mark matters. Watch for a complete row, column, or diagonal.'
       : 'Stay patient, keep the board clean, and remember that the center FREE space is already working for you.'
@@ -359,9 +360,9 @@ export default function Caller() {
         {/* Main Stage */}
         <div className="host-stage min-w-0 min-h-[520px] lg:min-h-0 bg-[#131728]/82 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl px-4 py-5 sm:p-6 xl:p-7 flex flex-col items-center justify-center lg:overflow-y-auto custom-scrollbar relative text-center">
           
-          {/* Spinning Turntable Deck */}
+          {/* Spinning Turntable Deck (caller-only view — full 360 rotation) */}
           <div className="host-record-wrap relative mb-5 sm:mb-6">
-            <div className={`host-record w-[clamp(150px,24vh,250px)] h-[clamp(150px,24vh,250px)] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_36px_rgba(255,79,216,0.26)] border-[3px] border-white/10 p-2 flex items-center justify-center transition-transform ${previewData?.previewUrl && !isAudioLocked ? 'animate-[spin_6s_linear_infinite]' : ''}`}>
+            <div className={`host-record w-[clamp(150px,24vh,250px)] h-[clamp(150px,24vh,250px)] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_36px_rgba(255,79,216,0.26)] border-[3px] border-white/10 p-2 flex items-center justify-center ${previewData?.previewUrl && !isAudioLocked ? 'is-spinning' : ''}`}>
               <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
                 {!previewData?.artworkUrl && <Disc className="w-16 h-16 text-white/20" />}
                 <div className="absolute w-9 h-9 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
@@ -375,6 +376,7 @@ export default function Caller() {
             )}
           </div>
  
+          {/* Caller-only track readout: the host may know the song, players hear it by ear */}
           <h2 className="host-track-title font-black text-[clamp(1.65rem,3.6vw,3.35rem)] mb-1.5 tracking-tighter uppercase max-w-[96%] sm:max-w-[88%] leading-[0.98] text-balance">
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).title : (gameState?.started ? 'Game is Live!' : 'Lobby Open')}
           </h2>
@@ -382,7 +384,7 @@ export default function Caller() {
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).artist : (gameState?.started ? "Click 'Play First Song' to begin" : 'Waiting to start the game')}
           </div>
  
-          {/* Dynamic Host Mic Script, DJ Talk Track & Trivia */}
+          {/* Dynamic Host Mic Script, DJ Talk Track & Trivia (never names the song) */}
           <div className="host-script-card w-full max-w-[700px] mb-4 p-4 sm:p-5 bg-black/55 border border-[#33d8ff]/28 rounded-2xl text-left relative overflow-hidden shadow-xl backdrop-blur-md">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.10),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.08),transparent_32%)]" />
             <div className="relative flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
@@ -688,7 +690,7 @@ export default function Caller() {
         </div>
       )}
  
-      {/* Fullscreen Dynamic Host Teleprompter Modal */}
+      {/* Fullscreen Dynamic Host Teleprompter Modal (read on-mic — never names the song) */}
       {showTeleprompter && gameState && (
         <div className="fixed inset-0 bg-[#070914]/96 backdrop-blur-2xl z-[600] flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
           <div className="max-w-5xl mx-auto w-full min-h-full flex flex-col">
@@ -740,20 +742,10 @@ export default function Caller() {
                 {activeHostCue.kicker}
               </div>
 
-              {currentTrack ? (
-                <>
-                  <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-1 text-balance">
-                    {currentTrack.title}
-                  </h2>
-                  <div className="text-lg sm:text-xl md:text-3xl font-bold text-[#33d8ff] mb-5 md:mb-7">
-                    {currentTrack.artist}
-                  </div>
-                </>
-              ) : (
-                <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-5 md:mb-7 text-balance">
-                  {activeHostCue.title}
-                </h2>
-              )}
+              {/* Cue title only — the song's title/artist are never shown here */}
+              <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-5 md:mb-7 text-balance">
+                {activeHostCue.title}
+              </h2>
  
               <div className="relative p-5 sm:p-7 md:p-9 bg-black/70 border-2 border-[#33d8ff]/45 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.16)] overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.10),transparent_35%)]" />
@@ -850,6 +842,21 @@ export default function Caller() {
       <style>{`
         .host-shell {
           min-height: 100dvh;
+        }
+
+        /* Full continuous 360 rotation for the turntable deck */
+        @keyframes recordSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        .host-record {
+          transform: rotate(0deg);
+        }
+
+        .host-record.is-spinning {
+          animation: recordSpin 6s linear infinite;
+          transform-origin: 50% 50%;
         }
 
         .custom-scrollbar {
