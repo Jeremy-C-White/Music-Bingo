@@ -13,6 +13,8 @@ export default function Visualizer() {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [encouragement, setEncouragement] = useState<{ kicker: string, title: string, sub: string, isClaim?: boolean } | null>(null);
   const lastClaimsCountRef = useRef(0);
+  const lastShownTrackRef = useRef(0);
+  const encouragementTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const [themeIndex, setThemeIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
@@ -88,41 +90,70 @@ export default function Visualizer() {
     };
   }, [gameState?.sessionId]);
 
-  useEffect(() => {
-    const trackNumber = (gameState?.history.length || 0) + (gameState?.nowPlaying ? 1 : 0);
-    const setNumber = Math.max(0, Math.floor((trackNumber - 1) / 5));
-
-    if (totalClaims > 0 && totalClaims > lastClaimsCountRef.current) {
-        lastClaimsCountRef.current = totalClaims;
-        setEncouragement({
-           isClaim: true,
-           kicker: '📣 Hold Everything',
-           title: 'BINGO!',
-           sub: totalClaims > 1 ? `Claim #${totalClaims} just hit the host's desk — verifying now…` : `A claim just hit the host's desk — verifying now…`
-        });
-        const timer = setTimeout(() => setEncouragement(null), 4000);
-        return () => clearTimeout(timer);
-    } else if (gameState?.nowPlaying && trackNumber > 1 && trackNumber % 5 === 1 && !encouragement) {
-        const HYPE_MESSAGES = [
-          { title: 'THIS TRACK COULD BE IT!', sub: 'Mystery Track {track} is playing now. Listen for the hook and check your board.' },
-          { title: 'LISTEN CLOSE!', sub: 'Stay with the current beat. Your next mark could be hiding right here.' },
-          { title: 'FIND THAT SQUARE!', sub: 'This mystery is live now. Scan your board while the chorus plays.' },
-          { title: 'TRUST YOUR EARS!', sub: 'Focus on Track {track}. One sound could unlock the square you need.' },
-          { title: 'STAY LOCKED IN!', sub: 'The current track is your only clue. Lock in your guess before it ends.' },
-          { title: 'MAKE THIS TRACK COUNT!', sub: 'Track {track} is live. Listen, decide, and mark it while the music plays.' }
-        ];
-        const hype = HYPE_MESSAGES[(setNumber - 1) % HYPE_MESSAGES.length] || HYPE_MESSAGES[0];
-        setEncouragement({
-          kicker: `⚡ NOW PLAYING • TRACK ${String(trackNumber).padStart(2, '0')}`,
-          title: hype.title,
-          sub: hype.sub.replace('{track}', String(trackNumber).padStart(2, '0'))
-        });
-        const timer = setTimeout(() => setEncouragement(null), 6000);
-        return () => clearTimeout(timer);
-    } else if (!gameState?.nowPlaying) {
-      setEncouragement(null);
+  const triggerEncouragement = (
+    data: { kicker: string; title: string; sub: string; isClaim?: boolean } | null,
+    durationMs = 6000
+  ) => {
+    if (encouragementTimerRef.current) {
+      clearTimeout(encouragementTimerRef.current);
+      encouragementTimerRef.current = null;
     }
-  }, [gameState?.nowPlaying, gameState?.history.length, totalClaims]);
+    setEncouragement(data);
+    if (data) {
+      encouragementTimerRef.current = setTimeout(() => {
+        setEncouragement(null);
+        encouragementTimerRef.current = null;
+      }, durationMs);
+    }
+  };
+
+  useEffect(() => {
+    if (!gameState?.nowPlaying) {
+      if (lastShownTrackRef.current !== 0) {
+        lastShownTrackRef.current = 0;
+        triggerEncouragement(null);
+      }
+      return;
+    }
+
+    const trackNumber = (gameState.history?.length || 0) + 1;
+    const setNumber = Math.floor((trackNumber - 1) / 5) + 1;
+
+    // 1. Bingo Claim event
+    if (totalClaims > 0 && totalClaims > lastClaimsCountRef.current) {
+      lastClaimsCountRef.current = totalClaims;
+      triggerEncouragement({
+        isClaim: true,
+        kicker: '📣 Hold Everything',
+        title: 'BINGO!',
+        sub: totalClaims > 1 ? `Claim #${totalClaims} just hit the host's desk — verifying now…` : `A claim just hit the host's desk — verifying now…`
+      }, 4000);
+      return;
+    }
+
+    // 2. Track / Theme transition event
+    if (lastShownTrackRef.current !== trackNumber) {
+      lastShownTrackRef.current = trackNumber;
+
+      // When starting a new 5-track set (e.g., Track 6 = Set 2, Track 11 = Set 3, etc.)
+      if (trackNumber > 1 && trackNumber % 5 === 1) {
+        const HYPE_MESSAGES = [
+          { title: 'ENERGY SHIFT!', sub: 'Set {set} is live with a fresh visual theme! Listen close for Track {track}.' },
+          { title: 'THIS TRACK COULD BE IT!', sub: 'Set {set} brings a new vibe. Mystery Track {track} is playing now!' },
+          { title: 'LISTEN CLOSE!', sub: 'New visual theme unlocked for Set {set}! Stay on the beat for Track {track}.' },
+          { title: 'FIND THAT SQUARE!', sub: 'Set {set} is live now. Scan your board while Track {track} plays.' },
+          { title: 'TRUST YOUR EARS!', sub: 'Focus on Track {track}. A fresh set of music and visuals is in motion.' },
+          { title: 'MAKE THIS TRACK COUNT!', sub: 'Track {track} is live in Set {set}. Get ready to shout BINGO!' }
+        ];
+        const hype = HYPE_MESSAGES[(setNumber - 2) % HYPE_MESSAGES.length] || HYPE_MESSAGES[0];
+        triggerEncouragement({
+          kicker: `⚡ ENERGY SHIFT • SET ${String(setNumber).padStart(2, '0')} IS LIVE`,
+          title: hype.title,
+          sub: hype.sub.replace('{track}', String(trackNumber).padStart(2, '0')).replace('{set}', String(setNumber))
+        }, 6000);
+      }
+    }
+  }, [gameState?.nowPlaying, gameState?.history?.length, totalClaims]);
 
   // Audio setup
   useEffect(() => {
@@ -455,6 +486,21 @@ export default function Visualizer() {
         <div className="absolute inset-0 z-10 flex p-2 sm:p-6 md:p-10 gap-4 md:gap-8 transition-all min-h-0">
           <div className="flex-1 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-3xl md:rounded-[36px] p-4 sm:p-8 md:p-12 flex flex-col shadow-2xl relative overflow-hidden min-h-0">
             
+            {/* Music Bingo Top Left Logo */}
+            <div className="absolute top-4 left-4 sm:top-8 sm:left-10 flex items-center gap-2.5 sm:gap-3.5 z-30 select-none">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-2xl border border-white/20 bg-black/60 backdrop-blur-md flex items-center justify-center shadow-[0_0_20px_rgba(51,216,255,0.4)]">
+                <Music className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--scene-a)] animate-pulse" />
+              </div>
+              <div className="flex flex-col text-left leading-none">
+                <span className="font-black text-xs sm:text-base tracking-wider bg-gradient-to-r from-white via-[#33d8ff] to-white bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(51,216,255,0.6)] uppercase">
+                  Music
+                </span>
+                <span className="font-black text-xs sm:text-base tracking-wider bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#ffd76a] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,79,216,0.6)] uppercase">
+                  Bingo
+                </span>
+              </div>
+            </div>
+
             {/* Round info overlay */}
             <div className="absolute top-4 right-4 sm:top-8 sm:right-10 flex items-center gap-2 sm:gap-4 z-30 scale-75 sm:scale-100 origin-top-right">
               {totalClaims > 0 && (
@@ -469,64 +515,64 @@ export default function Visualizer() {
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-6 sm:gap-12 relative z-20 min-h-0 pt-16 sm:pt-0">
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 sm:gap-8 relative z-20 min-h-0 pt-16 sm:pt-0 max-w-5xl mx-auto w-full">
               
               {/* Album Art Deck */}
-              <div className="relative w-[160px] h-[160px] sm:w-[280px] sm:h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center flex-none">
+              <div className="relative w-[180px] h-[180px] sm:w-[280px] sm:h-[280px] md:w-[380px] md:h-[380px] xl:w-[440px] xl:h-[440px] flex items-center justify-center flex-none">
                 <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_22px_rgba(51,216,255,0.25)]" viewBox="0 0 400 400">
                   <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
                   <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="6" strokeLinecap="round" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
                 </svg>
                 
                 {/* Vinyl Background */}
-                <div className={`absolute inset-[8%] rounded-full bg-[repeating-radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0,rgba(255,255,255,0.02)_1px,transparent_1px,transparent_4px),radial-gradient(circle_at_center,#1a1530_0%,#0a0918_75%)] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] ${themeIndex === 1 ? 'animate-[spin_13s_linear_infinite]' : 'animate-[spin_20s_linear_infinite]'} ${themeIndex === 3 ? 'inset-[4%] opacity-80' : ''}`}>
+                <div className={`absolute inset-[6%] rounded-full bg-[repeating-radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0,rgba(255,255,255,0.02)_1px,transparent_1px,transparent_4px),radial-gradient(circle_at_center,#1a1530_0%,#0a0918_75%)] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] ${themeIndex === 1 ? 'animate-[spin_13s_linear_infinite]' : 'animate-[spin_20s_linear_infinite]'} ${themeIndex === 3 ? 'inset-[2%] opacity-80' : ''}`}>
                   <div className="absolute inset-[42%] rounded-full bg-gradient-to-br from-[var(--scene-a)] to-[var(--scene-b)] opacity-85"></div>
                 </div>
 
                 {/* The Album Art */}
                 <div 
-                  className="absolute z-10 overflow-hidden bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border border-[var(--scene-c)]/40 flex items-center justify-center shadow-[0_30px_80px_rgba(0,0,0,0.7),0_0_60px_var(--scene-b)] transition-all duration-700 ease-out"
+                  className="absolute z-10 overflow-hidden bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-2 border-[var(--scene-c)]/50 flex items-center justify-center shadow-[0_30px_90px_rgba(0,0,0,0.8),0_0_80px_var(--scene-b)] transition-all duration-700 ease-out"
                   style={{
-                    width: themeIndex === 3 ? '78%' : (themeIndex === 4 ? '73%' : '70%'),
-                    height: themeIndex === 3 ? '62%' : (themeIndex === 4 ? '73%' : '70%'),
-                    borderRadius: themeIndex === 0 ? 'clamp(14px, 2vh, 24px)' : (themeIndex === 1 ? '50%' : (themeIndex === 2 ? '34px 10px 34px 10px' : (themeIndex === 3 ? '46px' : '24px'))),
+                    width: themeIndex === 3 ? '84%' : (themeIndex === 4 ? '78%' : '76%'),
+                    height: themeIndex === 3 ? '68%' : (themeIndex === 4 ? '78%' : '76%'),
+                    borderRadius: themeIndex === 0 ? 'clamp(16px, 2.5vh, 28px)' : (themeIndex === 1 ? '50%' : (themeIndex === 2 ? '38px 12px 38px 12px' : (themeIndex === 3 ? '52px' : '28px'))),
                     clipPath: themeIndex === 4 ? 'polygon(50% 0%, 92% 18%, 100% 60%, 72% 100%, 28% 100%, 0% 60%, 8% 18%)' : 'none',
                     transform: themeIndex === 0 ? 'rotate(0deg) scale(1)' : (themeIndex === 1 ? 'scale(0.98)' : (themeIndex === 2 ? 'rotate(-4deg) scale(0.94)' : (themeIndex === 3 ? 'translateY(1%)' : 'scale(0.98)')))
                   }}
                 >
                   {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-60 grayscale-[60%] blur-[5px] mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
-                  <div className="text-8xl md:text-[130px] font-black text-[var(--scene-c)] z-10 animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: '0 0 40px rgba(248,113,113,0.55), 2px 0 0 rgba(255,79,216,0.5), -2px 0 0 rgba(51,216,255,0.5)'}}>?</div>
+                  <div className="text-8xl sm:text-[110px] md:text-[140px] font-black text-[var(--scene-c)] z-10 animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: '0 0 40px rgba(248,113,113,0.55), 2px 0 0 rgba(255,79,216,0.5), -2px 0 0 rgba(51,216,255,0.5)'}}>?</div>
                 </div>
               </div>
 
               {/* Mystery Track Header */}
-              <div className="flex-1 text-center lg:text-left min-h-0 overflow-y-auto custom-scrollbar pr-1 sm:pr-2 pb-4">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 sm:px-5 sm:py-2 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-r from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-[10px] sm:text-xs font-black tracking-widest uppercase mb-4 sm:mb-6 shadow-lg">
-                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Mystery Track Live
+              <div className="w-full text-center flex flex-col items-center min-h-0 overflow-y-auto custom-scrollbar px-2 pb-4">
+                <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-r from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-xs sm:text-sm font-black tracking-widest uppercase mb-3 sm:mb-4 shadow-lg">
+                  <Sparkles className="w-4 h-4" /> Mystery Track Live
                 </div>
                 
-                <div className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-white/40 mb-2 sm:mb-3">Now Playing</div>
-                <h2 className="text-2xl sm:text-4xl md:text-6xl xl:text-7xl font-black leading-[1.1] tracking-tight mb-2 sm:mb-4 text-balance drop-shadow-2xl">
+                <div className="text-xs font-bold tracking-[0.3em] uppercase text-white/50 mb-1 sm:mb-2">Now Playing</div>
+                <h2 className="text-3xl sm:text-5xl md:text-7xl xl:text-8xl font-black leading-[1.05] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
                   {gameState.nowPlaying ? `Mystery Track #${gameState.history.length + 1}` : 'Ready?'}
                 </h2>
-                <div className="text-sm sm:text-lg md:text-2xl font-medium text-white/70 mb-4">
+                <div className="text-base sm:text-xl md:text-2xl font-medium text-white/80 max-w-2xl mx-auto mb-4">
                   {gameState.nowPlaying ? 'Listen closely to the hook! Find this song on your 5x5 board.' : 'Next track incoming...'}
                 </div>
 
                 {/* Stage Screen Song Fun Fact Teaser */}
                 {gameState.nowPlaying && (
-                  <div className="mt-4 sm:mt-6 p-4 sm:p-5 md:p-8 rounded-2xl md:rounded-3xl bg-black/60 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl max-w-3xl shadow-2xl animate-[fadeIn_0.5s_ease-out] group">
-                    <div className="flex flex-wrap items-center justify-between mb-2 sm:mb-3 border-b border-white/10 pb-2 gap-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-[var(--scene-c)] font-black text-[10px] sm:text-xs md:text-sm uppercase tracking-widest">
+                  <div className="mt-2 sm:mt-4 p-4 sm:p-6 rounded-2xl md:rounded-3xl bg-black/65 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl max-w-2xl w-full shadow-2xl animate-[fadeIn_0.5s_ease-out] group text-center flex flex-col items-center">
+                    <div className="flex flex-wrap items-center justify-between w-full mb-2 sm:mb-3 border-b border-white/10 pb-2 gap-2">
+                      <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-xs sm:text-sm uppercase tracking-widest mx-auto sm:mx-0">
                         <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)] animate-pulse" />
                         <span>Did You Know?</span>
                       </div>
                       <button 
                         onClick={() => setTriviaScale(prev => prev === 'normal' ? 'large' : prev === 'large' ? 'huge' : 'normal')}
-                        className="opacity-100 sm:opacity-0 group-hover:opacity-100 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[10px] sm:text-xs font-bold transition-opacity duration-300 cursor-pointer flex items-center gap-1 sm:gap-1.5"
+                        className="opacity-100 sm:opacity-0 group-hover:opacity-100 px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-opacity duration-300 cursor-pointer flex items-center gap-1.5 mx-auto sm:mx-0"
                         title="Adjust text size for venue TV/projector screens"
                       >
-                        <Type className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[var(--scene-c)]" /> <span className="hidden sm:inline">Text Size:</span> <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>
+                        <Type className="w-3.5 h-3.5 text-[var(--scene-c)]" /> <span className="hidden sm:inline">Text Size:</span> <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>
                       </button>
                     </div>
                     <p className={`text-white/95 leading-relaxed font-bold m-0 transition-all ${
@@ -579,20 +625,27 @@ export default function Visualizer() {
 
       {/* Encouragement Banner / Milestone Flash */}
       {encouragement && (
-        <div className="absolute inset-0 z-[80] flex items-center justify-center pointer-events-none p-4 md:p-8 animate-[popIn2_0.5s_ease-out_forwards]">
-          <div className={`absolute inset-0 ${encouragement.isClaim ? 'bg-[radial-gradient(circle_at_center,rgba(255,215,106,0.3),transparent_45%),rgba(3,4,12,0.8)]' : 'bg-[radial-gradient(circle_at_center,rgba(255,79,216,0.28),transparent_42%),rgba(3,4,12,0.78)]'} backdrop-blur-xl transition-all`}></div>
-          <div className={`relative min-w-[min(620px,86vw)] p-[clamp(28px,5vh,52px)] rounded-[30px] border ${encouragement.isClaim ? 'border-[#ffd76a]/50 bg-gradient-to-br from-[#ffd76a]/16 to-[#4ade80]/12 shadow-[0_0_110px_rgba(255,215,106,0.35)]' : 'border-[var(--scene-a)]/34 bg-gradient-to-br from-[var(--scene-a)]/12 to-[var(--scene-b)]/14 shadow-[0_0_90px_var(--scene-b)]'} overflow-hidden`}>
-            {/* Rotating background light */}
-            <div className="absolute inset-[-60%] animate-[spin_5s_linear_infinite]" style={{ background: 'conic-gradient(from 90deg, transparent, rgba(var(--scene-a-rgb),0.16), transparent, rgba(var(--scene-c-rgb),0.13), transparent)'}}></div>
+        <div className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none p-4 md:p-8 animate-[popIn2_0.4s_cubic-bezier(0.16,1,0.3,1)_forwards]">
+          {/* Opaque dark overlay with strong backdrop blur so background text/album art never leaks through */}
+          <div className="absolute inset-0 bg-[#030612]/92 backdrop-blur-2xl transition-all"></div>
+          
+          <div className={`relative min-w-[min(680px,92vw)] p-8 sm:p-12 md:p-16 rounded-[36px] border-2 ${encouragement.isClaim ? 'border-[#ffd76a] bg-[#0c0f24] shadow-[0_0_150px_rgba(255,215,106,0.6)]' : 'border-[var(--scene-a)] bg-[#0c0f24] shadow-[0_0_150px_rgba(255,79,216,0.6)]'} overflow-hidden`}>
+            {/* Ambient inner glow */}
+            <div className={`absolute inset-0 ${encouragement.isClaim ? 'bg-gradient-to-br from-[#ffd76a]/20 via-transparent to-[#4ade80]/15' : 'bg-gradient-to-br from-[var(--scene-a)]/20 via-transparent to-[var(--scene-b)]/20'}`}></div>
+            
+            {/* Rotating subtle lighting */}
+            <div className="absolute inset-[-60%] animate-[spin_6s_linear_infinite] opacity-40 pointer-events-none" style={{ background: 'conic-gradient(from 90deg, transparent, rgba(var(--scene-a-rgb),0.25), transparent, rgba(var(--scene-c-rgb),0.2), transparent)'}}></div>
             
             <div className="relative z-10 text-center">
-              <div className={`text-[clamp(9px,1.3vh,12px)] font-bold tracking-[0.3em] uppercase ${encouragement.isClaim ? 'text-[#ffd76a]' : 'text-[var(--scene-a)]'}`}>
+              <div className={`text-xs sm:text-sm md:text-base font-extrabold tracking-[0.35em] uppercase mb-2 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${encouragement.isClaim ? 'text-[#ffd76a]' : 'text-[var(--scene-a)]'}`}>
                 {encouragement.kicker}
               </div>
-              <h2 className="my-2 md:my-3 text-[clamp(36px,8vw,96px)] leading-[0.95] tracking-[-0.055em] font-black text-transparent bg-clip-text" style={{ backgroundImage: encouragement.isClaim ? 'linear-gradient(100deg, #fff, #ffd76a, #4ade80)' : 'linear-gradient(100deg, #fff, var(--scene-c), var(--scene-b))' }}>
-                {encouragement.title}
+              <h2 className="my-3 sm:my-4 text-4xl sm:text-6xl md:text-8xl xl:text-9xl leading-[0.95] tracking-tight font-black text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.95)]">
+                <span className="text-transparent bg-clip-text" style={{ backgroundImage: encouragement.isClaim ? 'linear-gradient(100deg, #ffffff, #ffd76a, #4ade80)' : 'linear-gradient(100deg, #ffffff, var(--scene-c), var(--scene-b))' }}>
+                  {encouragement.title}
+                </span>
               </h2>
-              <div className="text-[clamp(15px,2vh,22px)] text-white/80 font-bold max-w-xl mx-auto">
+              <div className="text-base sm:text-xl md:text-3xl text-white/95 font-bold max-w-2xl mx-auto leading-relaxed drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
                 {encouragement.sub}
               </div>
             </div>
