@@ -415,8 +415,8 @@ export default function Visualizer() {
       )}
 
       {gameState?.started && (
-        <div className="absolute inset-0 z-10 flex p-6 md:p-10 gap-8 transition-all">
-          <div className="flex-1 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-[36px] p-8 md:p-12 flex flex-col shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 z-10 flex p-6 md:p-10 gap-8 transition-all min-h-0">
+          <div className="flex-1 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-[36px] p-8 md:p-12 flex flex-col shadow-2xl relative overflow-hidden min-h-0">
             
             {/* Round info overlay */}
             <div className="absolute top-8 right-10 flex items-center gap-4 z-30">

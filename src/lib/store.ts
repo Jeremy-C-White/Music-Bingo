@@ -1,6 +1,6 @@
 import { handleFirestoreError, OperationType } from './firebase-error';
 import { db } from './firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, getDocs, deleteDoc, limit } from 'firebase/firestore';
 import { GameState, Claim } from './types';
 import { songs, WIN_PATTERNS } from './data';
 
@@ -214,16 +214,13 @@ export interface Reaction {
 
 export function subscribeToReactions(callback: (reactions: Reaction[]) => void) {
   const reactionsCollection = collection(db, 'games', GAME_DOC_ID, 'reactions');
-  const q = query(reactionsCollection, orderBy('timestamp', 'desc'));
+  const q = query(reactionsCollection, orderBy('timestamp', 'desc'), limit(30));
   
-  // Notice we use a query that listens for the newest reactions.
-  // Actually, we should just subscribe to the collection and process new ones, but firestore onSnapshot will give us everything.
-  // We can return all reactions that happened in the last 10 seconds.
   return onSnapshot(q, (snapshot) => {
     const now = Date.now();
     const reactions = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as Reaction))
-      .filter(r => (now - r.timestamp) < 15000); // Only keep recent ones in the callback
+      .filter(r => (now - r.timestamp) < 60000); // Allow up to 60s of clock skew
     callback(reactions);
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/reactions'));
 }
