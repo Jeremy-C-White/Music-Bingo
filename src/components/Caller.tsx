@@ -1,736 +1,581 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { subscribeToGameState, submitClaim, pingPresence, sendReaction } from '../lib/store';
+import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, dismissClaim, setVisualizerAudioActive, subscribeToPlayerCount } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
-import { songs, shuffle, splitSong, WIN_PATTERNS } from '../lib/data';
-import confetti from 'canvas-confetti';
-import { BookOpen, Check, Sparkles, X, SmilePlus } from 'lucide-react';
-import { playPopSound, playNearWinChime, playBingoFanfare } from '../lib/soundEffects';
-
-const BOARD_STATE_KEY = 'music_bingo_board_state_v3';
-const PLAYER_NAME_KEY = 'music_bingo_player_name';
-const EMOJI_OPTIONS = ['🔥', '🎉', '🎸', '❤️', '🤘', '🕺', '💃', '🤣'];
-
-const primaryGlass = 'bg-[rgba(13,18,34,0.70)] backdrop-blur-[28px] backdrop-saturate-150 border border-white/[0.14] shadow-[0_28px_90px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.10)]';
-const secondaryGlass = 'bg-white/[0.055] backdrop-blur-xl backdrop-saturate-150 border border-white/[0.11] shadow-[0_12px_34px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.08)]';
-const floatingGlass = 'bg-[rgba(15,20,38,0.82)] backdrop-blur-[30px] backdrop-saturate-150 border border-white/[0.16] shadow-[0_26px_80px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.12)]';
-
-type AmbientTheme = {
-  name: string;
-  primary: string;
-  secondary: string;
-  accent: string;
-  fourth: string;
-};
-
-const AMBIENT_THEMES: AmbientTheme[] = [
-  { name: 'Pop Glow', primary: '255,79,216', secondary: '139,92,246', accent: '51,216,255', fourth: '255,215,106' },
-  { name: 'Rock Heat', primary: '255,116,64', secondary: '220,38,38', accent: '255,190,76', fourth: '255,79,120' },
-  { name: 'Slow Wave', primary: '48,160,255', secondary: '34,211,238', accent: '99,102,241', fourth: '110,231,255' },
-  { name: 'Electric Party', primary: '168,85,247', secondary: '236,72,153', accent: '45,212,191', fourth: '250,204,21' },
-];
-
-const CELEBRATION_THEME: AmbientTheme = {
-  name: 'Rainbow Win',
-  primary: '255,79,216',
-  secondary: '51,216,255',
-  accent: '255,215,106',
-  fourth: '74,222,128',
-};
-
-function hashSong(value: string) {
-  return value.split('').reduce((total, character) => ((total << 5) - total + character.charCodeAt(0)) | 0, 0);
-}
-
-function getAmbientTheme(nowPlaying: string | undefined, hasCompletedLine: boolean) {
-  if (hasCompletedLine) return CELEBRATION_THEME;
-  if (!nowPlaying) return AMBIENT_THEMES[0];
-  return AMBIENT_THEMES[Math.abs(hashSong(nowPlaying)) % AMBIENT_THEMES.length];
-}
-
-function StageBackground({ theme, celebratory = false }: { theme: AmbientTheme; celebratory?: boolean }) {
-  const orbTransition = 'background-color 1400ms ease, opacity 900ms ease, transform 1200ms ease';
-
-  return (
-    <>
-      <style>{`
-        @keyframes tileGlassShimmer {
-          0%, 18% { transform: translateX(-180%) skewX(-18deg); opacity: 0; }
-          30% { opacity: .75; }
-          62%, 100% { transform: translateX(260%) skewX(-18deg); opacity: 0; }
-        }
-        @keyframes bingoSparkleSweep {
-          0%, 12% { transform: translateX(-180%) skewX(-16deg); opacity: 0; }
-          24% { opacity: .9; }
-          54%, 100% { transform: translateX(260%) skewX(-16deg); opacity: 0; }
-        }
-        @keyframes completedLetterGlow {
-          0%, 100% { box-shadow: 0 0 20px rgba(255,215,106,.38), inset 0 1px 0 rgba(255,255,255,.45); }
-          50% { box-shadow: 0 0 34px rgba(255,215,106,.72), inset 0 1px 0 rgba(255,255,255,.65); }
-        }
-        @keyframes ambientRainbowFloat {
-          0%, 100% { filter: hue-rotate(0deg) saturate(1.05); transform: scale(1); }
-          50% { filter: hue-rotate(36deg) saturate(1.28); transform: scale(1.08); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .mb-ambient-motion,
-          .mb-tile-shimmer,
-          .mb-letter-sweep,
-          .mb-letter-pulse { animation: none !important; }
-        }
-      `}</style>
-
-      <div className="fixed inset-0 z-0 bg-[linear-gradient(135deg,#070b16_0%,#120e28_44%,#091523_100%)]" />
-      <div className="fixed inset-0 z-[1] pointer-events-none overflow-hidden">
-        <div
-          className={`mb-ambient-motion absolute left-[-6%] top-[2%] h-[330px] w-[330px] rounded-full opacity-30 blur-[90px] ${celebratory ? 'animate-[ambientRainbowFloat_7s_ease-in-out_infinite]' : 'animate-[drift_18s_ease-in-out_infinite_alternate]'}`}
-          style={{ backgroundColor: `rgb(${theme.primary})`, transition: orbTransition }}
-        />
-        <div
-          className={`mb-ambient-motion absolute right-[-3%] top-[10%] h-[360px] w-[360px] rounded-full opacity-[0.28] blur-[95px] ${celebratory ? 'animate-[ambientRainbowFloat_8s_ease-in-out_infinite_reverse]' : 'animate-[drift_22s_ease-in-out_infinite_alternate]'}`}
-          style={{ backgroundColor: `rgb(${theme.secondary})`, transition: orbTransition }}
-        />
-        <div
-          className={`mb-ambient-motion absolute bottom-[-12%] left-[22%] h-[380px] w-[380px] rounded-full opacity-[0.28] blur-[100px] ${celebratory ? 'animate-[ambientRainbowFloat_9s_ease-in-out_infinite]' : 'animate-[drift_24s_ease-in-out_infinite_alternate]'}`}
-          style={{ backgroundColor: `rgb(${theme.accent})`, transition: orbTransition }}
-        />
-        <div
-          className={`mb-ambient-motion absolute bottom-[8%] right-[20%] h-[220px] w-[220px] rounded-full opacity-[0.18] blur-[85px] ${celebratory ? 'animate-[ambientRainbowFloat_6s_ease-in-out_infinite_reverse]' : 'animate-[drift_20s_ease-in-out_infinite_alternate]'}`}
-          style={{ backgroundColor: `rgb(${theme.fourth})`, transition: orbTransition }}
-        />
-      </div>
-      <div className="fixed inset-0 z-[2] pointer-events-none opacity-40 bg-[radial-gradient(circle,rgba(255,255,255,0.075)_0_1.5px,transparent_1.5px_100%)] bg-[size:120px_120px] animate-[drift_28s_linear_infinite]" />
-      <div className="fixed inset-0 z-[3] pointer-events-none bg-[linear-gradient(180deg,rgba(255,255,255,0.055),transparent_18%,transparent_82%,rgba(255,255,255,0.035))]" />
-      <div className="fixed inset-0 z-[4] pointer-events-none bg-black/[0.16]" />
-    </>
-  );
-}
-
-export default function Board() {
+import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
+import { lookupPreview } from '../lib/itunes';
+import { Disc, Play, Pause, RotateCcw, Volume2, Search, Zap, Radio, Trophy, CheckCircle, AlertTriangle, XCircle, Sparkles, Clock, Lightbulb, MessageSquareQuote, Maximize2, Minimize2 } from 'lucide-react';
+import { playCallSound } from '../lib/soundEffects';
+ 
+export default function Caller() {
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [playerName, setPlayerName] = useState('');
-  const [inLobby, setInLobby] = useState(true);
-  const [waiting, setWaiting] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-  const [boardSongs, setBoardSongs] = useState<string[]>([]);
-  const [selected, setSelected] = useState<boolean[]>(Array(25).fill(false));
-  const [toastMsg, setToastMsg] = useState<{ msg: React.ReactNode; id: number } | null>(null);
-
-  const [showWinModal, setShowWinModal] = useState(false);
-  const [showRulesModal, setShowRulesModal] = useState(false);
-  const [winClaim, setWinClaim] = useState<Partial<Claim> | null>(null);
-  const [claimInFlight, setClaimInFlight] = useState(false);
-
-  const [nearWins, setNearWins] = useState<number[]>([]);
-  const [winningLines, setWinningLines] = useState<number[]>([]);
-  const [hasConfirmedWin, setHasConfirmedWin] = useState(false);
-
-  const prevNearWinsCount = useRef(0);
-
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [pool, setPool] = useState<string[]>([]);
+  const [previewData, setPreviewData] = useState<{previewUrl: string; artworkUrl: string} | null>(null);
+  const [activePlayers, setActivePlayers] = useState(0);
+  
+  const [callInFlight, setCallInFlight] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [volume, setVolume] = useState(0.5);
+  const [isAudioLocked, setIsAudioLocked] = useState(false);
+  
+  const [showPreviewModal, setShowPreviewModal] = useState<Claim | null>(null);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showTeleprompter, setShowTeleprompter] = useState(false);
+  const [scriptFontSize, setScriptFontSize] = useState<'normal' | 'large' | 'xl'>('large');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Auto-Caller Mode state
+  const [autoCallerActive, setAutoCallerActive] = useState(false);
+  const [autoIntervalSeconds, setAutoIntervalSeconds] = useState(20);
+  const [autoCountdown, setAutoCountdown] = useState(20);
+ 
   useEffect(() => {
-    let pingInterval: number;
-    if (playerName.trim()) {
-      pingPresence(playerName);
-      pingInterval = window.setInterval(() => {
-        pingPresence(playerName);
-      }, 10000);
-    }
-    return () => {
-      if (pingInterval) clearInterval(pingInterval);
-    };
-  }, [playerName]);
-
-  useEffect(() => {
-    const storedName = localStorage.getItem(PLAYER_NAME_KEY);
-    if (storedName && !playerName) setPlayerName(storedName.trim());
-
-    const unsubscribe = subscribeToGameState((state) => {
+    const unsubState = subscribeToGameState((state) => {
       setGameState(state);
-      if (!state) return;
-
-      const currentStoredName = localStorage.getItem(PLAYER_NAME_KEY);
-
-      if (state.sessionId) {
-        const stored = localStorage.getItem(BOARD_STATE_KEY);
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            if (parsed.sessionId !== state.sessionId) {
-              localStorage.removeItem(BOARD_STATE_KEY);
-              setBoardSongs([]);
-              setSelected(Array(25).fill(false));
-              setHasConfirmedWin(false);
-            }
-          } catch (e) {}
-        }
-      }
-
-      if (state.started) {
-        if (currentStoredName && currentStoredName.length >= 2) {
-          setInLobby(false);
-          setWaiting(false);
-          initBoard(state.sessionId);
-        }
-      } else {
-        setInLobby(true);
-        if (currentStoredName && currentStoredName.length >= 2) {
-          setWaiting(true);
+      setIsAudioLocked(state?.visualizerAudioActive || false);
+      
+      if (state) {
+        // Rebuild pool by removing history and nowPlaying
+        const calledSet = new Set(state.history);
+        if (state.nowPlaying) calledSet.add(state.nowPlaying);
+        
+        // Only shuffle if pool is empty or we reset
+        if (pool.length === 0 || (!state.started && pool.length < songs.length)) {
+          const fresh = shuffle(songs);
+          setPool(fresh.filter(s => !calledSet.has(s)));
         } else {
-          setWaiting(false);
+          setPool(prev => prev.filter(s => !calledSet.has(s)));
+        }
+        
+        if (state.nowPlaying) {
+          const { title, artist } = splitSong(state.nowPlaying);
+          lookupPreview(title, artist).then(data => {
+            setPreviewData(data);
+          });
+        } else {
+          setPreviewData(null);
         }
       }
     });
-
-    return () => unsubscribe();
+    
+    const unsubClaims = subscribeToClaims((allClaims) => {
+      setClaims(allClaims);
+    });
+    
+    return () => {
+      unsubState();
+      unsubClaims();
+    };
   }, []);
-
+ 
   useEffect(() => {
-    if (boardSongs.length > 0) {
-      checkWin(selected);
-    }
-  }, [selected, boardSongs, gameState?.nowPlaying]);
-
-  const showToast = (msg: React.ReactNode) => {
-    const id = Date.now();
-    setToastMsg({ msg, id });
-    setTimeout(() => {
-      setToastMsg((prev) => (prev?.id === id ? null : prev));
-    }, 2200);
-  };
-
-  const joinLobby = () => {
-    if (playerName.trim().length < 2) return;
-    localStorage.setItem(PLAYER_NAME_KEY, playerName.trim());
-    setWaiting(true);
-    if (gameState?.started) {
-      setInLobby(false);
-      setWaiting(false);
-      initBoard(gameState.sessionId);
-    }
-  };
-
-  const initBoard = (sessionId: string) => {
-    const stored = localStorage.getItem(BOARD_STATE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed.sessionId === sessionId && parsed.songs?.length === 25) {
-          setBoardSongs(parsed.songs);
-          setSelected(parsed.selected);
-          showToast('💾 Your saved board was restored.');
-          return;
-        }
-      } catch (e) {}
-    }
-
-    const shuffled = shuffle(songs).slice(0, 24);
-    shuffled.splice(12, 0, 'FREE SPACE');
-    setBoardSongs(shuffled);
-
-    const initialSelected = Array(25).fill(false);
-    initialSelected[12] = true;
-    setSelected(initialSelected);
-
-    localStorage.setItem(
-      BOARD_STATE_KEY,
-      JSON.stringify({
-        sessionId,
-        songs: shuffled,
-        selected: initialSelected,
-      })
-    );
-
-    showToast('✨ Fresh board loaded!');
-  };
-
-  const toggleCell = (index: number) => {
-    if (index === 12) return;
-
-    const newSelected = [...selected];
-    const willMark = !newSelected[index];
-    newSelected[index] = willMark;
-    setSelected(newSelected);
-
-    playPopSound(willMark);
-
-    if (gameState?.sessionId) {
-      localStorage.setItem(
-        BOARD_STATE_KEY,
-        JSON.stringify({
-          sessionId: gameState.sessionId,
-          songs: boardSongs,
-          selected: newSelected,
-        })
-      );
-    }
-
-    if (willMark) {
-      const { title } = splitSong(boardSongs[index]);
-      showToast(
-        <span>
-          🎵 Marked <b>{title}</b>
-        </span>
-      );
-    } else {
-      showToast('↩️ Tile unmarked');
-    }
-  };
-
-  const checkWin = (sel: boolean[]) => {
-    const near = new Set<number>();
-    const win = new Set<number>();
-    let lines = 0;
-
-    WIN_PATTERNS.forEach((pattern) => {
-      const selectedCount = pattern.filter((i) => sel[i]).length;
-      if (selectedCount === 4) {
-        pattern.forEach((i) => {
-          if (!sel[i]) near.add(i);
-        });
-      }
-      if (selectedCount === 5) {
-        lines++;
-        pattern.forEach((i) => win.add(i));
-      }
+    const unsubPlayers = subscribeToPlayerCount((count) => {
+      setActivePlayers(count);
     });
-
-    const nearArr = Array.from(near);
-    if (nearArr.length > prevNearWinsCount.current && lines === 0) {
-      playNearWinChime();
+    return () => unsubPlayers();
+  }, []);
+ 
+  // Auto-Caller interval timer logic
+  useEffect(() => {
+    let timer: number;
+    if (autoCallerActive && gameState?.started && pool.length > 0) {
+      timer = window.setInterval(() => {
+        setAutoCountdown((prev) => {
+          if (prev <= 1) {
+            handleCallNext();
+            return autoIntervalSeconds;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setAutoCountdown(autoIntervalSeconds);
     }
-    prevNearWinsCount.current = nearArr.length;
-
-    setNearWins(nearArr);
-    setWinningLines(Array.from(win));
-  };
-
-  const handleCallBingo = async () => {
-    if (claimInFlight || !gameState) return;
-
-    if (hasConfirmedWin) {
-      setShowWinModal(true);
-      return;
-    }
-
-    if (winningLines.length === 0) {
-      showToast('🤔 No bingo line yet. Keep listening!');
-      return;
-    }
-
-    setClaimInFlight(true);
-    setWinClaim({ status: undefined });
-    setShowWinModal(true);
-
-    try {
-      const claim = await submitClaim(playerName, boardSongs, selected, gameState);
-      setWinClaim(claim);
-
-      if (claim.status === 'valid') {
-        setHasConfirmedWin(true);
-        playBingoFanfare();
-        const d = { origin: { y: 0.7 } };
-        confetti({ ...d, particleCount: 110, spread: 90, startVelocity: 50 });
-        confetti({ ...d, particleCount: 70, angle: 60, spread: 70, origin: { x: 0.15, y: 0.65 } });
-        confetti({ ...d, particleCount: 70, angle: 120, spread: 70, origin: { x: 0.85, y: 0.65 } });
+    return () => clearInterval(timer);
+  }, [autoCallerActive, gameState?.started, pool.length, autoIntervalSeconds]);
+ 
+  useEffect(() => {
+    if (audioRef.current && previewData?.previewUrl) {
+      if (audioRef.current.src !== previewData.previewUrl) {
+        audioRef.current.src = previewData.previewUrl;
       }
-    } catch (e: any) {
-      setWinClaim({ status: undefined, reason: e.message });
-    } finally {
-      setClaimInFlight(false);
+      
+      if (!isAudioLocked && volume > 0) {
+        audioRef.current.play().catch(e => console.log('Audio autoplay prevented'));
+      } else {
+        audioRef.current.pause();
+      }
     }
+  }, [previewData, isAudioLocked]);
+  
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = isAudioLocked ? 0 : volume;
+    }
+  }, [volume, isAudioLocked]);
+ 
+  const handleStartGame = async () => {
+    await startNewGame();
   };
-
-  const handleSendReaction = async (emoji: string) => {
-    setShowEmojiPicker(false);
+ 
+  const handleResetGame = () => {
+    setShowResetModal(true);
+  };
+ 
+  const confirmResetGame = async () => {
+    setShowResetModal(false);
+    setAutoCallerActive(false);
     try {
-      await sendReaction(playerName, emoji);
-      showToast(`Sent ${emoji} to the big screen!`);
-    } catch (error) {
-      showToast(`Failed to send ${emoji}.`);
+      await resetGame();
+      setPool(shuffle(songs));
+    } catch (e) {
+      console.error('Failed to reset game:', e);
     }
   };
-
-  const hasCompletedLine = winningLines.length > 0;
-  const ambientTheme = getAmbientTheme(gameState?.nowPlaying, hasCompletedLine);
-
-  if (inLobby) {
-    return (
-      <div className="relative min-h-screen overflow-hidden px-4 py-8 text-[#f7f8ff]">
-        <StageBackground theme={ambientTheme} />
-
-        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-lg items-center justify-center">
-          <div className={`relative w-full overflow-hidden rounded-[34px] p-[1px] ${primaryGlass}`}>
-            <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_28%,transparent_70%,rgba(255,255,255,0.12))]" />
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-
-            <div className="relative rounded-[33px] bg-[linear-gradient(180deg,rgba(17,22,39,0.84),rgba(13,18,32,0.9))] px-7 py-8 md:px-9 md:py-10">
-              <div className="mb-7 text-center">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.08] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-white/70">
-                  <span className="h-2 w-2 rounded-full bg-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.75)]" />
-                  Live Party Room
+ 
+  const handleCallNext = async () => {
+    if (callInFlight || pool.length === 0 || !gameState) return;
+    
+    setCallInFlight(true);
+    playCallSound();
+    
+    const nextSong = pool[pool.length - 1];
+    
+    const nextHistory = [...gameState.history];
+    if (gameState.nowPlaying) {
+      nextHistory.push(gameState.nowPlaying);
+    }
+    
+    try {
+      await setNowPlaying(nextSong, nextHistory);
+      setAutoCountdown(autoIntervalSeconds);
+    } catch (e) {
+      console.error('Could not call next track:', e);
+    } finally {
+      setCallInFlight(false);
+    }
+  };
+ 
+  const validWinnersCount = claims.filter(c => c.status === 'valid').length;
+ 
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans p-4 md:p-6 relative overflow-hidden selection:bg-[#ff4fd8] selection:text-white">
+      <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.16)_0%,transparent_28%),radial-gradient(ellipse_at_82%_20%,rgba(51,216,255,0.16)_0%,transparent_30%),radial-gradient(ellipse_at_50%_85%,rgba(139,92,246,0.16)_0%,transparent_34%),linear-gradient(135deg,#0b1020,#170f2e_55%,#09121f)] opacity-100 transition-all duration-1000 pointer-events-none"></div>
+ 
+      <div className="max-w-[1400px] 2xl:max-w-[1800px] 3xl:max-w-[2200px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_480px] 3xl:grid-cols-[1fr_560px] gap-6 2xl:gap-8 min-h-screen lg:min-h-[calc(100vh-48px)] relative z-10">
+        
+        {/* Header (Span full width) */}
+        <div className="col-span-1 lg:col-span-full flex flex-wrap justify-between items-center p-5 px-6 2xl:p-6 2xl:px-8 bg-[#131728]/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl md:rounded-3xl">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 2xl:p-3.5 rounded-xl border border-white/20 bg-gradient-to-br from-[#ff4fd8]/20 to-[#33d8ff]/20">
+              <Radio className="w-5 h-5 2xl:w-6 2xl:h-6 text-white" />
+            </div>
+            <h1 className="text-xl md:text-2xl 2xl:text-3xl font-black m-0 tracking-tight text-white uppercase flex items-center gap-2">
+              Host <span className="text-[#33d8ff]">Studio Console</span>
+            </h1>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs 2xl:text-sm font-bold text-white/60 mt-4 md:mt-0 uppercase tracking-widest">
+            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 2xl:px-5 2xl:py-2.5 flex items-center gap-2 shadow-inner">
+              <span className="w-1.5 h-1.5 bg-[#4ade80] rounded-full animate-pulse shadow-[0_0_8px_#4ade80]"></span>
+              Players: <strong className="text-white ml-1">{activePlayers}</strong>
+            </span>
+            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 2xl:px-5 2xl:py-2.5 shadow-inner">
+              Called: <strong className="text-white ml-1">{gameState?.history.length || 0}</strong>
+            </span>
+            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 2xl:px-5 2xl:py-2.5 shadow-inner">
+              Remaining: <strong className="text-white ml-1">{pool.length}</strong>
+            </span>
+            <span className="rounded-xl border border-white/10 bg-gradient-to-r from-[#ffd76a]/20 to-black/40 text-[#ffd76a] px-4 py-2 2xl:px-5 2xl:py-2.5 flex items-center gap-2 shadow-inner">
+              <Trophy className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" /> Winners: {validWinnersCount}
+            </span>
+          </div>
+        </div>
+ 
+        {/* Main Stage */}
+        <div className="bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-8 md:p-12 2xl:p-16 flex flex-col items-center justify-center lg:justify-start lg:overflow-y-auto custom-scrollbar relative min-h-[400px] md:min-h-[500px] 2xl:min-h-[620px] text-center">
+          
+          {/* Spinning Turntable Deck */}
+          <div className="relative mb-6 sm:mb-8 2xl:mb-12 lg:mt-auto">
+            <div className={`w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] md:w-[240px] md:h-[240px] 2xl:w-[320px] 2xl:h-[320px] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_40px_rgba(255,79,216,0.3)] border-4 border-white/10 p-2 2xl:p-3 flex items-center justify-center transition-transform ${previewData?.previewUrl && !isAudioLocked ? 'animate-[spin_6s_linear_infinite]' : ''}`}>
+              <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
+                {!previewData?.artworkUrl && <Disc className="w-16 h-16 2xl:w-24 2xl:h-24 text-white/20" />}
+                <div className="absolute w-8 h-8 2xl:w-12 2xl:h-12 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
+              </div>
+            </div>
+            
+            {gameState?.nowPlaying && (
+              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-5 py-1.5 2xl:px-7 2xl:py-2 rounded-full bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black text-[10px] 2xl:text-xs uppercase tracking-widest shadow-[0_0_20px_#ff4fd8] flex items-center gap-2">
+                <Sparkles className="w-3 h-3 2xl:w-4 2xl:h-4" /> Live
+              </div>
+            )}
+          </div>
+ 
+          <h2 className="font-black text-[clamp(1.75rem,4.5vw,3.75rem)] mb-2 sm:mb-3 2xl:mb-4 tracking-tighter uppercase max-w-[95%] sm:max-w-[85%] text-balance">
+            {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).title : (gameState?.started ? 'Game is Live!' : 'Lobby Open')}
+          </h2>
+          <div className="text-[clamp(0.8rem,1.4vw,1.5rem)] text-white/70 font-medium mb-4 sm:mb-6 2xl:mb-8 tracking-widest uppercase text-balance px-2">
+            {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).artist : (gameState?.started ? "Click 'Play First Song' to begin" : 'Waiting to start the game')}
+          </div>
+ 
+          {/* Host Mic Script & Fun Fact */}
+          {gameState?.nowPlaying && (
+            <div className="w-full max-w-[560px] 2xl:max-w-[720px] mb-6 sm:mb-8 2xl:mb-10 p-4 sm:p-5 2xl:p-8 bg-black/60 border border-[#33d8ff]/30 rounded-2xl text-left relative overflow-hidden group shadow-2xl backdrop-blur-md">
+              <div className="flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
+                <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-xs 2xl:text-sm uppercase tracking-widest">
+                  <Lightbulb className="w-4 h-4 2xl:w-5 2xl:h-5 text-[#33d8ff]" />
+                  <span>Host Mic Script & Trivia</span>
                 </div>
-
-                <h1 className="m-0 text-5xl font-black uppercase leading-none tracking-[-0.05em] md:text-6xl">
-                  <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent drop-shadow-md">Music</span>
-                  <br />
-                  <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(255,79,216,0.35)]">Bingo</span>
-                </h1>
-                <p className="mx-auto mt-4 max-w-sm text-sm font-medium text-white/[0.65] md:text-[15px]">
-                  Join the room, grab your card, and get ready for a more premium game board experience.
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] 2xl:text-xs font-bold">
+                    <button 
+                      onClick={() => setScriptFontSize('normal')} 
+                      className={`px-2 py-0.5 2xl:px-3 2xl:py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      title="Standard text size"
+                    >
+                      A
+                    </button>
+                    <button 
+                      onClick={() => setScriptFontSize('large')} 
+                      className={`px-2 py-0.5 2xl:px-3 2xl:py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      title="Large text size"
+                    >
+                      A+
+                    </button>
+                    <button 
+                      onClick={() => setScriptFontSize('xl')} 
+                      className={`px-2 py-0.5 2xl:px-3 2xl:py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      title="Extra Large text size"
+                    >
+                      A++
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowTeleprompter(true)}
+                    className="px-2.5 py-1 2xl:px-4 2xl:py-2 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1 text-[11px] 2xl:text-xs font-bold uppercase tracking-wider"
+                    title="Open Fullscreen Host Teleprompter"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" /> <span className="hidden sm:inline">Teleprompter</span>
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[220px] 2xl:max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                <p className={`text-white/95 leading-relaxed m-0 transition-all ${
+                  scriptFontSize === 'normal' ? 'text-sm md:text-base 2xl:text-lg font-medium' : 
+                  scriptFontSize === 'large' ? 'text-base md:text-xl 2xl:text-2xl font-semibold' : 'text-lg md:text-2xl 2xl:text-3xl font-bold'
+                }`}>
+                  "{getSongFact(gameState.nowPlaying)}"
                 </p>
               </div>
-
-              <div className={`mb-5 rounded-[28px] p-[1px] ${secondaryGlass}`}>
-                <div className="rounded-[27px] bg-black/20 p-4">
-                  <label className="mb-2 ml-1 block text-[11px] font-black uppercase tracking-[0.28em] text-[#7fe8ff]">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3.5 text-base font-bold text-white outline-none transition-all placeholder:text-white/[0.28] focus:border-[#ff4fd8]/70 focus:bg-white/[0.10] focus:shadow-[0_0_0_4px_rgba(255,79,216,0.12)]"
-                    placeholder="e.g. Sarah M."
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !waiting && joinLobby()}
-                    disabled={waiting}
-                    maxLength={40}
-                  />
-                </div>
-              </div>
-
-              <button
-                className="group relative mt-1 w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#ffe083] via-[#ff74da] to-[#44dcff] px-6 py-4 text-lg font-black text-[#160611] shadow-[0_18px_44px_rgba(255,79,216,0.35)] ring-1 ring-white/20 transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_54px_rgba(255,79,216,0.42)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:grayscale"
-                onClick={joinLobby}
-                disabled={waiting || playerName.trim().length < 2}
-              >
-                <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_15%,rgba(255,255,255,0.45)_50%,transparent_85%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                <span className="relative">{waiting ? 'Joining...' : 'Enter Waiting Room ✨'}</span>
-              </button>
-
-              {waiting && (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-center text-sm text-white/70">
-                  <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#4ade80] animate-pulse" />
-                  {gameState?.started ? 'Entering game...' : 'Waiting for the host to start...'}
-                </div>
-              )}
             </div>
+          )}
+ 
+          {/* Action Controls & Auto-Caller Switch */}
+          <div className="w-full max-w-[480px] 2xl:max-w-[620px] flex flex-col gap-4 lg:mb-auto">
+            {!gameState?.started ? (
+              <button 
+                className="w-full py-5 2xl:py-6 rounded-2xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-sm md:text-base 2xl:text-lg font-black tracking-widest uppercase hover:opacity-90 transition-opacity cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,79,216,0.4)]"
+                onClick={handleStartGame}
+              >
+                Start Game
+              </button>
+            ) : (
+              <>
+                <button 
+                  className={`w-full py-5 2xl:py-6 rounded-2xl text-sm md:text-base 2xl:text-lg font-black tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 ${pool.length > 0 && !callInFlight ? 'bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white shadow-[0_0_30px_rgba(51,216,255,0.4)] hover:opacity-90' : 'bg-black/60 border border-white/10 text-white/50 shadow-inner'}`}
+                  onClick={handleCallNext}
+                  disabled={callInFlight || pool.length === 0}
+                >
+                  <Disc className="w-5 h-5 2xl:w-6 2xl:h-6" /> {gameState.history.length === 0 && !gameState.nowPlaying ? 'Play First Song' : 'Call Next Track'}
+                </button>
+ 
+                {/* Auto Caller Mode Toggle */}
+                <div className="flex items-center justify-between p-4 bg-black/40 border border-white/10 rounded-2xl text-xs shadow-inner">
+                  <div className="flex items-center gap-2 text-[#ffd76a] font-bold uppercase tracking-widest">
+                    <Clock className="w-4 h-4" />
+                    <span>Auto-Caller</span>
+                  </div>
+ 
+                  <div className="flex items-center gap-4">
+                    {autoCallerActive && (
+                      <span className="font-mono text-white font-bold text-sm border-r border-white/10 pr-4">
+                        {autoCountdown}s
+                      </span>
+                    )}
+                    <button 
+                      onClick={() => setAutoCallerActive(!autoCallerActive)}
+                      className={`text-xs font-black uppercase tracking-widest transition-colors cursor-pointer ${autoCallerActive ? 'text-[#ff4fd8] hover:text-[#ff4fd8]/80' : 'text-white/50 hover:text-white'}`}
+                    >
+                      {autoCallerActive ? 'PAUSE' : 'ENABLE'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative min-h-screen overflow-hidden px-2 py-2 text-[#f7f8ff] md:px-4 md:py-4 selection:bg-[#ff4fd8] selection:text-white">
-      <StageBackground theme={ambientTheme} celebratory={hasCompletedLine} />
-
-      <div className="relative z-10 mx-auto flex h-[calc(100vh-16px)] w-full max-w-4xl flex-1 flex-col gap-3 2xl:max-w-6xl 2xl:gap-5 3xl:max-w-7xl">
-        <header className={`relative flex flex-none flex-wrap items-center justify-between gap-3 overflow-visible rounded-[28px] px-4 py-3 md:px-6 2xl:px-8 2xl:py-5 ${primaryGlass}`}>
-          <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_28%,transparent_78%,rgba(255,255,255,0.10))]" />
-          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/75 to-transparent" />
-
-          <div className="relative flex items-center gap-3">
-            <div>
-              <h1 className="m-0 flex items-center gap-2 text-xl font-black uppercase leading-none tracking-[-0.05em] md:text-3xl 2xl:text-4xl">
-                <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent drop-shadow-md">Music</span>
-                <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(255,79,216,0.35)]">Bingo</span>
-              </h1>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-white/[0.55] md:text-[11px]">
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-white/70">
-                  <span className="h-2 w-2 rounded-full bg-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.7)]" />
-                  Live Session
-                </span>
-                <span className="hidden rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[#7fe8ff] md:inline-flex">
-                  Player: {playerName}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative flex items-center gap-2 2xl:gap-3">
-            <button
-              onClick={() => setShowRulesModal(true)}
-              className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
-            >
-              <BookOpen size={14} className="text-[#33d8ff] 2xl:h-4 2xl:w-4" />
-              <span className="hidden sm:inline">How To Play</span>
-            </button>
-
-            <div className="relative">
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
-                title="Send a reaction to the stage screen"
-              >
-                <SmilePlus size={14} className="text-[#ff4fd8] 2xl:h-4 2xl:w-4" />
-                <span className="hidden sm:inline">React</span>
-              </button>
-
-              {showEmojiPicker && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
-                  <div className={`absolute right-0 top-full z-[100] mt-2 grid w-48 grid-cols-4 place-items-center gap-3 rounded-2xl p-4 ${floatingGlass}`}>
-                    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_30%,transparent_70%,rgba(255,255,255,0.12))]" />
-                    {EMOJI_OPTIONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => handleSendReaction(emoji)}
-                        className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06] text-2xl transition-transform hover:scale-125 hover:bg-white/[0.10]"
-                      >
-                        {emoji}
-                      </button>
+ 
+        {/* Right Panel */}
+        <div className="bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-6 flex flex-col gap-6 lg:h-[calc(100vh-48px)] lg:self-start overflow-hidden">
+          
+          {/* Claims List */}
+          <div className="flex flex-col min-h-[260px] lg:max-h-[50%] flex-none">
+            <h2 className="flex items-center gap-2 m-0 mb-4 font-black text-xs uppercase tracking-widest text-[#33d8ff] flex items-center gap-2">
+              <Trophy className="w-4 h-4" /> Bingo Claims <span className="bg-[#33d8ff]/20 text-[#33d8ff] border border-[#33d8ff]/40 px-2 py-0.5 text-[10px] rounded-full">{claims.length}</span>
+            </h2>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-2 flex flex-col gap-3 custom-scrollbar">
+              {claims.length === 0 && (
+                <div className="text-center text-white/50 font-bold text-sm p-6 border border-white/10 bg-black/40 rounded-2xl shadow-inner leading-relaxed uppercase tracking-widest">
+                  No claims yet.
+                </div>
+              )}
+              {claims.map(claim => (
+                <div key={claim.id} className={`p-5 rounded-2xl border flex flex-col gap-3 relative overflow-hidden shadow-lg transition-all
+                  ${claim.status === 'valid' ? 'bg-gradient-to-br from-[#ffd76a]/20 to-black/60 border-[#ffd76a]/50 shadow-[0_0_20px_rgba(255,215,106,0.2)]' : 'bg-black/60 border-white/10'}
+                `}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`font-black text-2xl min-w-[32px] drop-shadow-md text-center
+                        ${claim.status === 'valid' && claim.position === 1 ? 'text-white' : 'text-white/50'}
+                      `}>
+                        {claim.status === 'valid' ? (claim.position === 1 ? '🥇' : claim.position === 2 ? '🥈' : claim.position === 3 ? '🥉' : `#${claim.position}`) : '—'}
+                      </div>
+                      <div className="font-black text-lg text-white truncate tracking-tight uppercase">{claim.playerName}</div>
+                    </div>
+                    <div className="text-[10px] text-white/50 font-semibold whitespace-nowrap">
+                      {new Date(claim.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {claim.status === 'valid' && <span className="text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest bg-gradient-to-r from-[#ffd76a] to-[#ffb800] text-black shadow-md">Valid</span>}
+                    {claim.status === 'cheating' && <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest border border-[#f87171]/40 text-[#f87171] bg-[#f87171]/10">Invalid</span>}
+                    {claim.status === 'no_line' && <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest border border-white/20 text-white/50">No Line</span>}
+                    
+                    {claim.winningLines?.map((line, i) => (
+                      <span key={i} className="text-[10px] font-semibold px-2 py-1 border border-white/20 text-white/90">{line.label}</span>
                     ))}
                   </div>
-                </>
-              )}
-            </div>
-
-            <button
-              className={`relative overflow-hidden rounded-xl px-5 py-2.5 text-xs font-black transition-all duration-300 md:px-6 md:text-sm 2xl:px-8 2xl:py-3 2xl:text-base ${
-                winningLines.length > 0 && !hasConfirmedWin
-                  ? 'bg-gradient-to-br from-[#ffe083] via-[#ff74da] to-[#44dcff] text-[#1a0510] ring-1 ring-white/[0.25] shadow-[0_18px_44px_rgba(255,79,216,0.35)] animate-pulse'
-                  : `${secondaryGlass} text-white/70 hover:bg-white/[0.09]`
-              }`}
-              onClick={handleCallBingo}
-              disabled={winningLines.length === 0 && !hasConfirmedWin}
-            >
-              <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,transparent_10%,rgba(255,255,255,0.35)_50%,transparent_90%)] opacity-0 transition-opacity hover:opacity-100" />
-              <span className="relative">📣 CALL BINGO!</span>
-            </button>
-          </div>
-        </header>
-
-        <main className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[30px] ${primaryGlass}`}>
-          <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.12),transparent_22%,transparent_78%,rgba(255,255,255,0.08))]" />
-          <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
-
-          <div className="relative flex flex-none items-center justify-between border-b border-white/10 bg-white/[0.04] px-4 py-3 md:px-6 2xl:px-8 2xl:py-4">
-            <div>
-              <h2 className="text-xs font-black uppercase tracking-[0.24em] text-white/90 md:text-sm 2xl:text-base">Your Bingo Card</h2>
-              <p className="mt-0.5 text-[10px] text-white/60 md:text-xs 2xl:text-sm">Mark 5 tiles in a row, column, or diagonal to win.</p>
-            </div>
-            <div className={`rounded-full px-3 py-1.5 text-[10px] font-bold 2xl:px-4 2xl:py-2 2xl:text-xs ${secondaryGlass} text-[#7fe8ff]`}>
-              {winningLines.length > 0
-                ? `🔥 ${winningLines.length / 5} Line${winningLines.length > 5 ? 's' : ''} Complete!`
-                : nearWins.length > 0
-                ? `⚡ ${nearWins.length} Tile Away!`
-                : '🎧 Listening...'}
-            </div>
-          </div>
-
-          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-3 py-3 md:px-5 md:py-5 2xl:px-8 2xl:py-8">
-            <div className="mb-1.5 grid w-full max-w-[min(100%,calc(100vh-280px))] grid-cols-5 gap-1 text-center text-sm font-black tracking-[0.28em] text-[#ffd76a] md:mb-2 md:gap-3 md:text-2xl 2xl:mb-3 2xl:max-w-[min(100%,calc(100vh-340px))] 2xl:gap-4 2xl:text-3xl 3xl:max-w-[min(100%,calc(100vh-400px))] 3xl:text-4xl">
-              {['B', 'I', 'N', 'G', 'O'].map((letter, colIdx) => {
-                const columnSelectedCount = [0, 1, 2, 3, 4].filter((rowIdx) => selected[rowIdx * 5 + colIdx]).length;
-                const isColComplete = columnSelectedCount === 5;
-
-                const letterStateClass = isColComplete
-                  ? 'mb-letter-pulse border-[#ffd76a]/70 bg-[linear-gradient(145deg,rgba(255,232,146,0.98),rgba(255,199,74,0.92))] text-[#251400] shadow-[0_0_28px_rgba(255,215,106,0.62),inset_0_1px_0_rgba(255,255,255,0.68)] animate-[completedLetterGlow_2.3s_ease-in-out_infinite]'
-                  : columnSelectedCount === 4
-                  ? 'mb-letter-pulse border-[#ffd76a]/55 bg-[linear-gradient(145deg,rgba(255,215,106,0.24),rgba(255,79,216,0.13))] text-[#ffe9a8] shadow-[0_0_22px_rgba(255,215,106,0.30),inset_0_1px_0_rgba(255,255,255,0.16)] animate-pulse'
-                  : columnSelectedCount >= 3
-                  ? 'border-white/20 bg-[linear-gradient(145deg,rgba(255,79,216,0.18),rgba(139,92,246,0.18),rgba(51,216,255,0.14))] text-white shadow-[0_0_18px_rgba(139,92,246,0.24),inset_0_1px_0_rgba(255,255,255,0.13)]'
-                  : columnSelectedCount >= 1
-                  ? 'border-white/[0.13] bg-white/[0.07] text-white/[0.88] shadow-[0_8px_24px_rgba(0,0,0,0.20),inset_0_1px_0_rgba(255,255,255,0.09)]'
-                  : `${secondaryGlass} text-white/[0.62]`;
-
-                return (
-                  <div
-                    key={letter}
-                    className={`relative overflow-hidden rounded-xl py-1.5 transition-all duration-500 2xl:py-2 ${letterStateClass}`}
-                    title={`${columnSelectedCount} of 5 tiles marked in column ${letter}`}
-                  >
-                    {isColComplete && (
-                      <span className="mb-letter-sweep pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/80 to-transparent blur-[1px] animate-[bingoSparkleSweep_2.8s_ease-in-out_infinite]" />
-                    )}
-                    <span className="relative z-10">{letter}</span>
+                  
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => setShowPreviewModal(claim)} className="flex-1 bg-white/10 hover:bg-white/20 rounded-xl border border-white/20 py-2 text-xs font-bold tracking-widest uppercase text-white transition-colors cursor-pointer">Inspect Board</button>
+                    <button onClick={() => dismissClaim(claim.id!)} className="flex-1 bg-black/40 hover:bg-[#f87171]/20 rounded-xl border border-white/10 hover:border-[#f87171]/40 py-2 text-xs font-bold tracking-widest uppercase text-white/50 hover:text-[#f87171] transition-colors cursor-pointer">Dismiss</button>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
-
-            <div className="grid aspect-square w-full max-w-[min(100%,calc(100vh-280px))] grid-cols-5 gap-1 md:gap-3 2xl:max-w-[min(100%,calc(100vh-340px))] 2xl:gap-4 3xl:max-w-[min(100%,calc(100vh-400px))]">
-              {boardSongs.map((song, i) => {
-                const isSelected = selected[i];
+          </div>
+ 
+          {/* Track History */}
+          <div className="flex flex-col flex-1 min-h-[140px]">
+            <h2 className="flex items-center gap-2 m-0 mb-4 font-black text-xs uppercase tracking-widest text-[#ff4fd8] flex items-center gap-2">
+              📋 Called History
+            </h2>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-2 flex flex-col gap-2 custom-scrollbar">
+              {(!gameState?.history.length && !gameState?.nowPlaying) && (
+                <div className="text-center text-white/50 font-bold uppercase tracking-widest text-sm p-6 border border-white/10 bg-black/40 rounded-2xl shadow-inner">
+                  No tracks called yet.
+                </div>
+              )}
+              {gameState?.nowPlaying && (
+                <HistoryItem songKey={gameState.nowPlaying} label="NOW" isCurrent={true} />
+              )}
+              {gameState?.history.slice().reverse().map((songKey, i) => (
+                <HistoryItem key={i + songKey} songKey={songKey} label={`#${gameState.history.length - i}`} isCurrent={false} />
+              ))}
+            </div>
+          </div>
+          
+          <button 
+            className="w-full py-4 mt-4 rounded-2xl bg-black/40 hover:bg-[#f87171]/20 border border-white/10 hover:border-[#f87171]/40 text-white/70 hover:text-[#f87171] text-xs font-black tracking-widest uppercase transition-colors cursor-pointer shadow-inner flex-none"
+            onClick={handleResetGame}
+          >
+            End Round & Reset
+          </button>
+        </div>
+        
+      </div>
+ 
+      {/* Inspect Player Board Modal */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 bg-[#0a0b1e]/90 z-[500] flex items-center justify-center p-4" onClick={() => setShowPreviewModal(null)}>
+          <div className="w-full max-w-[640px] max-h-[92vh] overflow-y-auto bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="m-0 mb-2 text-2xl font-serif font-medium text-white">{showPreviewModal.playerName}'s Card</h3>
+            
+            <div className="text-xs text-white/70 mb-6 font-light leading-relaxed">
+              <strong className={showPreviewModal.status === 'valid' ? 'text-white' : 'text-white/50'}>
+                {showPreviewModal.status === 'valid' ? '✅ Valid Win' : showPreviewModal.status === 'cheating' ? '❌ Invalid Marks' : '⚠️ No Complete Line'}
+              </strong> · Submitted at <strong>{new Date(showPreviewModal.timestamp).toLocaleTimeString()}</strong><br/>
+              Songs called by then: <strong>{showPreviewModal.historyCountAtClaim}</strong>
+            </div>
+ 
+            <div className="grid grid-cols-5 gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
+              {showPreviewModal.songs.map((song, i) => {
+                const isSelected = showPreviewModal.selected[i];
                 const isFree = i === 12;
-                const isWin = winningLines.includes(i);
-                const isNear = nearWins.includes(i);
-                const { title, artist } = splitSong(song);
-
-                let cellClass = 'group relative flex aspect-square w-full cursor-pointer select-none flex-col items-center justify-center overflow-hidden rounded-xl border p-0.5 text-center shadow-[0_14px_30px_rgba(0,0,0,0.24)] transition-all duration-200 md:rounded-2xl md:p-2 2xl:p-3 ';
-
+                
+                const winningIndices = new Set<number>();
+                showPreviewModal.winningLines?.forEach(l => l.indices.forEach(idx => winningIndices.add(idx)));
+                const isWin = winningIndices.has(i);
+                
+                let cellClass = "aspect-square p-1 flex flex-col justify-center text-center overflow-hidden border relative text-[9px] leading-tight ";
+                
                 if (isFree) {
-                  cellClass += ' border-[#ffd76a]/[0.35] bg-[linear-gradient(145deg,rgba(255,215,106,0.18),rgba(255,79,216,0.18),rgba(51,216,255,0.18))] backdrop-blur-xl cursor-default shadow-[0_18px_38px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.18)]';
+                  cellClass += "bg-gradient-to-br from-[#ff4fd8]/20 to-[#8b5cf6]/20 text-[#ff4fd8] font-black border-[#ff4fd8]/40 shadow-[0_0_15px_rgba(255,79,216,0.3)]";
                 } else if (isSelected) {
-                  cellClass += ' border-[#8ce8ff]/70 bg-[linear-gradient(145deg,rgba(13,20,38,0.86),rgba(35,24,67,0.84),rgba(13,31,48,0.82))] backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_0_22px_rgba(51,216,255,0.25),0_18px_42px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.16)] hover:-translate-y-0.5';
+                  if (showPreviewModal.status === 'cheating' && !isWin) {
+                     cellClass += "border-[#f87171] bg-[#f87171]/20 text-[#f87171] font-bold shadow-inner";
+                  } else {
+                     cellClass += "border-[#33d8ff] bg-gradient-to-br from-[#33d8ff] to-[#0ea5e9] text-black font-black shadow-[0_0_20px_rgba(51,216,255,0.5)]";
+                  }
                 } else {
-                  cellClass += ' border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-[0_14px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.09]';
+                  cellClass += "border-white/10 bg-black/60 text-white/50 hover:bg-white/5 transition-colors shadow-inner";
                 }
-
+                
                 if (isWin) {
-                  cellClass += ' ring-2 ring-white/90 ring-offset-2 ring-offset-black/50 shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_0_24px_rgba(255,215,106,0.75)]';
-                } else if (isNear && !isSelected) {
-                  cellClass += ' border-[#33d8ff]/60 shadow-[0_0_18px_rgba(51,216,255,0.35)] animate-pulse';
+                  cellClass += " border-4 border-[#ffd76a] z-10 scale-105 shadow-[0_0_30px_rgba(255,215,106,0.5)] bg-gradient-to-br from-[#ffd76a]/20 to-[#ffb800]/20";
                 }
-
+ 
+                const { title, artist } = splitSong(song);
+ 
                 return (
-                  <div
-                    key={i}
-                    className={`${cellClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7fe8ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d18]`}
-                    onClick={() => toggleCell(i)}
-                    onKeyDown={(event) => {
-                      if (!isFree && (event.key === 'Enter' || event.key === ' ')) {
-                        event.preventDefault();
-                        toggleCell(i);
-                      }
-                    }}
-                    role={isFree ? undefined : 'button'}
-                    tabIndex={isFree ? -1 : 0}
-                    aria-pressed={isFree ? undefined : isSelected}
-                    aria-label={isFree ? 'Free space' : `${isSelected ? 'Unmark' : 'Mark'} ${title} by ${artist}`}
-                  >
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_54%)]" />
-                    <div className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),transparent_35%,transparent_70%,rgba(0,0,0,0.10))]" />
-
-                    {isSelected && !isFree && (
+                  <div key={i} className={cellClass}>
+                    {isFree ? (
+                      <div className="font-black text-xs uppercase tracking-widest">Free</div>
+                    ) : (
                       <>
-                        <span className="absolute right-1 top-1 z-20 flex h-4 w-4 items-center justify-center rounded-full border border-white/30 bg-white/[0.14] text-white shadow-[0_4px_14px_rgba(0,0,0,0.30),0_0_14px_rgba(51,216,255,0.28)] backdrop-blur-md sm:h-5 sm:w-5 md:right-1.5 md:top-1.5 md:h-6 md:w-6">
-                          <Check className="h-2.5 w-2.5 stroke-[3.25] sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
-                        </span>
-                        <span className="mb-tile-shimmer pointer-events-none absolute inset-y-[-15%] left-[-45%] z-[5] w-[34%] bg-gradient-to-r from-transparent via-white/30 to-transparent blur-[1px] animate-[tileGlassShimmer_3.4s_ease-in-out_infinite]" />
+                        <div className="font-black line-clamp-3 leading-snug tracking-tight">{title}</div>
+                        <div className="text-[7.5px] mt-1 line-clamp-1 uppercase tracking-wide opacity-80">{artist}</div>
                       </>
                     )}
-
-                    {isFree ? (
-                      <div className="relative z-10 flex flex-col items-center font-black uppercase leading-tight">
-                        <Sparkles className="mb-0.5 h-3.5 w-3.5 text-[#ffd76a] md:h-5 md:w-5 2xl:h-7 2xl:w-7" />
-                        <span className="text-[9px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] sm:text-[10px] md:text-base 2xl:text-xl">FREE</span>
-                      </div>
-                    ) : (
-                      <div className="relative z-10 w-full px-0.5 sm:px-1">
-                        <div className="line-clamp-3 text-balance text-[8px] font-black leading-[1.1] text-white drop-shadow-md sm:text-[10px] sm:leading-tight md:text-[13px] 2xl:text-[16px] 3xl:text-[19px]">
-                          {title}
-                        </div>
-                        <div className={`mt-0.5 line-clamp-2 text-balance text-[6px] font-bold drop-shadow-md sm:text-[8px] md:mt-1 md:text-[9px] 2xl:text-[12px] 3xl:text-[14px] ${isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'}`}>
-                          {artist}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
             </div>
+ 
+            <div className="flex justify-end mt-8">
+              <button onClick={() => setShowPreviewModal(null)} className="px-8 py-3 rounded-xl bg-white text-black text-xs font-black tracking-widest uppercase hover:bg-neutral-200 transition-colors cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.2)]">Close</button>
+            </div>
           </div>
-        </main>
+        </div>
+      )}
+ 
+      {/* End Round & Reset Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 bg-[#0a0b1e]/90 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#131728] border border-white/15 rounded-3xl p-6 text-center shadow-2xl relative overflow-hidden animate-[popIn2_0.2s_ease-out]">
+            <div className="w-12 h-12 rounded-full bg-[#f87171]/20 border border-[#f87171]/40 flex items-center justify-center mx-auto mb-4 text-[#f87171]">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+ 
+            <h3 className="text-2xl font-black uppercase text-white mb-2">End Round & Reset Game?</h3>
+            <p className="text-white/70 text-xs leading-relaxed mb-6">
+              This will end the active round, clear all player bingo claims, and return connected players to the lobby to prepare for a fresh game.
+            </p>
+ 
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowResetModal(false)}
+                className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmResetGame}
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-[#f87171] to-[#ef4444] text-white font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(248,113,113,0.4)] hover:opacity-90 transition-all cursor-pointer"
+              >
+                End & Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+ 
+      {/* Fullscreen Host Teleprompter Modal */}
+      {showTeleprompter && gameState?.nowPlaying && (
+        <div className="fixed inset-0 bg-[#0a0b1e]/95 backdrop-blur-2xl z-[600] flex flex-col p-6 md:p-12 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
+          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col justify-between">
+            <div className="flex items-center justify-between pb-6 border-b border-white/20 mb-6">
+              <div className="flex items-center gap-3 text-[#33d8ff]">
+                <Lightbulb className="w-8 h-8 text-[#33d8ff] animate-pulse" />
+                <span className="font-black text-lg md:text-2xl uppercase tracking-widest text-white">
+                  Host Stage Teleprompter
+                </span>
+              </div>
+              <button
+                onClick={() => setShowTeleprompter(false)}
+                className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold cursor-pointer flex items-center gap-2 text-xs uppercase tracking-wider transition-colors"
+              >
+                <Minimize2 className="w-5 h-5" /> Close
+              </button>
+            </div>
+ 
+            <div className="my-auto py-6">
+              <div className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-[#ff4fd8] mb-2">
+                Currently Calling Track:
+              </div>
+              <h2 className="text-3xl md:text-6xl font-black text-white tracking-tight mb-1">
+                {splitSong(gameState.nowPlaying).title}
+              </h2>
+              <div className="text-xl md:text-3xl font-bold text-[#33d8ff] mb-8">
+                {splitSong(gameState.nowPlaying).artist}
+              </div>
+ 
+              <div className="p-8 md:p-12 bg-black/80 border-2 border-[#33d8ff]/50 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.2)]">
+                <div className="text-xs md:text-sm font-black uppercase tracking-widest text-[#ffd76a] mb-4 flex items-center gap-2">
+                  <MessageSquareQuote className="w-5 h-5 text-[#ffd76a]" />
+                  Mic Script & Song Trivia
+                </div>
+                <p className="text-2xl md:text-4xl text-white font-bold leading-relaxed m-0 text-balance">
+                  "{getSongFact(gameState.nowPlaying)}"
+                </p>
+              </div>
+            </div>
+ 
+            <div className="pt-6 border-t border-white/20 flex justify-between items-center text-xs md:text-sm text-white/60 font-bold uppercase tracking-widest">
+              <span>Press Close or Done to exit</span>
+              <button 
+                onClick={() => setShowTeleprompter(false)}
+                className="px-6 py-3 rounded-xl bg-[#33d8ff] text-black font-black uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Done Reading
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+ 
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; }
+      `}</style>
+    </div>
+  );
+}
+ 
+const HistoryItem: React.FC<{ songKey: string, label: string, isCurrent: boolean }> = ({ songKey, label, isCurrent }) => {
+  const [data, setData] = useState<{title: string, artist: string, artworkUrl?: string} | null>(null);
+  
+  useEffect(() => {
+    const { title, artist } = splitSong(songKey);
+    lookupPreview(title, artist).then(res => {
+      setData({ title, artist, artworkUrl: res.artworkUrl });
+    });
+  }, [songKey]);
+  
+  if (!data) return null;
+  
+  return (
+    <div className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isCurrent ? 'border-[#33d8ff]/50 bg-gradient-to-r from-[#33d8ff]/20 to-black/40 shadow-[0_0_15px_rgba(51,216,255,0.2)]' : 'border-white/10 bg-black/40 shadow-inner'}`}>
+      <div className={`text-[10px] font-black tracking-widest w-8 text-center ${isCurrent ? 'text-[#33d8ff]' : 'text-white/50'}`}>{label}</div>
+      <div className="w-10 h-10 bg-black flex-none border border-white/20 rounded-md bg-cover bg-center shadow-md overflow-hidden" style={data.artworkUrl ? { backgroundImage: `url(${data.artworkUrl})` } : {}}>
+        {!data.artworkUrl && <Disc className="w-full h-full p-2.5 opacity-20 text-white/50" />}
       </div>
-
-      {toastMsg && (
-        <div className={`fixed left-1/2 top-6 z-[100] -translate-x-1/2 whitespace-nowrap rounded-full px-6 py-3 text-xs font-black text-white shadow-[0_16px_42px_rgba(0,0,0,0.42)] md:text-sm ${floatingGlass}`}>
-          <div className="pointer-events-none absolute inset-0 rounded-full bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_28%,transparent_78%,rgba(255,255,255,0.10))]" />
-          <span className="relative">{toastMsg.msg}</span>
-        </div>
-      )}
-
-      {showRulesModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className={`relative w-full max-w-lg overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
-            <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.18),transparent_30%,transparent_72%,rgba(255,255,255,0.12))]" />
-            <div className="relative rounded-[29px] bg-[linear-gradient(180deg,rgba(16,22,37,0.92),rgba(12,17,31,0.95))] p-6">
-              <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
-                <h2 className="flex items-center gap-2 text-xl font-black uppercase text-white">
-                  <BookOpen className="text-[#33d8ff]" /> How To Play
-                </h2>
-                <button onClick={() => setShowRulesModal(false)} className="rounded-full bg-white/10 p-1 text-white/70 transition-all hover:bg-white/20 hover:text-white">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="mb-6 space-y-3 text-xs leading-relaxed text-white/80">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-                  <strong className="mb-1 block text-sm text-[#ffd76a]">1. Listen & Identify</strong>
-                  The host plays song clips. Listen carefully to identify the track name or artist.
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-                  <strong className="mb-1 block text-sm text-[#ff4fd8]">2. Mark Your Card</strong>
-                  If the song appears on your 5x5 grid, tap the tile to mark it. The center FREE space is already marked.
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-                  <strong className="mb-1 block text-sm text-[#33d8ff]">3. Call Bingo!</strong>
-                  Complete 5 tiles in any horizontal, vertical, or diagonal line and click <b>CALL BINGO</b>.
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowRulesModal(false)}
-                className="w-full rounded-2xl bg-gradient-to-r from-[#ffe083] via-[#ff74da] to-[#44dcff] py-3 text-sm font-black text-black shadow-[0_14px_32px_rgba(255,79,216,0.32)] transition-all hover:-translate-y-0.5"
-              >
-                Got It! Let's Play 🎵
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showWinModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#03060e]/80 p-4 backdrop-blur-md">
-          <div className={`relative w-full max-w-md overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
-            <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.18),transparent_30%,transparent_72%,rgba(255,255,255,0.12))]" />
-            <div className="relative rounded-[29px] bg-[linear-gradient(180deg,rgba(16,22,37,0.92),rgba(12,17,31,0.96))] p-6 text-center">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,79,216,0.10),transparent_36%),radial-gradient(circle_at_bottom,rgba(51,216,255,0.10),transparent_34%)]" />
-
-              {!winClaim?.status ? (
-                <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Checking...</h2>
-                  <div className="mb-6 flex items-center justify-center gap-2 text-sm text-white/80">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-                    Validating your bingo with the host...
-                  </div>
-                </>
-              ) : winClaim.status === 'valid' ? (
-                <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-4xl font-black uppercase tracking-[-0.05em] text-transparent drop-shadow-[0_0_15px_rgba(255,215,106,0.3)]">BINGO!</h2>
-                  <p className="mb-4 text-sm text-white/80">Your claim is in. The host has been notified.</p>
-                  {winClaim.winningLines?.[0] && <p className="mb-4 text-sm font-bold text-[#33d8ff]">{winClaim.winningLines[0].label}</p>}
-                  {winClaim.position && (
-                    <div className="mb-6 inline-flex items-center justify-center gap-2 rounded-full border border-[#ffd76a]/[0.35] bg-gradient-to-br from-[#ffd76a]/[0.18] to-[#ff4fd8]/[0.10] px-6 py-3 text-xl font-black text-[#ffd76a]">
-                      {winClaim.position === 1
-                        ? '🥇 1st Place'
-                        : winClaim.position === 2
-                        ? '🥈 2nd Place'
-                        : winClaim.position === 3
-                        ? '🥉 3rd Place'
-                        : `#${winClaim.position}`}
-                    </div>
-                  )}
-                </>
-              ) : winClaim.status === 'cheating' ? (
-                <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#f87171] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Not Quite Right</h2>
-                  <p className="mb-6 text-sm text-white/80">
-                    Hmm. Your board does not match the songs that have actually been called.
-                    <br />
-                    <br />
-                    Double-check your marks and unselect any squares you are not 100% sure about, then press <b>Call Bingo</b> again.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h2 className="mb-2 bg-gradient-to-br from-[#fb923c] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Almost!</h2>
-                  <p className="mb-6 text-sm text-white/80">{winClaim.reason || "The host did not find a complete line on your board. Keep going!"}</p>
-                </>
-              )}
-
-              <button
-                className="relative z-10 w-full rounded-2xl border border-white/[0.15] bg-white/[0.08] py-3 font-bold text-white transition-all hover:bg-white/[0.14]"
-                onClick={() => setShowWinModal(false)}
-              >
-                Close to View Board
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className={`text-xs font-black truncate tracking-tight uppercase ${isCurrent ? 'text-white' : 'text-white/80'}`}>{data.title}</div>
+        <div className="text-[10px] text-white/50 truncate uppercase tracking-wide mt-0.5">{data.artist}</div>
+      </div>
+      {isCurrent && <div className="text-[9px] font-black tracking-widest uppercase text-black bg-[#33d8ff] px-2 py-1 rounded-full shadow-[0_0_10px_#33d8ff]">Live</div>}
     </div>
   );
 }
