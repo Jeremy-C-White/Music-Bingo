@@ -217,10 +217,8 @@ export function subscribeToReactions(callback: (reactions: Reaction[]) => void) 
   const q = query(reactionsCollection, orderBy('timestamp', 'desc'), limit(30));
   
   return onSnapshot(q, (snapshot) => {
-    const now = Date.now();
     const reactions = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Reaction))
-      .filter(r => (now - r.timestamp) < 60000); // Allow up to 60s of clock skew
+      .map(doc => ({ id: doc.id, ...doc.data() } as Reaction));
     callback(reactions);
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/reactions'));
 }

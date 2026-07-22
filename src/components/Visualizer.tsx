@@ -527,7 +527,7 @@ export default function Visualizer() {
       )}
 
       {/* Floating Reactions */}
-      <div className="absolute inset-0 z-[60] pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 z-[100] pointer-events-none overflow-hidden">
         {reactions.map((reaction) => {
           // generate a deterministic pseudo-random start position from 10% to 90%
           const charCode = reaction.id.charCodeAt(0) || 50;
@@ -538,14 +538,14 @@ export default function Visualizer() {
           return (
             <div 
               key={reaction.id}
-              className="absolute bottom-0 text-center flex flex-col items-center animate-emojiFloat"
+              className="absolute bottom-[-50px] text-center flex flex-col items-center animate-[emojiFloat_6s_ease-out_forwards]"
               style={{
                 left: `${leftPercent}%`,
                 '--rot': `${rot}deg`
               } as React.CSSProperties}
             >
-              <div className="text-4xl md:text-6xl drop-shadow-[0_0_15px_rgba(255,255,255,0.5)] mb-1">{reaction.emoji}</div>
-              <div className="bg-black/60 backdrop-blur-sm border border-white/20 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap shadow-xl">
+              <div className="text-6xl md:text-8xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
+              <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-xs md:text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
                 {reaction.playerName}
               </div>
             </div>
