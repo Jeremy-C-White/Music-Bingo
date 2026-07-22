@@ -238,10 +238,14 @@ export default function Board() {
     }
   };
 
-  const handleSendReaction = (emoji: string) => {
-    sendReaction(playerName, emoji);
+  const handleSendReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
-    showToast(`Sent ${emoji} to the big screen!`);
+    try {
+      await sendReaction(playerName, emoji);
+      showToast(`Sent ${emoji} to the big screen!`);
+    } catch (error) {
+      showToast(`Failed to send ${emoji}.`);
+    }
   };
 
   if (inLobby) {

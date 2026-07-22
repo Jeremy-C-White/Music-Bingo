@@ -224,7 +224,7 @@ export function subscribeToReactions(callback: (reactions: Reaction[]) => void) 
 }
 
 export async function sendReaction(playerName: string, emoji: string) {
-  if (!playerName || !playerName.trim() || !emoji) return;
+  if (!playerName || !playerName.trim() || !emoji) throw new Error("Missing name or emoji");
   try {
     const reactionsCollection = collection(db, 'games', GAME_DOC_ID, 'reactions');
     await addDoc(reactionsCollection, {
@@ -234,6 +234,7 @@ export async function sendReaction(playerName: string, emoji: string) {
     });
   } catch (err) {
     console.error("Failed to send reaction:", err);
+    throw err;
   }
 }
 

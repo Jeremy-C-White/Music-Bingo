@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subscribeToReactions, Reaction } from '../lib/store';
 import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
@@ -527,31 +528,34 @@ export default function Visualizer() {
       )}
 
       {/* Floating Reactions */}
-      <div className="absolute inset-0 z-[100] pointer-events-none overflow-hidden">
-        {reactions.map((reaction) => {
-          // generate a deterministic pseudo-random start position from 10% to 90%
-          const charCode = reaction.id.charCodeAt(0) || 50;
-          const leftPercent = 10 + (charCode % 80);
-          // deterministic rotation
-          const rot = (charCode % 40) - 20; // -20 to 20
-          
-          return (
-            <div 
-              key={reaction.id}
-              className="absolute bottom-[-50px] text-center flex flex-col items-center animate-[emojiFloat_6s_ease-out_forwards]"
-              style={{
-                left: `${leftPercent}%`,
-                '--rot': `${rot}deg`
-              } as React.CSSProperties}
-            >
-              <div className="text-6xl md:text-8xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
-              <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-xs md:text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
-                {reaction.playerName}
+      {createPortal(
+        <div className="fixed inset-0 z-[9999] pointer-events-none">
+          {reactions.map((reaction) => {
+            // generate a deterministic pseudo-random start position from 10% to 90%
+            const charCode = reaction.id.charCodeAt(0) || 50;
+            const leftPercent = 10 + (charCode % 80);
+            // deterministic rotation
+            const rot = (charCode % 40) - 20; // -20 to 20
+            
+            return (
+              <div 
+                key={reaction.id}
+                className="absolute bottom-[-50px] text-center flex flex-col items-center animate-emojiFloat"
+                style={{
+                  left: `${leftPercent}%`,
+                  '--rot': `${rot}deg`
+                } as React.CSSProperties}
+              >
+                <div className="text-6xl md:text-8xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
+                <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-xs md:text-sm font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
+                  {reaction.playerName}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>,
+        document.body
+      )}
 
       {/* Audio controls popup */}
       <div className="absolute bottom-6 left-6 z-50">
