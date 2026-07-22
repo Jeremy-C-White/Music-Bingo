@@ -11,7 +11,8 @@ export default function Visualizer() {
   const [previewData, setPreviewData] = useState<{previewUrl: string; artworkUrl: string} | null>(null);
   const [totalClaims, setTotalClaims] = useState(0);
   const [reactions, setReactions] = useState<Reaction[]>([]);
-  const [encouragement, setEncouragement] = useState<string | null>(null);
+  const [encouragement, setEncouragement] = useState<{ kicker: string, title: string, sub: string, isClaim?: boolean } | null>(null);
+  const lastClaimsCountRef = useRef(0);
   
   const [themeIndex, setThemeIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
@@ -88,46 +89,37 @@ export default function Visualizer() {
   }, [gameState?.sessionId]);
 
   useEffect(() => {
-    if (gameState?.nowPlaying) {
-      let encouragements: string[] = [];
-      const trackCount = gameState.history.length;
-      
-      if (totalClaims > 0) {
-        encouragements = [
-          "We have winners, but keep playing!",
-          "Who's next to yell BINGO?",
-          "More Bingos coming right up!",
-          "The prizes are flying!"
-        ];
-      } else if (trackCount <= 5) {
-        encouragements = [
-          "Let's get this party started!",
-          "First few tracks are in!",
-          "Eyes on your cards!",
-          "Warm up those daubers!"
-        ];
-      } else if (trackCount <= 15) {
-        encouragements = [
-          "Keep the energy up!",
-          "Who's getting close?",
-          "Check your board!",
-          "The board is filling up!",
-          "Mark those cards!"
-        ];
-      } else {
-        encouragements = [
-          "Is it Bingo time yet?",
-          "Someone's got to be close!",
-          "The tension is building!",
-          "It could be any track now!",
-          "Get ready to shout BINGO!"
-        ];
-      }
+    const trackNumber = (gameState?.history.length || 0) + (gameState?.nowPlaying ? 1 : 0);
+    const setNumber = Math.max(0, Math.floor((trackNumber - 1) / 5));
 
-      setEncouragement(encouragements[Math.floor(Math.random() * encouragements.length)]);
-      const timer = setTimeout(() => setEncouragement(null), 6000);
-      return () => clearTimeout(timer);
-    } else {
+    if (totalClaims > 0 && totalClaims > lastClaimsCountRef.current) {
+        lastClaimsCountRef.current = totalClaims;
+        setEncouragement({
+           isClaim: true,
+           kicker: '📣 Hold Everything',
+           title: 'BINGO!',
+           sub: totalClaims > 1 ? `Claim #${totalClaims} just hit the host's desk — verifying now…` : `A claim just hit the host's desk — verifying now…`
+        });
+        const timer = setTimeout(() => setEncouragement(null), 4000);
+        return () => clearTimeout(timer);
+    } else if (gameState?.nowPlaying && trackNumber > 1 && trackNumber % 5 === 1 && !encouragement) {
+        const HYPE_MESSAGES = [
+          { title: 'THIS TRACK COULD BE IT!', sub: 'Mystery Track {track} is playing now. Listen for the hook and check your board.' },
+          { title: 'LISTEN CLOSE!', sub: 'Stay with the current beat. Your next mark could be hiding right here.' },
+          { title: 'FIND THAT SQUARE!', sub: 'This mystery is live now. Scan your board while the chorus plays.' },
+          { title: 'TRUST YOUR EARS!', sub: 'Focus on Track {track}. One sound could unlock the square you need.' },
+          { title: 'STAY LOCKED IN!', sub: 'The current track is your only clue. Lock in your guess before it ends.' },
+          { title: 'MAKE THIS TRACK COUNT!', sub: 'Track {track} is live. Listen, decide, and mark it while the music plays.' }
+        ];
+        const hype = HYPE_MESSAGES[(setNumber - 1) % HYPE_MESSAGES.length] || HYPE_MESSAGES[0];
+        setEncouragement({
+          kicker: `⚡ NOW PLAYING • TRACK ${String(trackNumber).padStart(2, '0')}`,
+          title: hype.title,
+          sub: hype.sub.replace('{track}', String(trackNumber).padStart(2, '0'))
+        });
+        const timer = setTimeout(() => setEncouragement(null), 6000);
+        return () => clearTimeout(timer);
+    } else if (!gameState?.nowPlaying) {
       setEncouragement(null);
     }
   }, [gameState?.nowPlaying, gameState?.history.length, totalClaims]);
@@ -481,14 +473,29 @@ export default function Visualizer() {
               
               {/* Album Art Deck */}
               <div className="relative w-[160px] h-[160px] sm:w-[280px] sm:h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center flex-none">
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 400 400">
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="8" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
+                <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_22px_rgba(51,216,255,0.25)]" viewBox="0 0 400 400">
+                  <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                  <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="6" strokeLinecap="round" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
                 </svg>
                 
-                <div className="w-[72%] h-[72%] rounded-full bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-4 border-[var(--scene-c)]/40 shadow-[0_0_60px_var(--scene-b)] relative overflow-hidden flex items-center justify-center">
-                  {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-70 grayscale blur-sm mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
-                  <div className="text-8xl md:text-[130px] font-black text-[var(--scene-c)] drop-shadow-[0_0_40px_var(--scene-c)] z-10 animate-pulse">?</div>
+                {/* Vinyl Background */}
+                <div className={`absolute inset-[8%] rounded-full bg-[repeating-radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0,rgba(255,255,255,0.02)_1px,transparent_1px,transparent_4px),radial-gradient(circle_at_center,#1a1530_0%,#0a0918_75%)] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] ${themeIndex === 1 ? 'animate-[spin_13s_linear_infinite]' : 'animate-[spin_20s_linear_infinite]'} ${themeIndex === 3 ? 'inset-[4%] opacity-80' : ''}`}>
+                  <div className="absolute inset-[42%] rounded-full bg-gradient-to-br from-[var(--scene-a)] to-[var(--scene-b)] opacity-85"></div>
+                </div>
+
+                {/* The Album Art */}
+                <div 
+                  className="absolute z-10 overflow-hidden bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border border-[var(--scene-c)]/40 flex items-center justify-center shadow-[0_30px_80px_rgba(0,0,0,0.7),0_0_60px_var(--scene-b)] transition-all duration-700 ease-out"
+                  style={{
+                    width: themeIndex === 3 ? '78%' : (themeIndex === 4 ? '73%' : '70%'),
+                    height: themeIndex === 3 ? '62%' : (themeIndex === 4 ? '73%' : '70%'),
+                    borderRadius: themeIndex === 0 ? 'clamp(14px, 2vh, 24px)' : (themeIndex === 1 ? '50%' : (themeIndex === 2 ? '34px 10px 34px 10px' : (themeIndex === 3 ? '46px' : '24px'))),
+                    clipPath: themeIndex === 4 ? 'polygon(50% 0%, 92% 18%, 100% 60%, 72% 100%, 28% 100%, 0% 60%, 8% 18%)' : 'none',
+                    transform: themeIndex === 0 ? 'rotate(0deg) scale(1)' : (themeIndex === 1 ? 'scale(0.98)' : (themeIndex === 2 ? 'rotate(-4deg) scale(0.94)' : (themeIndex === 3 ? 'translateY(1%)' : 'scale(0.98)')))
+                  }}
+                >
+                  {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-60 grayscale-[60%] blur-[5px] mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
+                  <div className="text-8xl md:text-[130px] font-black text-[var(--scene-c)] z-10 animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: '0 0 40px rgba(248,113,113,0.55), 2px 0 0 rgba(255,79,216,0.5), -2px 0 0 rgba(51,216,255,0.5)'}}>?</div>
                 </div>
               </div>
 
@@ -570,16 +577,23 @@ export default function Visualizer() {
         </div>
       )}
 
-      {/* Encouragement Banner */}
+      {/* Encouragement Banner / Milestone Flash */}
       {encouragement && (
-        <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] pointer-events-none w-full px-4 text-center">
-          <div className="inline-block animate-[popIn2_0.5s_ease-out_forwards,gentlePulse_2s_infinite]">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] blur-2xl opacity-40 rounded-full"></div>
-              <div className="relative bg-black/60 backdrop-blur-xl border-2 border-white/20 px-8 py-6 md:px-12 md:py-8 rounded-full shadow-2xl">
-                <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 uppercase tracking-widest leading-none m-0">
-                  {encouragement}
-                </h2>
+        <div className="absolute inset-0 z-[80] flex items-center justify-center pointer-events-none p-4 md:p-8 animate-[popIn2_0.5s_ease-out_forwards]">
+          <div className={`absolute inset-0 ${encouragement.isClaim ? 'bg-[radial-gradient(circle_at_center,rgba(255,215,106,0.3),transparent_45%),rgba(3,4,12,0.8)]' : 'bg-[radial-gradient(circle_at_center,rgba(255,79,216,0.28),transparent_42%),rgba(3,4,12,0.78)]'} backdrop-blur-xl transition-all`}></div>
+          <div className={`relative min-w-[min(620px,86vw)] p-[clamp(28px,5vh,52px)] rounded-[30px] border ${encouragement.isClaim ? 'border-[#ffd76a]/50 bg-gradient-to-br from-[#ffd76a]/16 to-[#4ade80]/12 shadow-[0_0_110px_rgba(255,215,106,0.35)]' : 'border-[var(--scene-a)]/34 bg-gradient-to-br from-[var(--scene-a)]/12 to-[var(--scene-b)]/14 shadow-[0_0_90px_var(--scene-b)]'} overflow-hidden`}>
+            {/* Rotating background light */}
+            <div className="absolute inset-[-60%] animate-[spin_5s_linear_infinite]" style={{ background: 'conic-gradient(from 90deg, transparent, rgba(var(--scene-a-rgb),0.16), transparent, rgba(var(--scene-c-rgb),0.13), transparent)'}}></div>
+            
+            <div className="relative z-10 text-center">
+              <div className={`text-[clamp(9px,1.3vh,12px)] font-bold tracking-[0.3em] uppercase ${encouragement.isClaim ? 'text-[#ffd76a]' : 'text-[var(--scene-a)]'}`}>
+                {encouragement.kicker}
+              </div>
+              <h2 className="my-2 md:my-3 text-[clamp(36px,8vw,96px)] leading-[0.95] tracking-[-0.055em] font-black text-transparent bg-clip-text" style={{ backgroundImage: encouragement.isClaim ? 'linear-gradient(100deg, #fff, #ffd76a, #4ade80)' : 'linear-gradient(100deg, #fff, var(--scene-c), var(--scene-b))' }}>
+                {encouragement.title}
+              </h2>
+              <div className="text-[clamp(15px,2vh,22px)] text-white/80 font-bold max-w-xl mx-auto">
+                {encouragement.sub}
               </div>
             </div>
           </div>
