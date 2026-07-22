@@ -1,6 +1,6 @@
 import { handleFirestoreError, OperationType } from './firebase-error';
 import { db } from './firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { GameState, Claim } from './types';
 import { songs, WIN_PATTERNS } from './data';
 
@@ -61,14 +61,19 @@ export async function startNewGame() {
 
 export async function resetGame() {
   try {
-  await setDoc(gameDocRef, {
-    sessionId: Date.now().toString(),
-    started: false,
-    nowPlaying: null,
-    history: [],
-    visualizerAudioActive: false,
-    updatedAt: Date.now()
-  });
+    await setDoc(gameDocRef, {
+      sessionId: Date.now().toString(),
+      started: false,
+      nowPlaying: null,
+      history: [],
+      visualizerAudioActive: false,
+      updatedAt: Date.now()
+    });
+
+    // Clear claims subcollection
+    const snap = await getDocs(claimsCollection);
+    const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'games/current');
     throw err;
