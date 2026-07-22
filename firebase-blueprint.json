@@ -28,6 +28,13 @@
             { "name": "lastCalledAtClaim", "type": "string", "nullable": true },
             { "name": "position", "type": "number", "nullable": true }
           ]
+        },
+        {
+          "collectionName": "players",
+          "fields": [
+            { "name": "name", "type": "string" },
+            { "name": "lastSeen", "type": "number" }
+          ]
         }
       ]
     }

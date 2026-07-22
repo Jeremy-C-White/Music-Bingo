@@ -155,23 +155,31 @@ export async function dismissClaim(claimId: string) {
 }
 
 export async function pingPresence(playerName: string) {
-  if (!playerName) return;
-  const playerRef = doc(db, 'games', GAME_DOC_ID, 'players', playerName);
-  await setDoc(playerRef, {
-    name: playerName,
-    lastSeen: Date.now()
-  });
+  if (!playerName || !playerName.trim()) return;
+  const cleanName = playerName.trim();
+  const playerDocId = cleanName.replace(/[/\\?%*:|"<>#]/g, '_');
+  const playerRef = doc(db, 'games', GAME_DOC_ID, 'players', playerDocId);
+  try {
+    await setDoc(playerRef, {
+      name: cleanName,
+      lastSeen: Date.now()
+    });
+  } catch (err) {
+    console.error("Presence ping failed:", err);
+  }
 }
 
 export function subscribeToPlayerCount(callback: (count: number) => void) {
   const playersCollection = collection(db, 'games', GAME_DOC_ID, 'players');
   return onSnapshot(playersCollection, (snapshot) => {
     const now = Date.now();
-    // Count players seen in the last 30 seconds
+    // Count players seen within the last 30 seconds
     const activeCount = snapshot.docs.filter(doc => {
       const data = doc.data();
-      return (now - data.lastSeen) < 30000;
+      return data.lastSeen && (now - data.lastSeen) < 30000;
     }).length;
     callback(activeCount);
+  }, (err) => {
+    console.error("subscribeToPlayerCount error:", err);
   });
 }

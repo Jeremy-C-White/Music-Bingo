@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive } from '../lib/store';
 import { GameState } from '../lib/types';
-import { splitSong } from '../lib/data';
+import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
+import { Music, Volume2, VolumeX, Sparkles, Trophy, Disc, Radio, Settings, Lightbulb } from 'lucide-react';
 
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -114,7 +115,6 @@ export default function Visualizer() {
 
   const initAudioContext = () => {
     if (analyserRef.current || !audioRef.current) {
-      // If we already have an analyser, just ensure the context is running
       const audioCtx = (window as any)._audioCtx;
       if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
@@ -192,11 +192,6 @@ export default function Visualizer() {
       
       const w = canvas.width;
       const h = canvas.height;
-      const dpr = window.devicePixelRatio || 1;
-      
-      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-        // Size handles automatically by CSS, we just draw in logic coords
-      }
       
       const themes = [
         { a: '51,216,255', b: '255,79,216', c: '255,215,106' },
@@ -314,18 +309,16 @@ export default function Visualizer() {
   ];
   
   const theme = themes[themeIndex] || themes[0];
-  
-  const isHardMode = true; // Always mystery mode in this version
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-[#04050d] text-[#f7f8ff] font-sans relative"
+    <div className="w-screen h-screen overflow-hidden bg-[#04050d] text-[#f7f8ff] font-sans relative selection:bg-[#ff4fd8]"
          style={{
            '--scene-a': theme.a,
            '--scene-b': theme.b,
            '--scene-c': theme.c,
          } as React.CSSProperties}>
       
-      {/* Background elements */}
+      {/* Background ambient light show */}
       <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.22)_0%,transparent_40%),radial-gradient(ellipse_at_82%_12%,rgba(51,216,255,0.18)_0%,transparent_38%),radial-gradient(ellipse_at_52%_92%,rgba(139,92,246,0.22)_0%,transparent_45%),linear-gradient(140deg,#04050d,#0a0b1e_45%,#15102e_70%,#0a1326)] opacity-100 transition-all duration-1000">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.55)_100%)] pointer-events-none"></div>
       </div>
@@ -335,171 +328,135 @@ export default function Visualizer() {
         <div className="absolute rounded-full blur-[48px] opacity-55 animate-[drift_22s_ease-in-out_infinite_alternate] w-[520px] h-[520px] -right-[160px] -top-[80px] bg-[radial-gradient(circle,rgba(51,216,255,0.55),transparent_70%)]"></div>
         <div className="absolute rounded-full blur-[48px] opacity-55 animate-[drift_26s_ease-in-out_infinite_alternate] w-[460px] h-[460px] left-[38%] -bottom-[180px] bg-[radial-gradient(circle,rgba(139,92,246,0.55),transparent_70%)]"></div>
       </div>
-      
-      <div className="fixed inset-0 z-[2] pointer-events-none opacity-[0.08] mix-blend-overlay" style={{backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")`}}></div>
-      
+
       {!gameState?.started && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-5 text-center bg-transparent animate-[popIn2_0.5s_ease-out]">
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-5 text-center bg-transparent">
           <div className="w-full max-w-[720px] flex flex-col items-center">
-             <div className="relative inline-block mb-[min(4vh,32px)] text-center animate-[logoFloat_4s_ease-in-out_infinite] select-none">
-               <div className="absolute text-[clamp(30px,5vw,60px)] drop-shadow-[0_0_15px_rgba(255,255,255,0.6)] opacity-80 z-10 -top-[10%] -left-[5%] text-[var(--scene-a)] animate-[noteBounce_3s_ease-in-out_infinite_alternate]">🎵</div>
-               <div className="absolute text-[clamp(30px,5vw,60px)] drop-shadow-[0_0_15px_rgba(255,255,255,0.6)] opacity-80 z-10 bottom-[10%] -right-[5%] text-[var(--scene-c)] animate-[noteBounceReverse_3.5s_ease-in-out_infinite_alternate-reverse]">🎶</div>
-               <div className="absolute text-[clamp(20px,3vw,40px)] drop-shadow-[0_0_15px_rgba(255,255,255,0.6)] opacity-50 z-30 top-[40%] left-[45%] text-[var(--scene-b)] animate-[noteSpin_4s_linear_infinite]">✨</div>
+             <div className="relative inline-block mb-6 text-center select-none">
                <h1 className="text-[clamp(50px,10vw,120px)] font-black leading-[0.9] tracking-tighter uppercase m-0 flex flex-col items-center">
-                 <span className="bg-gradient-to-r from-white via-[var(--scene-a)] to-white bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(51,216,255,0.4)] -translate-x-[5%] animate-[gradientShift_3s_linear_infinite] z-20 px-5">MUSIC</span>
-                 <span className="bg-gradient-to-r from-[var(--scene-b)] via-[var(--scene-c)] to-[var(--scene-b)] bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,79,216,0.5)] translate-x-[5%] -mt-[10px] animate-[gradientShift_3s_linear_infinite_reverse] z-20 px-5">BINGO</span>
+                 <span className="bg-gradient-to-r from-white via-[var(--scene-a)] to-white bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(51,216,255,0.4)] z-20 px-5">MUSIC</span>
+                 <span className="bg-gradient-to-r from-[var(--scene-b)] via-[var(--scene-c)] to-[var(--scene-b)] bg-[length:200%_auto] bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,79,216,0.5)] z-20 px-5">BINGO</span>
                </h1>
              </div>
-             <div className="text-[var(--scene-a)] text-xs font-medium tracking-[0.32em] uppercase mb-5">Game Starting Soon!</div>
-             <h3 className="text-white text-[clamp(30px,5vmin,60px)] leading-[0.9] tracking-tighter font-black m-0 mb-[18px] drop-shadow-[0_0_10px_rgba(255,255,255,0.25)]">Grab your board and get ready.</h3>
-             
-             <div className="mt-[min(5vh,42px)] inline-flex flex-col items-center gap-2.5">
-               <span className="font-medium text-[clamp(8px,1.1vh,10px)] tracking-[0.32em] uppercase text-white/40">Presented by</span>
-               <span className="inline-flex p-[2px] rounded-full bg-gradient-to-br from-[var(--scene-b)] via-[var(--scene-a)] to-[var(--scene-c)] animate-[sponsorGlow_4.5s_ease-in-out_infinite]">
-                 <span className="inline-flex items-center justify-center bg-white rounded-full py-[clamp(8px,1.4vh,12px)] px-[clamp(20px,3vh,30px)]">
-                   <img className="block h-[clamp(17px,2.8vh,25px)] w-auto max-w-[190px]" src="https://whije02.github.io/song/Verizon_2024.svg" alt="Verizon" />
-                 </span>
-               </span>
-             </div>
-          </div>
+             <div className="text-[var(--scene-a)] text-xs font-bold tracking-[0.32em] uppercase mb-5">Stage Screen Ready</div>
+             <h3 className="text-white text-[clamp(28px,4vmin,50px)] leading-[1.1] tracking-tight font-black m-0 mb-4 drop-shadow-lg">
+               Waiting for Host to Launch Game...
+             </h3>
+           </div>
         </div>
       )}
 
       {gameState?.started && (
-        <div className="absolute inset-0 z-10 flex p-8 gap-8 transition-all">
-          <div className="flex-1 bg-[#0e1226]/50 backdrop-blur-2xl border border-white/10 rounded-[32px] p-10 flex flex-col shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 z-10 flex p-6 md:p-10 gap-8 transition-all">
+          <div className="flex-1 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-[36px] p-8 md:p-12 flex flex-col shadow-2xl relative overflow-hidden">
             
             {/* Round info overlay */}
-            <div className="absolute top-6 right-8 flex items-center gap-4 z-30">
+            <div className="absolute top-8 right-10 flex items-center gap-4 z-30">
               {totalClaims > 0 && (
-                <div className="flex flex-col items-center justify-center w-[76px] h-[76px] rounded-full border border-[var(--scene-c)]/50 bg-black/50 backdrop-blur-md shadow-[0_0_30px_var(--scene-c)] animate-[popIn2_0.4s]">
-                  <span className="text-[8px] font-bold tracking-widest text-[var(--scene-c)] uppercase">Bingos</span>
+                <div className="flex flex-col items-center justify-center w-[84px] h-[84px] rounded-2xl border border-[var(--scene-c)]/50 bg-black/60 backdrop-blur-md shadow-[0_0_30px_var(--scene-c)] animate-bounce">
+                  <span className="text-[9px] font-black tracking-widest text-[var(--scene-c)] uppercase">Bingos</span>
                   <strong className="text-3xl font-black text-[var(--scene-c)] tabular-nums leading-none mt-1">{String(totalClaims).padStart(2, '0')}</strong>
                 </div>
               )}
-              <div className="flex flex-col items-center justify-center w-[76px] h-[76px] rounded-full border border-[var(--scene-b)]/40 bg-black/50 backdrop-blur-md shadow-[0_0_30px_var(--scene-b)]">
-                <span className="text-[8px] font-bold tracking-widest text-white/50 uppercase">Track</span>
+
+              <div className="flex flex-col items-center justify-center w-[84px] h-[84px] rounded-2xl border border-[var(--scene-b)]/40 bg-black/60 backdrop-blur-md shadow-[0_0_30px_var(--scene-b)]">
+                <span className="text-[9px] font-black tracking-widest text-white/50 uppercase">Track</span>
                 <strong className="text-3xl font-black text-white tabular-nums leading-none mt-1">{String(Math.max(1, gameState.history.length)).padStart(2, '0')}</strong>
               </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center gap-16 relative z-20">
+            <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 relative z-20">
               
-              {/* Album Art */}
-              <div className="relative w-[400px] h-[400px] flex items-center justify-center">
+              {/* Album Art Deck */}
+              <div className="relative w-[280px] h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center">
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 400 400">
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="6" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
+                  <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
+                  <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="8" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
                 </svg>
                 
-                <div className={`w-[70%] h-[70%] rounded-2xl bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border border-[var(--scene-c)]/40 shadow-[0_30px_80px_rgba(0,0,0,0.7),0_0_60px_var(--scene-b)] relative overflow-hidden flex items-center justify-center`}>
-                  {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-60 grayscale blur-sm mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
-                  <div className="text-[140px] font-black text-[var(--scene-c)] drop-shadow-[0_0_40px_var(--scene-c)] z-10 animate-pulse">?</div>
+                <div className="w-[72%] h-[72%] rounded-full bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-4 border-[var(--scene-c)]/40 shadow-[0_0_60px_var(--scene-b)] relative overflow-hidden flex items-center justify-center">
+                  {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-70 grayscale blur-sm mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
+                  <div className="text-8xl md:text-[130px] font-black text-[var(--scene-c)] drop-shadow-[0_0_40px_var(--scene-c)] z-10 animate-pulse">?</div>
                 </div>
               </div>
 
-              {/* Info */}
-              <div className="flex-1">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-br from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-[10px] font-black tracking-widest uppercase mb-6 shadow-[0_0_30px_var(--scene-b)]">
-                  🎧 Mystery Track Live
+              {/* Mystery Track Header */}
+              <div className="flex-1 text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-r from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-xs font-black tracking-widest uppercase mb-6 shadow-lg">
+                  <Sparkles className="w-4 h-4" /> Mystery Track Live
                 </div>
                 
-                <div className="text-[11px] font-bold tracking-[0.3em] uppercase text-white/40 mb-3">Now Playing</div>
-                <h2 className="text-[72px] font-black leading-[1.1] tracking-tight mb-4 text-balance drop-shadow-2xl">
-                  {gameState.nowPlaying ? `Mystery Track ${Math.max(1, gameState.history.length)}` : 'Ready?'}
+                <div className="text-xs font-bold tracking-[0.3em] uppercase text-white/40 mb-3">Now Playing</div>
+                <h2 className="text-4xl md:text-7xl font-black leading-[1.1] tracking-tight mb-4 text-balance drop-shadow-2xl">
+                  {gameState.nowPlaying ? `Mystery Track #${Math.max(1, gameState.history.length)}` : 'Ready?'}
                 </h2>
-                <div className="text-3xl font-medium text-white/80 mb-8">
-                  {gameState.nowPlaying ? 'Listen for the hook. Your square may be hiding in plain sight.' : 'Next track incoming...'}
+                <div className="text-lg md:text-2xl font-medium text-white/70 mb-4">
+                  {gameState.nowPlaying ? 'Listen closely to the hook! Find this song on your 5x5 board.' : 'Next track incoming...'}
                 </div>
+
+                {/* Stage Screen Song Fun Fact Teaser */}
+                {gameState.nowPlaying && (
+                  <div className="mt-4 p-4 rounded-2xl bg-black/40 border border-[var(--scene-c)]/30 backdrop-blur-md max-w-2xl animate-[fadeIn_0.5s_ease-out]">
+                    <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-xs uppercase tracking-widest mb-1.5">
+                      <Lightbulb className="w-4 h-4 text-[var(--scene-c)] animate-pulse" />
+                      Did You Know? (Song Trivia)
+                    </div>
+                    <p className="text-xs md:text-sm text-white/90 leading-relaxed font-medium m-0">
+                      "{getSongFact(gameState.nowPlaying)}"
+                    </p>
+                  </div>
+                )}
               </div>
 
             </div>
 
             {/* Footer Audio Vis */}
-            <div className="flex-none mt-10">
-              <div className="flex justify-between items-end mb-4">
-                <div className="text-[11px] font-bold tracking-[0.3em] uppercase text-white/40">Track Timer</div>
-                <div className={`text-6xl font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_30px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
+            <div className="flex-none mt-8">
+              <div className="flex justify-between items-end mb-3">
+                <div className="text-xs font-bold tracking-[0.3em] uppercase text-white/40">Track Preview Countdown</div>
+                <div className={`text-4xl md:text-6xl font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_30px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
                   0:{String(remaining).padStart(2, '0')}
                 </div>
               </div>
               
-              <div className="w-full h-1.5 rounded-full bg-white/10 mb-6 overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-white/10 mb-6 overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-all ease-linear shadow-[0_0_20px_var(--scene-a)]" style={{width: `${progress * 100}%`}}></div>
               </div>
               
-              <div className="relative w-full h-[100px]">
+              <div className="relative w-full h-[90px]">
                 {['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' ? (
-                  <div className={`flex items-end justify-center h-full w-full px-1 gap-1 ${
-                    themeIndex === 1 ? 'gap-[5px]' : themeIndex === 4 ? 'gap-[3px]' : 'gap-1'
-                  }`}>
-                    {Array.from({ length: [20, 110, 0, 0, 24][themeIndex] || 20 }).map((_, i) => (
+                  <div className="flex items-end justify-center h-full w-full px-1 gap-1.5">
+                    {Array.from({ length: 32 }).map((_, i) => (
                       <div 
                         key={i} 
                         ref={el => barsRef.current[i] = el}
-                        className={`flex-1 min-w-[2px] transition-[height] duration-50 ease-out origin-bottom
-                          ${themeIndex === 0 ? 'rounded-t-full rounded-b-sm bg-gradient-to-b from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] shadow-[0_0_18px_rgba(51,216,255,0.18)]' : ''}
-                          ${themeIndex === 1 ? 'min-w-[2px] rounded-sm bg-gradient-to-b from-white via-[var(--scene-a)] to-[var(--scene-b)] shadow-[0_0_10px_var(--scene-a),_0_0_2px_rgba(255,255,255,0.8)]' : ''}
-                          ${themeIndex === 4 ? 'rounded-t-sm -skew-x-[6deg] bg-gradient-to-b from-white/35 via-[var(--scene-c)] to-[var(--scene-a)] shadow-[0_0_14px_rgba(255,79,216,0.45)]' : ''}
-                          ${!gameState?.started || isAudioMuted || volume === 0 || audioRef.current?.paused ? 'h-[8%] opacity-40 animate-[idleBreath_3s_ease-in-out_infinite]' : 'h-[10%]'}
-                        `}
-                        style={{
-                          animationDelay: `${(i % 3) * 0.3}s`
-                        }}
+                        className="flex-1 min-w-[3px] rounded-t-full bg-gradient-to-b from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-[height] duration-75 ease-out h-[10%]"
                       ></div>
                     ))}
                   </div>
                 ) : (
-                  <canvas ref={canvasRef} width="1000" height="100" className="w-full h-[100px]"></canvas>
+                  <canvas ref={canvasRef} width="1000" height="90" className="w-full h-[90px]"></canvas>
                 )}
               </div>
             </div>
             
           </div>
-
-          {/* Sidebar Stats */}
-          <div className="w-[320px] flex flex-col gap-4">
-             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center">
-               <h2 className="text-[11px] font-bold tracking-widest uppercase text-[var(--scene-a)] mb-6 self-start">Round Progress</h2>
-               
-               <div className="relative w-[110px] h-[110px] mb-6">
-                 <svg className="w-full h-full -rotate-90" viewBox="0 0 110 110">
-                   <circle cx="55" cy="55" r="50" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
-                   <circle cx="55" cy="55" r="50" fill="none" stroke="var(--scene-b)" strokeWidth="8" strokeLinecap="round" 
-                           strokeDasharray="314" strokeDashoffset={314 * (1 - Math.min(1, gameState.history.length / 54))} 
-                           className="transition-all duration-700 ease-out drop-shadow-[0_0_15px_var(--scene-b)]" />
-                 </svg>
-                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                   <div className="text-3xl font-black tracking-tight">{gameState.history.length}</div>
-                   <div className="text-[9px] font-bold tracking-[0.2em] uppercase text-white/50 mt-1">Called</div>
-                 </div>
-               </div>
-               
-               <div className="w-full flex flex-col gap-3">
-                 <div className="flex justify-between items-baseline border-b border-dashed border-white/10 pb-2">
-                   <span className="text-[10px] font-bold tracking-widest uppercase text-white/50">Left</span>
-                   <span className="text-2xl font-black">{Math.max(0, 54 - gameState.history.length)}</span>
-                 </div>
-                 <div className="flex justify-between items-baseline border-b border-dashed border-white/10 pb-2">
-                   <span className="text-[10px] font-bold tracking-widest uppercase text-white/50">Total</span>
-                   <span className="text-2xl font-black">54</span>
-                 </div>
-               </div>
-             </div>
-          </div>
         </div>
       )}
 
-      {/* Audio controls */}
+      {/* Audio controls popup */}
       <div className="absolute bottom-6 left-6 z-50">
-        <button onClick={() => setShowAudioPanel(!showAudioPanel)} className="w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">⚙️</button>
+        <button onClick={() => setShowAudioPanel(!showAudioPanel)} className="p-3 rounded-full bg-black/60 border border-white/20 text-white hover:bg-white/10 transition-colors shadow-2xl cursor-pointer">
+          <Settings className="w-5 h-5" />
+        </button>
         {showAudioPanel && (
-          <div className="absolute bottom-12 left-0 bg-black/80 backdrop-blur-md border border-white/20 p-3 rounded-2xl flex items-center gap-3">
-            <button onClick={() => setIsAudioMuted(!isAudioMuted)} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold uppercase">{isAudioMuted ? '🔇 Muted' : '🔊 On'}</button>
-            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full">
-              <span className="text-xs">🔈</span>
-              <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(Number(e.target.value))} className="w-20" />
-              <span className="text-xs">🔊</span>
+          <div className="absolute bottom-14 left-0 bg-[#12182a]/95 backdrop-blur-xl border border-white/20 p-4 rounded-2xl flex items-center gap-3 shadow-2xl">
+            <button onClick={() => setIsAudioMuted(!isAudioMuted)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold uppercase cursor-pointer flex items-center gap-2">
+              {isAudioMuted ? <VolumeX className="w-4 h-4 text-[#f87171]" /> : <Volume2 className="w-4 h-4 text-[#4ade80]" />}
+              {isAudioMuted ? 'Muted' : 'Audio On'}
+            </button>
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+              <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(Number(e.target.value))} className="w-24 cursor-pointer" />
             </div>
           </div>
         )}
@@ -520,8 +477,8 @@ export default function Visualizer() {
       />
       
       {!audioUnlocked && (
-        <div className="absolute bottom-0 left-0 right-0 bg-[#33d8ff]/10 border-t border-[#33d8ff]/30 text-white text-center p-3 text-sm font-bold uppercase tracking-[0.1em] z-[1000] animate-[popIn2_0.4s_ease-out]">
-          Tap or Click anywhere to enable game music! 🎧
+        <div className="absolute bottom-0 left-0 right-0 bg-[#33d8ff]/20 border-t border-[#33d8ff]/40 text-white text-center p-3 text-xs md:text-sm font-bold uppercase tracking-widest z-[1000] backdrop-blur-md">
+          Tap anywhere on screen to activate stage sound system! 🎧
         </div>
       )}
     </div>

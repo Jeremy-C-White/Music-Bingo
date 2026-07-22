@@ -79,6 +79,18 @@ export const songFacts: Record<string, string> = {
   "Need You Now - Lady A": "The song almost never existed. The band wrote it purely as an acoustic filler track, and the record executives hated it so much they actively fought to keep it off the album entirely."
 };
 
+export function getSongFact(song: string): string {
+  if (!song) return '';
+  if (songFacts[song]) return songFacts[song];
+  
+  // Try matching by song title
+  const { title } = splitSong(song);
+  const foundKey = Object.keys(songFacts).find(k => k.toLowerCase().includes(title.toLowerCase()));
+  if (foundKey && songFacts[foundKey]) return songFacts[foundKey];
+
+  return "This chart-topping anthem became a fan favorite, staying on radio heavy rotation and dominating dance floors worldwide!";
+}
+
 export function splitSong(text: string) {
   const parts = String(text).split(/\s[-–]\s/);
   return parts.length >= 2 ? { title: parts[0].trim(), artist: parts.slice(1).join(' - ').trim() } : { title: String(text), artist: '' };
