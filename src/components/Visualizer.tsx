@@ -424,7 +424,7 @@ export default function Visualizer() {
 
               <div className="flex flex-col items-center justify-center w-[84px] h-[84px] rounded-2xl border border-[var(--scene-b)]/40 bg-black/60 backdrop-blur-md shadow-[0_0_30px_var(--scene-b)]">
                 <span className="text-[9px] font-black tracking-widest text-white/50 uppercase">Track</span>
-                <strong className="text-3xl font-black text-white tabular-nums leading-none mt-1">{String(Math.max(1, gameState.history.length)).padStart(2, '0')}</strong>
+                <strong className="text-3xl font-black text-white tabular-nums leading-none mt-1">{String(gameState.history.length + (gameState.nowPlaying ? 1 : 0)).padStart(2, '0')}</strong>
               </div>
             </div>
 
@@ -451,7 +451,7 @@ export default function Visualizer() {
                 
                 <div className="text-xs font-bold tracking-[0.3em] uppercase text-white/40 mb-3">Now Playing</div>
                 <h2 className="text-4xl md:text-7xl font-black leading-[1.1] tracking-tight mb-4 text-balance drop-shadow-2xl">
-                  {gameState.nowPlaying ? `Mystery Track #${Math.max(1, gameState.history.length)}` : 'Ready?'}
+                  {gameState.nowPlaying ? `Mystery Track #${gameState.history.length + 1}` : 'Ready?'}
                 </h2>
                 <div className="text-lg md:text-2xl font-medium text-white/70 mb-4">
                   {gameState.nowPlaying ? 'Listen closely to the hook! Find this song on your 5x5 board.' : 'Next track incoming...'}

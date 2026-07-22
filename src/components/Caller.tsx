@@ -312,31 +312,6 @@ export default function Caller() {
               </>
             )}
           </div>
-
-          {/* Local Audio Player & Volume Bar */}
-          {gameState?.nowPlaying && previewData && (
-             <div className="mt-8 w-full max-w-[480px] bg-black/40 border border-white/10 rounded-2xl p-4 shadow-inner">
-               <div className="flex justify-between items-center mb-4">
-                 <div className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 ${isAudioLocked ? 'text-white/40' : (volume === 0 ? 'text-[#f87171]' : 'text-[#4ade80]')}`}>
-                   <Volume2 className="w-4 h-4" />
-                   {isAudioLocked ? 'Stage Board Controls Audio' : (volume === 0 ? 'Muted' : 'Local Volume')}
-                 </div>
-                 <div className="flex items-center gap-2">
-                   <input type="range" min="0" max="1" step="0.05" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="w-24 cursor-pointer" disabled={isAudioLocked} />
-                 </div>
-               </div>
-               <audio ref={audioRef} onEnded={() => {}} onTimeUpdate={(e) => {
-                 const el = e.currentTarget;
-                 const progress = document.getElementById('audioProgress');
-                 if (progress) {
-                   progress.style.width = `${(el.currentTime / el.duration) * 100}%`;
-                 }
-               }} />
-               <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                 <div id="audioProgress" className="h-full bg-gradient-to-r from-[#33d8ff] to-[#ff4fd8] w-0 transition-all duration-100 ease-linear shadow-[0_0_10px_#33d8ff]"></div>
-               </div>
-             </div>
-          )}
         </div>
 
         {/* Right Panel */}

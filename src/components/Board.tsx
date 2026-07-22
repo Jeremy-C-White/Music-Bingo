@@ -3,7 +3,7 @@ import { subscribeToGameState, submitClaim, pingPresence, sendReaction } from '.
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, WIN_PATTERNS, getSongFact } from '../lib/data';
 import confetti from 'canvas-confetti';
-import { BookOpen, Disc, Sparkles, Check, HelpCircle, X, Search, Volume2, Lightbulb, ChevronDown, ChevronUp, Share2, SmilePlus } from 'lucide-react';
+import { BookOpen, Disc, Sparkles, Check, HelpCircle, X, Search, Volume2, Lightbulb, ChevronDown, ChevronUp, SmilePlus } from 'lucide-react';
 import { playPopSound, playNearWinChime, playBingoFanfare } from '../lib/soundEffects';
 
 const BOARD_STATE_KEY = 'music_bingo_board_state_v3';
@@ -95,19 +95,11 @@ export default function Board() {
   }, [selected, boardSongs, gameState?.nowPlaying]);
 
   const showToast = (msg: React.ReactNode) => {
-    setToastMsg({ msg, id: Date.now() });
+    const id = Date.now();
+    setToastMsg({ msg, id });
     setTimeout(() => {
-      setToastMsg(prev => prev?.id === toastMsg?.id ? null : prev);
+      setToastMsg(prev => prev?.id === id ? null : prev);
     }, 2200);
-  };
-
-  const copyShareLink = () => {
-    const shareUrl = window.location.href;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      showToast('🔗 Direct Board link copied to clipboard!');
-    }).catch(() => {
-      showToast('🔗 Direct Board link: ' + shareUrl);
-    });
   };
 
   const joinLobby = () => {
@@ -318,7 +310,7 @@ export default function Board() {
 
       <div className="w-full max-w-4xl mx-auto flex flex-col gap-3 relative z-10 flex-1 h-[calc(100vh-16px)]">
         {/* Top Header */}
-        <header className="flex-none flex items-center justify-between flex-wrap gap-2 bg-[#131728]/80 backdrop-blur-xl border border-white/10 p-3 px-4 md:px-6 rounded-2xl md:rounded-3xl shadow-2xl">
+        <header className="flex-none flex items-center justify-between flex-wrap gap-2 bg-[#131728]/80 backdrop-blur-xl border border-white/10 p-3 px-4 md:px-6 rounded-2xl md:rounded-3xl shadow-2xl relative z-50">
           <h1 className="text-xl md:text-3xl font-black tracking-tighter uppercase m-0 leading-none flex items-center gap-2">
             <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent drop-shadow-md">Music</span>
             <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,79,216,0.3)]">Bingo</span>
@@ -328,14 +320,6 @@ export default function Board() {
             <span className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-white">
               👤 {playerName}
             </span>
-
-            <button 
-              onClick={copyShareLink} 
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer text-[#ffd76a]"
-              title="Share direct link to this bingo board"
-            >
-              <Share2 size={14} /> <span className="hidden sm:inline">Share Link</span>
-            </button>
 
             <button 
               onClick={() => setShowRulesModal(true)} 
@@ -356,12 +340,12 @@ export default function Board() {
               {showEmojiPicker && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)}></div>
-                  <div className="absolute top-full mt-2 right-0 bg-[#12182a]/95 backdrop-blur-xl border border-white/20 p-3 rounded-2xl flex gap-2 shadow-2xl z-50 animate-[popIn2_0.2s_ease-out]">
+                  <div className="absolute top-full mt-2 right-0 bg-[#12182a]/95 backdrop-blur-xl border border-white/20 p-4 rounded-2xl grid grid-cols-4 gap-3 w-48 shadow-2xl z-[100] animate-[popIn2_0.2s_ease-out] place-items-center">
                     {EMOJI_OPTIONS.map(emoji => (
                       <button
                         key={emoji}
                         onClick={() => handleSendReaction(emoji)}
-                        className="text-2xl hover:scale-125 transition-transform cursor-pointer"
+                        className="text-2xl w-8 h-8 flex items-center justify-center hover:scale-125 transition-transform cursor-pointer"
                       >
                         {emoji}
                       </button>
@@ -384,43 +368,6 @@ export default function Board() {
             </button>
           </div>
         </header>
-
-        {/* Live Audio Track Locator Bar */}
-        {gameState?.nowPlaying && (
-          <div className="flex-none flex flex-col gap-2 bg-gradient-to-r from-[#ff4fd8]/20 via-[#8b5cf6]/20 to-[#33d8ff]/20 border border-white/15 p-2.5 px-4 rounded-2xl backdrop-blur-md">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-black/60 border border-white/20 flex items-center justify-center shrink-0 animate-spin" style={{ animationDuration: '4s' }}>
-                  <Disc className="w-5 h-5 text-[#ff4fd8]" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#ffd76a]">Currently Playing Track</div>
-                  <div className="text-xs font-black text-white truncate">Listen closely! Mark your board if you have it!</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button 
-                  onClick={() => setShowFactModal(!showFactModal)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${showFactModal ? 'bg-[#ffd76a] text-black border-[#ffd76a]' : 'bg-white/10 hover:bg-white/20 border-white/20 text-[#ffd76a]'}`}
-                >
-                  <Lightbulb className="w-3.5 h-3.5" /> Fun Fact
-                </button>
-              </div>
-            </div>
-
-            {/* Expandable Song Fact Drawer */}
-            {showFactModal && (
-              <div className="mt-1 p-3 rounded-xl bg-black/40 border border-[#ffd76a]/30 text-xs text-white/90 leading-relaxed font-medium flex items-start gap-2.5 animate-[fadeIn_0.2s_ease-out]">
-                <Lightbulb className="w-4 h-4 text-[#ffd76a] shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold text-[#ffd76a] block mb-0.5">Song Trivia:</span>
-                  "{getSongFact(gameState.nowPlaying)}"
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Main Board Container */}
         <main className="flex-1 min-h-0 bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl flex flex-col overflow-hidden shadow-2xl">
@@ -503,7 +450,7 @@ export default function Board() {
 
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-white text-black font-black text-xs md:text-sm shadow-xl animate-[popIn2_0.2s_ease-out] pointer-events-none whitespace-nowrap">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full bg-white/95 text-black font-black text-xs md:text-sm shadow-[0_10px_40px_rgba(0,0,0,0.5)] animate-[popIn2_0.2s_ease-out] pointer-events-none whitespace-nowrap border border-black/10">
           {toastMsg.msg}
         </div>
       )}
