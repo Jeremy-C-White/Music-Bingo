@@ -192,11 +192,11 @@ export default function Caller() {
         </div>
 
         {/* Main Stage */}
-        <div className="bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-8 md:p-12 flex flex-col items-center justify-center relative min-h-[500px] text-center">
+        <div className="bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-8 md:p-12 flex flex-col items-center justify-center relative min-h-[400px] md:min-h-[500px] text-center">
           
           {/* Spinning Turntable Deck */}
-          <div className="relative mb-8">
-            <div className={`w-[200px] h-[200px] md:w-[240px] md:h-[240px] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_40px_rgba(255,79,216,0.3)] border-4 border-white/10 p-2 flex items-center justify-center transition-transform ${previewData?.previewUrl && !isAudioLocked ? 'animate-[spin_6s_linear_infinite]' : ''}`}>
+          <div className="relative mb-6 sm:mb-8">
+            <div className={`w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] md:w-[240px] md:h-[240px] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_40px_rgba(255,79,216,0.3)] border-4 border-white/10 p-2 flex items-center justify-center transition-transform ${previewData?.previewUrl && !isAudioLocked ? 'animate-[spin_6s_linear_infinite]' : ''}`}>
               <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
                 {!previewData?.artworkUrl && <Disc className="w-16 h-16 text-white/20" />}
                 <div className="absolute w-8 h-8 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
@@ -210,16 +210,16 @@ export default function Caller() {
             )}
           </div>
 
-          <h2 className="font-black text-3xl md:text-5xl mb-3 tracking-tighter uppercase max-w-[85%] text-balance">
+          <h2 className="font-black text-2xl sm:text-3xl md:text-5xl mb-2 sm:mb-3 tracking-tighter uppercase max-w-[95%] sm:max-w-[85%] text-balance">
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).title : (gameState?.started ? 'Game is Live!' : 'Lobby Open')}
           </h2>
-          <div className="text-sm md:text-lg text-white/70 font-medium mb-6 tracking-widest uppercase">
+          <div className="text-xs sm:text-sm md:text-lg text-white/70 font-medium mb-4 sm:mb-6 tracking-widest uppercase text-balance px-2">
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).artist : (gameState?.started ? "Click 'Play First Song' to begin" : 'Waiting to start the game')}
           </div>
 
           {/* Host Mic Script & Fun Fact */}
           {gameState?.nowPlaying && (
-            <div className="w-full max-w-[560px] mb-8 p-5 bg-black/60 border border-[#33d8ff]/30 rounded-2xl text-left relative overflow-hidden group shadow-2xl backdrop-blur-md">
+            <div className="w-full max-w-[560px] mb-6 sm:mb-8 p-4 sm:p-5 bg-black/60 border border-[#33d8ff]/30 rounded-2xl text-left relative overflow-hidden group shadow-2xl backdrop-blur-md">
               <div className="flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
                 <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-xs uppercase tracking-widest">
                   <Lightbulb className="w-4 h-4 text-[#33d8ff]" />

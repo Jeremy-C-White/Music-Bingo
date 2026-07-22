@@ -392,7 +392,7 @@ export default function Board() {
           
           <div className="flex-1 min-h-0 p-3 md:p-5 flex flex-col items-center justify-center relative overflow-hidden">
             {/* B-I-N-G-O Headers */}
-            <div className="w-full max-w-[min(100%,calc(100vh-280px))] grid grid-cols-5 gap-1.5 md:gap-3 mb-1.5 md:mb-2 text-center font-black text-base md:text-2xl tracking-widest text-[#ffd76a]">
+            <div className="w-full max-w-[min(100%,calc(100vh-280px))] grid grid-cols-5 gap-1 md:gap-3 mb-1.5 md:mb-2 text-center font-black text-sm sm:text-base md:text-2xl tracking-widest text-[#ffd76a]">
               {['B', 'I', 'N', 'G', 'O'].map((letter, colIdx) => {
                 const isColComplete = [0,1,2,3,4].every(rowIdx => selected[rowIdx * 5 + colIdx]);
                 return (
@@ -404,7 +404,7 @@ export default function Board() {
             </div>
 
             {/* 5x5 Grid */}
-            <div className="w-full max-w-[min(100%,calc(100vh-280px))] aspect-square grid grid-cols-5 gap-1.5 md:gap-3 relative">
+            <div className="w-full max-w-[min(100%,calc(100vh-280px))] aspect-square grid grid-cols-5 gap-1 md:gap-3 relative">
               {boardSongs.map((song, i) => {
                 const isSelected = selected[i];
                 const isFree = i === 12;
@@ -413,7 +413,7 @@ export default function Board() {
                 const isHighlighted = highlightIdx === i;
                 const { title, artist } = splitSong(song);
                 
-                let cellClass = "relative w-full aspect-square rounded-xl p-1 md:p-2 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-all duration-200 overflow-hidden border border-white/10 shadow-lg ";
+                let cellClass = "relative w-full aspect-square rounded-lg md:rounded-xl p-0.5 sm:p-1 md:p-2 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-all duration-200 overflow-hidden border border-white/10 shadow-lg ";
                 
                 if (isFree) {
                   cellClass += " bg-gradient-to-br from-[#ffd76a]/20 via-[#ff4fd8]/20 to-[#33d8ff]/20 bg-[#171c2f] cursor-default border-[#ffd76a]/40";
@@ -439,14 +439,14 @@ export default function Board() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50 pointer-events-none"></div>
                     {isFree ? (
-                      <div className="font-black text-[10px] md:text-base leading-tight uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] z-10 flex flex-col items-center">
+                      <div className="font-black text-[9px] sm:text-[10px] md:text-base leading-tight uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] z-10 flex flex-col items-center">
                         <Sparkles className="w-3.5 h-3.5 md:w-5 md:h-5 text-[#ffd76a] mb-0.5" />
                         <span>FREE</span>
                       </div>
                     ) : (
-                      <div className="z-10 w-full px-0.5">
-                        <div className={`font-black text-[8px] md:text-[13px] leading-tight line-clamp-3 text-balance ${isSelected ? 'text-white' : 'text-white'} drop-shadow-md`}>{title}</div>
-                        <div className={`font-bold text-[6px] md:text-[9px] mt-0.5 md:mt-1 line-clamp-2 text-balance ${isSelected ? 'text-white/90' : 'text-[#ffd76a]'} drop-shadow-md`}>{artist}</div>
+                      <div className="z-10 w-full px-0.5 sm:px-1">
+                        <div className={`font-black text-[8px] sm:text-[10px] md:text-[13px] leading-[1.1] sm:leading-tight line-clamp-3 text-balance ${isSelected ? 'text-white' : 'text-white'} drop-shadow-md`}>{title}</div>
+                        <div className={`font-bold text-[6px] sm:text-[8px] md:text-[9px] mt-0.5 md:mt-1 line-clamp-2 text-balance ${isSelected ? 'text-white/90' : 'text-[#ffd76a]'} drop-shadow-md`}>{artist}</div>
                       </div>
                     )}
                   </div>
