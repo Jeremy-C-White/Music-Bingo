@@ -4,7 +4,7 @@ import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subs
 import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
-import { Music, Volume2, VolumeX, Sparkles, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame } from 'lucide-react';
+import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame } from 'lucide-react';
 
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -22,6 +22,7 @@ export default function Visualizer() {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [showAudioPanel, setShowAudioPanel] = useState(false);
+  const [trackBurstKey, setTrackBurstKey] = useState(0);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -134,6 +135,7 @@ export default function Visualizer() {
     // 2. Track / Theme transition event
     if (lastShownTrackRef.current !== trackNumber) {
       lastShownTrackRef.current = trackNumber;
+      setTrackBurstKey(trackNumber);
 
       // When starting a new 5-track set (e.g., Track 6 = Set 2, Track 11 = Set 3, etc.)
       if (trackNumber > 1 && trackNumber % 5 === 1) {
@@ -241,6 +243,9 @@ export default function Visualizer() {
     const bassAvg = bassEnergy / 4;
     
     document.body.style.setProperty('--bass', bassAvg.toFixed(3));
+    document.body.style.setProperty('--bass-scale', (1 + bassAvg * 0.045).toFixed(3));
+    document.body.style.setProperty('--bass-glow', (0.30 + bassAvg * 0.55).toFixed(3));
+    document.body.style.setProperty('--bass-light', (0.55 + bassAvg * 0.45).toFixed(3));
     
     const currentThemeIndex = themeIndexRef.current;
     const waveMode = ['bars', 'bars', 'dots', 'ribbon', 'bars'][currentThemeIndex] || 'bars';
@@ -383,56 +388,108 @@ export default function Visualizer() {
   }, []);
 
   const themes = [
-    { a: '#33d8ff', b: '#ff4fd8', c: '#ffd76a' },
-    { a: '#7cf7d4', b: '#5aa7ff', c: '#d8ff6a' },
-    { a: '#ffd166', b: '#ff5f8f', c: '#ff9f43' },
-    { a: '#b794ff', b: '#ff69d4', c: '#5ce1e6' },
-    { a: '#ff6b6b', b: '#ff3cac', c: '#ffe66d' },
+    { a: '#33d8ff', b: '#ff4fd8', c: '#ffd76a', ar: '51,216,255', br: '255,79,216', cr: '255,215,106' },
+    { a: '#7cf7d4', b: '#5aa7ff', c: '#d8ff6a', ar: '124,247,212', br: '90,167,255', cr: '216,255,106' },
+    { a: '#ffd166', b: '#ff5f8f', c: '#ff9f43', ar: '255,209,102', br: '255,95,143', cr: '255,159,67' },
+    { a: '#b794ff', b: '#ff69d4', c: '#5ce1e6', ar: '183,148,255', br: '255,105,212', cr: '92,225,230' },
+    { a: '#ff6b6b', b: '#ff3cac', c: '#ffe66d', ar: '255,107,107', br: '255,60,172', cr: '255,230,109' },
   ];
-  
+
   const theme = themes[themeIndex] || themes[0];
+  const sceneParticles = Array.from({ length: 30 }, (_, i) => ({
+    left: 4 + ((i * 29) % 92),
+    top: 8 + ((i * 41) % 82),
+    size: 3 + ((i * 7) % 8),
+    duration: 7 + ((i * 5) % 12),
+    delay: -((i * 0.73) % 10),
+    color: i % 3 === 0 ? theme.a : i % 3 === 1 ? theme.b : theme.c,
+  }));
+  const danceStars = Array.from({ length: 26 }, (_, i) => ({
+    left: 5 + ((i * 37) % 90),
+    top: 45 + ((i * 19) % 48),
+    delay: -((i * 0.31) % 3),
+    size: 2 + (i % 4),
+  }));
+  const orbitLights = Array.from({ length: 6 }, (_, i) => i);
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-[#04050d] text-[#f7f8ff] font-sans relative selection:bg-[#ff4fd8]"
-         style={{
-           '--scene-a': theme.a,
-           '--scene-b': theme.b,
-           '--scene-c': theme.c,
-         } as React.CSSProperties}>
-      
-      {/* Background ambient light show */}
-      <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.22)_0%,transparent_40%),radial-gradient(ellipse_at_82%_12%,rgba(51,216,255,0.18)_0%,transparent_38%),radial-gradient(ellipse_at_52%_92%,rgba(139,92,246,0.22)_0%,transparent_45%),linear-gradient(140deg,#04050d,#0a0b1e_45%,#15102e_70%,#0a1326)] opacity-100 transition-all duration-1000">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.55)_100%)] pointer-events-none"></div>
-      </div>
-      
-      <div className="fixed inset-0 z-[1] pointer-events-none overflow-hidden">
-        <div className="absolute rounded-full blur-[48px] opacity-55 animate-[drift_18s_ease-in-out_infinite_alternate] w-[420px] h-[420px] -left-[120px] top-[8%] bg-[radial-gradient(circle,rgba(255,79,216,0.7),transparent_70%)]"></div>
-        <div className="absolute rounded-full blur-[48px] opacity-55 animate-[drift_22s_ease-in-out_infinite_alternate] w-[520px] h-[520px] -right-[160px] -top-[80px] bg-[radial-gradient(circle,rgba(51,216,255,0.55),transparent_70%)]"></div>
-        <div className="absolute rounded-full blur-[48px] opacity-55 animate-[drift_26s_ease-in-out_infinite_alternate] w-[460px] h-[460px] left-[38%] -bottom-[180px] bg-[radial-gradient(circle,rgba(139,92,246,0.55),transparent_70%)]"></div>
-      </div>
+    <div
+      className="music-bingo-stage w-screen h-screen overflow-hidden bg-[#04050d] text-[#f7f8ff] font-sans relative selection:bg-[#ff4fd8]"
+      style={{
+        '--scene-a': theme.a,
+        '--scene-b': theme.b,
+        '--scene-c': theme.c,
+        '--scene-a-rgb': theme.ar,
+        '--scene-b-rgb': theme.br,
+        '--scene-c-rgb': theme.cr,
+        '--bass-scale': 1,
+        '--bass-glow': 0.3,
+        '--bass-light': 0.55,
+      } as React.CSSProperties}
+    >
+      <style>{`
+        @keyframes mbAmbientDrift {
+          0% { transform: scale(1.08) translate3d(-1.5%, -1%, 0) rotate(-1deg); }
+          50% { transform: scale(1.14) translate3d(1.8%, 1%, 0) rotate(1.5deg); }
+          100% { transform: scale(1.09) translate3d(-0.5%, 2%, 0) rotate(-0.5deg); }
+        }
+        @keyframes mbSpotlightOne { 0% { transform: rotate(-24deg) translateX(-10vw); } 100% { transform: rotate(24deg) translateX(11vw); } }
+        @keyframes mbSpotlightTwo { 0% { transform: rotate(20deg) translateX(8vw); } 100% { transform: rotate(-29deg) translateX(-9vw); } }
+        @keyframes mbSpotlightThree { 0% { transform: rotate(-8deg) translateX(-16vw); } 100% { transform: rotate(31deg) translateX(14vw); } }
+        @keyframes mbSpotlightFour { 0% { transform: rotate(10deg) translateX(13vw); } 100% { transform: rotate(-34deg) translateX(-12vw); } }
+        @keyframes mbGridTravel { 0% { background-position: 0 0, 0 0; } 100% { background-position: 0 72px, 72px 0; } }
+        @keyframes mbStarPulse { 0%,100% { opacity: .18; transform: scale(.75); } 45% { opacity: .95; transform: scale(1.8); } }
+        @keyframes mbLaserSweep { 0%,100% { opacity: .08; transform: rotate(var(--laser-angle)) scaleY(.8); } 50% { opacity: .72; transform: rotate(calc(var(--laser-angle) + 10deg)) scaleY(1.08); } }
+        @keyframes mbParticleFloat { 0% { transform: translate3d(0, 22px, 0) scale(.7); opacity: 0; } 18% { opacity: .75; } 75% { opacity: .38; } 100% { transform: translate3d(14px, -105px, 0) scale(1.35); opacity: 0; } }
+        @keyframes mbAuroraOne { 0%,100% { transform: translate3d(-5%, -8%, 0) rotate(-7deg) scaleX(1.05); } 50% { transform: translate3d(8%, 12%, 0) rotate(5deg) scaleX(1.2); } }
+        @keyframes mbAuroraTwo { 0%,100% { transform: translate3d(8%, 12%, 0) rotate(7deg) scaleX(1.15); } 50% { transform: translate3d(-9%, -6%, 0) rotate(-5deg) scaleX(.95); } }
+        @keyframes mbStarburstSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+        @keyframes mbOrbit { to { transform: rotate(360deg); } }
+        @keyframes mbOrbitReverse { to { transform: rotate(-360deg); } }
+        @keyframes mbRingPulse { 0%,100% { transform: scale(.97); opacity: .18; } 50% { transform: scale(1.055); opacity: .72; } }
+        @keyframes mbReflectSweep { 0% { transform: translateX(-170%) skewX(-18deg); opacity: 0; } 18% { opacity: .65; } 52%,100% { transform: translateX(230%) skewX(-18deg); opacity: 0; } }
+        @keyframes mbTrackBurst { 0% { opacity: .95; transform: scale(.18); } 45% { opacity: .52; } 100% { opacity: 0; transform: scale(2.4); } }
+        @keyframes mbVisualizerSweep { 0% { transform: translateX(-130%) skewX(-16deg); } 100% { transform: translateX(430%) skewX(-16deg); } }
+        @keyframes mbPanelShimmer { 0%,100% { opacity: .16; transform: translateX(-8%); } 50% { opacity: .34; transform: translateX(8%); } }
 
-      {/* Creative Party Effects - Spotlights & Floating Notes */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-[1]">
-        {/* Spotlights */}
-        <div className="absolute -top-[20%] left-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#33d8ff]/30 to-transparent origin-top animate-[spotlight_8s_ease-in-out_infinite_alternate] blur-2xl"></div>
-        <div className="absolute -top-[20%] right-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#ff4fd8]/30 to-transparent origin-top animate-[spotlight_10s_ease-in-out_infinite_alternate-reverse] blur-2xl"></div>
-        
-        {/* Floating Notes */}
-        <div className="absolute top-1/4 left-[15%] animate-[float_15s_linear_infinite] opacity-30 text-[#ffd76a]">
-          <Music size={48} />
-        </div>
-        <div className="absolute top-2/3 left-[10%] animate-[float_12s_linear_infinite_reverse] opacity-20 text-[#33d8ff]">
-          <Music size={32} />
-        </div>
-        <div className="absolute top-[30%] right-[15%] animate-[float_18s_linear_infinite] opacity-40 text-[#ff4fd8]">
-          <Music size={64} />
-        </div>
-        <div className="absolute bottom-[20%] right-[10%] animate-[float_14s_linear_infinite_reverse] opacity-20 text-white">
-          <Music size={24} />
-        </div>
-        <div className="absolute top-[15%] left-[45%] animate-[float_20s_linear_infinite] opacity-25 text-white/50">
-          <Music size={40} />
-        </div>
+        .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
+        .mb-spotlight { transform-origin: 50% 0%; mix-blend-mode: screen; filter: blur(18px); opacity: var(--bass-light, .55); }
+        .mb-spotlight-one { animation: mbSpotlightOne 9s ease-in-out infinite alternate; }
+        .mb-spotlight-two { animation: mbSpotlightTwo 12s ease-in-out infinite alternate; }
+        .mb-spotlight-three { animation: mbSpotlightThree 14s ease-in-out infinite alternate; }
+        .mb-spotlight-four { animation: mbSpotlightFour 11s ease-in-out infinite alternate; }
+        .mb-album-bass { transform: scale(var(--bass-scale, 1)); filter: brightness(calc(.92 + var(--bass-glow, .3))); transition: transform 90ms linear, filter 90ms linear; }
+        .mb-ring-pulse { animation: mbRingPulse 2.8s ease-in-out infinite; }
+        .mb-reflect-sweep { animation: mbReflectSweep 5.2s ease-in-out infinite; }
+        .mb-visualizer-sweep { animation: mbVisualizerSweep 4.7s linear infinite; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .music-bingo-stage *, .music-bingo-stage *::before, .music-bingo-stage *::after {
+            animation-duration: .001ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: .001ms !important;
+          }
+          .mb-album-bass { transform: none !important; filter: none !important; }
+        }
+      `}</style>
+
+      {/* Theme-colored ambient background that slowly drifts and responds to bass */}
+      <div
+        className="mb-ambient fixed -inset-[8%] z-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at 16% 20%, rgba(${theme.ar}, .30) 0%, transparent 39%), radial-gradient(ellipse at 84% 12%, rgba(${theme.br}, .27) 0%, transparent 38%), radial-gradient(ellipse at 52% 94%, rgba(${theme.cr}, .22) 0%, transparent 46%), linear-gradient(140deg, #04050d, #0a0b1e 45%, #15102e 72%, #081426)`,
+          filter: 'brightness(var(--bass-light, .7)) saturate(1.15)',
+        }}
+      />
+      <div className="fixed inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_34%,rgba(0,0,0,0.72)_100%)] pointer-events-none" />
+
+      {/* Four independent, theme-colored moving spotlights */}
+      <div className="fixed inset-0 z-[2] pointer-events-none overflow-hidden">
+        <div className="mb-spotlight mb-spotlight-one absolute -top-[22%] left-[7%] w-[12vw] min-w-[110px] h-[155vh]" style={{ background: `linear-gradient(to bottom, rgba(${theme.ar}, .42), transparent 76%)` }} />
+        <div className="mb-spotlight mb-spotlight-two absolute -top-[22%] right-[7%] w-[12vw] min-w-[110px] h-[155vh]" style={{ background: `linear-gradient(to bottom, rgba(${theme.br}, .42), transparent 76%)` }} />
+        <div className="mb-spotlight mb-spotlight-three absolute -top-[24%] left-[37%] w-[10vw] min-w-[90px] h-[150vh]" style={{ background: `linear-gradient(to bottom, rgba(${theme.cr}, .30), transparent 72%)` }} />
+        <div className="mb-spotlight mb-spotlight-four absolute -top-[24%] right-[35%] w-[10vw] min-w-[90px] h-[150vh]" style={{ background: `linear-gradient(to bottom, rgba(${theme.ar}, .26), transparent 72%)` }} />
       </div>
 
       {!gameState?.started && (
@@ -486,7 +543,109 @@ export default function Visualizer() {
 
       {gameState?.started && (
         <div className="absolute inset-0 z-10 p-2 sm:p-4 lg:p-6 transition-all">
-          <div className="h-full min-h-0 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-3xl lg:rounded-[36px] p-[clamp(12px,2vw,28px)] flex flex-col shadow-2xl relative overflow-hidden">
+          <div className="h-full min-h-0 bg-[#0e1226]/68 backdrop-blur-xl border border-white/10 rounded-3xl lg:rounded-[36px] p-[clamp(12px,2vw,28px)] flex flex-col shadow-2xl relative overflow-hidden">
+
+            {/* Per-track scene personalities. The scene changes every track and the palette every five tracks. */}
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+              <div
+                className="absolute inset-0 opacity-40"
+                style={{ background: `radial-gradient(circle at 26% 38%, rgba(${theme.ar}, var(--bass-glow, .3)), transparent 31%), radial-gradient(circle at 76% 52%, rgba(${theme.br}, .20), transparent 35%)` }}
+              />
+
+              {sceneIndex === 0 && (
+                <>
+                  <div
+                    className="absolute -left-[15%] -right-[15%] -bottom-[48%] h-[105%] opacity-55"
+                    style={{
+                      transform: 'perspective(620px) rotateX(66deg)',
+                      transformOrigin: 'bottom center',
+                      backgroundImage: `repeating-linear-gradient(0deg, rgba(${theme.ar}, .30) 0 2px, transparent 2px 72px), repeating-linear-gradient(90deg, rgba(${theme.br}, .24) 0 2px, transparent 2px 72px)`,
+                      animation: 'mbGridTravel 3.6s linear infinite',
+                      maskImage: 'linear-gradient(to top, black 15%, transparent 86%)',
+                    }}
+                  />
+                  {danceStars.map((star, i) => (
+                    <span
+                      key={i}
+                      className="absolute rounded-full"
+                      style={{
+                        left: `${star.left}%`, top: `${star.top}%`, width: star.size, height: star.size,
+                        background: i % 2 ? theme.a : theme.c,
+                        boxShadow: `0 0 14px ${i % 2 ? theme.a : theme.c}`,
+                        animation: `mbStarPulse ${1.7 + (i % 5) * .24}s ease-in-out ${star.delay}s infinite`,
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+
+              {sceneIndex === 1 && (
+                <div className="absolute inset-0 overflow-hidden">
+                  {Array.from({ length: 11 }).map((_, i) => {
+                    const angle = -48 + i * 9.5;
+                    const rgb = i % 3 === 0 ? theme.ar : i % 3 === 1 ? theme.br : theme.cr;
+                    return (
+                      <div
+                        key={i}
+                        className="absolute left-1/2 bottom-[-18%] h-[118%] w-[2px] origin-bottom"
+                        style={{
+                          '--laser-angle': `${angle}deg`,
+                          background: `linear-gradient(to top, rgba(${rgb}, .92), rgba(${rgb}, .10) 72%, transparent)`,
+                          boxShadow: `0 0 16px rgba(${rgb}, .72)`,
+                          animation: `mbLaserSweep ${3.2 + (i % 4) * .6}s ease-in-out ${-(i * .23)}s infinite`,
+                        } as React.CSSProperties}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+
+              {sceneIndex === 2 && (
+                <div className="absolute inset-0">
+                  {sceneParticles.map((particle, i) => (
+                    <span
+                      key={i}
+                      className="absolute rounded-full"
+                      style={{
+                        left: `${particle.left}%`, top: `${particle.top}%`,
+                        width: particle.size, height: particle.size,
+                        background: particle.color,
+                        boxShadow: `0 0 ${10 + particle.size * 2}px ${particle.color}`,
+                        animation: `mbParticleFloat ${particle.duration}s ease-in-out ${particle.delay}s infinite`,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {sceneIndex === 3 && (
+                <div className="absolute inset-0 opacity-70 mix-blend-screen">
+                  <div className="absolute left-[-12%] top-[10%] w-[125%] h-[22%] rounded-[50%] blur-[38px]" style={{ background: `linear-gradient(90deg, transparent, rgba(${theme.ar}, .52), rgba(${theme.br}, .30), transparent)`, animation: 'mbAuroraOne 11s ease-in-out infinite' }} />
+                  <div className="absolute left-[-10%] top-[36%] w-[120%] h-[18%] rounded-[50%] blur-[46px]" style={{ background: `linear-gradient(90deg, transparent, rgba(${theme.cr}, .38), rgba(${theme.ar}, .30), transparent)`, animation: 'mbAuroraTwo 14s ease-in-out infinite' }} />
+                  <div className="absolute left-[-15%] top-[62%] w-[130%] h-[16%] rounded-[50%] blur-[54px]" style={{ background: `linear-gradient(90deg, transparent, rgba(${theme.br}, .32), rgba(${theme.cr}, .25), transparent)`, animation: 'mbAuroraOne 17s ease-in-out -6s infinite reverse' }} />
+                </div>
+              )}
+
+              {sceneIndex === 4 && (
+                <div
+                  className="absolute left-1/2 top-1/2 w-[150vmax] h-[150vmax] rounded-full opacity-30 mix-blend-screen"
+                  style={{
+                    background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .52) 0deg 2deg, transparent 2deg 12deg, rgba(${theme.br}, .34) 12deg 14deg, transparent 14deg 25deg)`,
+                    animation: 'mbStarburstSpin 24s linear infinite',
+                    maskImage: 'radial-gradient(circle, transparent 0 8%, black 27%, transparent 70%)',
+                  }}
+                />
+              )}
+
+              <div className="absolute -inset-[20%] opacity-20" style={{ background: `linear-gradient(115deg, transparent 36%, rgba(${theme.c}, .30) 49%, transparent 62%)`, animation: 'mbPanelShimmer 9s ease-in-out infinite' }} />
+            </div>
+
+            {/* A brief bloom announces each new track without adding more text. */}
+            {trackBurstKey > 0 && (
+              <div key={trackBurstKey} className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center overflow-hidden">
+                <div className="w-[36vmin] h-[36vmin] rounded-full border-[3px]" style={{ borderColor: theme.c, boxShadow: `0 0 80px 26px rgba(${theme.ar}, .48), inset 0 0 70px rgba(${theme.br}, .42)`, animation: 'mbTrackBurst 1.35s cubic-bezier(.16,1,.3,1) forwards' }} />
+              </div>
+            )}
 
             {/* Organized stage header */}
             <header className="relative z-30 flex-none flex items-center justify-between gap-3 sm:gap-5 pb-3 sm:pb-4 border-b border-white/10">
@@ -557,34 +716,74 @@ export default function Visualizer() {
             </header>
 
             {/* Main stage content */}
-            <div className="relative z-20 flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(210px,0.82fr)_minmax(0,1.25fr)] items-center gap-[clamp(14px,3vw,52px)] py-[clamp(10px,2vh,24px)] overflow-y-auto md:overflow-hidden">
+            <div className="relative z-20 flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(390px,1.35fr)_minmax(320px,0.85fr)] items-center gap-[clamp(16px,2.4vw,42px)] py-[clamp(8px,1.4vh,18px)] overflow-y-auto md:overflow-hidden">
 
-              {/* Album art zone */}
-              <div className="flex items-center justify-center min-h-0">
-                <div className="relative w-[clamp(170px,34vh,360px)] h-[clamp(170px,34vh,360px)] max-w-full aspect-square flex items-center justify-center flex-none">
-                  <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_22px_rgba(51,216,255,0.25)]" viewBox="0 0 400 400">
-                    <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
-                    <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="6" strokeLinecap="round" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
+              {/* Large audio-reactive album art, vinyl, and timer centerpiece */}
+              <div className="flex items-center justify-center min-h-0 min-w-0">
+                <div
+                  className="mb-album-bass relative max-w-full aspect-square flex items-center justify-center flex-none"
+                  style={{
+                    width: 'min(620px, 58vh, 100%)',
+                    height: 'min(620px, 58vh, 100%)',
+                    filter: 'brightness(calc(.92 + var(--bass-glow, .3))) drop-shadow(0 0 42px rgba(var(--scene-a-rgb), var(--bass-glow, .3)))',
+                  }}
+                >
+                  {/* Pulsing timer halos */}
+                  <div className="mb-ring-pulse absolute inset-[-2.5%] rounded-full border border-[var(--scene-a)]/35 shadow-[0_0_38px_var(--scene-a)]" />
+                  <div className="mb-ring-pulse absolute inset-[1%] rounded-full border border-[var(--scene-b)]/30 shadow-[0_0_28px_var(--scene-b)]" style={{ animationDelay: '-1.2s' }} />
+
+                  {/* Orbiting album lights */}
+                  <div className="absolute inset-[-3%] rounded-full" style={{ animation: 'mbOrbit 13s linear infinite' }}>
+                    {orbitLights.map((light) => (
+                      <span
+                        key={light}
+                        className="absolute left-1/2 top-1/2 rounded-full"
+                        style={{
+                          width: light % 2 ? 8 : 11,
+                          height: light % 2 ? 8 : 11,
+                          background: light % 3 === 0 ? theme.a : light % 3 === 1 ? theme.b : theme.c,
+                          boxShadow: `0 0 20px ${light % 3 === 0 ? theme.a : light % 3 === 1 ? theme.b : theme.c}`,
+                          transform: `rotate(${light * 60}deg) translateY(max(-292px, -27vh, -46vw))`,
+                          transformOrigin: '0 0',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="absolute inset-[3%] rounded-full border border-white/10" style={{ animation: 'mbOrbitReverse 19s linear infinite' }} />
+
+                  {/* Thick outer progress timer */}
+                  <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_34px_rgba(var(--scene-a-rgb),0.42)]" viewBox="0 0 400 400">
+                    <circle cx="200" cy="200" r="188" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="11" />
+                    <circle
+                      cx="200" cy="200" r="188" fill="none" stroke="var(--scene-c)" strokeWidth="11" strokeLinecap="round"
+                      strokeDasharray="1181" strokeDashoffset={1181 * (1 - progress)}
+                      className="transition-all duration-150 ease-linear"
+                      style={{ filter: `drop-shadow(0 0 10px ${theme.c})` }}
+                    />
                   </svg>
 
-                  <div className={`absolute inset-[6%] rounded-full bg-[repeating-radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0,rgba(255,255,255,0.02)_1px,transparent_1px,transparent_4px),radial-gradient(circle_at_center,#1a1530_0%,#0a0918_75%)] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] ${themeIndex === 1 ? 'animate-[spin_13s_linear_infinite]' : 'animate-[spin_20s_linear_infinite]'} ${themeIndex === 3 ? 'inset-[2%] opacity-80' : ''}`}>
-                    <div className="absolute inset-[42%] rounded-full bg-gradient-to-br from-[var(--scene-a)] to-[var(--scene-b)] opacity-85"></div>
+                  {/* Vinyl closer to the timer ring */}
+                  <div className={`absolute inset-[3.5%] rounded-full bg-[repeating-radial-gradient(circle_at_center,rgba(255,255,255,0.025)_0,rgba(255,255,255,0.025)_1px,transparent_1px,transparent_4px),radial-gradient(circle_at_center,#21183b_0%,#090814_76%)] shadow-[inset_0_0_72px_rgba(0,0,0,0.9),0_0_50px_rgba(var(--scene-b-rgb),0.35)] ${themeIndex === 1 ? 'animate-[spin_13s_linear_infinite]' : 'animate-[spin_20s_linear_infinite]'} ${themeIndex === 3 ? 'inset-[2%] opacity-90' : ''}`}>
+                    <div className="absolute inset-[42%] rounded-full bg-gradient-to-br from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] opacity-90 shadow-[0_0_25px_var(--scene-a)]" />
                   </div>
 
+                  {/* Larger mystery artwork */}
                   <div
-                    className="absolute z-10 overflow-hidden bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-2 border-[var(--scene-c)]/50 flex items-center justify-center shadow-[0_24px_70px_rgba(0,0,0,0.8),0_0_60px_var(--scene-b)] transition-all duration-700 ease-out"
+                    className="absolute z-10 overflow-hidden bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-[3px] border-[var(--scene-c)]/55 flex items-center justify-center shadow-[0_28px_90px_rgba(0,0,0,0.88),0_0_82px_rgba(var(--scene-b-rgb),0.62)] transition-all duration-700 ease-out"
                     style={{
-                      width: themeIndex === 3 ? '84%' : (themeIndex === 4 ? '78%' : '76%'),
-                      height: themeIndex === 3 ? '68%' : (themeIndex === 4 ? '78%' : '76%'),
-                      borderRadius: themeIndex === 0 ? 'clamp(16px, 2.5vh, 28px)' : (themeIndex === 1 ? '50%' : (themeIndex === 2 ? '38px 12px 38px 12px' : (themeIndex === 3 ? '52px' : '28px'))),
+                      width: themeIndex === 3 ? '90%' : (themeIndex === 4 ? '86%' : '84%'),
+                      height: themeIndex === 3 ? '76%' : (themeIndex === 4 ? '86%' : '84%'),
+                      borderRadius: themeIndex === 0 ? 'clamp(18px, 2.8vh, 34px)' : (themeIndex === 1 ? '50%' : (themeIndex === 2 ? '48px 14px 48px 14px' : (themeIndex === 3 ? '60px' : '32px'))),
                       clipPath: themeIndex === 4 ? 'polygon(50% 0%, 92% 18%, 100% 60%, 72% 100%, 28% 100%, 0% 60%, 8% 18%)' : 'none',
-                      transform: themeIndex === 0 ? 'rotate(0deg) scale(1)' : (themeIndex === 1 ? 'scale(0.98)' : (themeIndex === 2 ? 'rotate(-4deg) scale(0.94)' : (themeIndex === 3 ? 'translateY(1%)' : 'scale(0.98)')))
+                      transform: themeIndex === 0 ? 'rotate(0deg)' : (themeIndex === 1 ? 'scale(.99)' : (themeIndex === 2 ? 'rotate(-3deg) scale(.97)' : (themeIndex === 3 ? 'translateY(1%)' : 'scale(.99)'))),
                     }}
                   >
                     {previewData?.artworkUrl && (
-                      <div className="absolute inset-0 bg-cover bg-center opacity-60 grayscale-[60%] blur-[5px] mix-blend-overlay" style={{ backgroundImage: `url(${previewData.artworkUrl})` }}></div>
+                      <div className="absolute inset-0 bg-cover bg-center opacity-62 grayscale-[55%] blur-[5px] mix-blend-overlay" style={{ backgroundImage: `url(${previewData.artworkUrl})` }} />
                     )}
-                    <div className="text-[clamp(72px,12vh,120px)] font-black text-[var(--scene-c)] z-10 animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: '0 0 40px rgba(248,113,113,0.55), 2px 0 0 rgba(255,79,216,0.5), -2px 0 0 rgba(51,216,255,0.5)' }}>?</div>
+                    <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 45%, rgba(${theme.cr}, .08), transparent 52%), linear-gradient(145deg, rgba(${theme.ar}, .14), transparent 48%, rgba(${theme.br}, .12))` }} />
+                    <div className="mb-reflect-sweep absolute -top-[20%] -bottom-[20%] left-[-35%] w-[24%] bg-gradient-to-r from-transparent via-white/55 to-transparent blur-[2px] mix-blend-screen" />
+                    <div className="relative z-10 text-[clamp(106px,17vh,190px)] font-black text-[var(--scene-c)] animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: `0 0 52px rgba(${theme.cr}, .72), 3px 0 0 rgba(${theme.br}, .58), -3px 0 0 rgba(${theme.ar}, .58)` }}>?</div>
                   </div>
                 </div>
               </div>
@@ -640,6 +839,7 @@ export default function Visualizer() {
             {/* Compact visualizer and countdown zone */}
             <div className="relative z-20 flex-none rounded-2xl lg:rounded-3xl border border-white/10 bg-black/25 px-3 sm:px-5 pt-2 sm:pt-3 pb-3 sm:pb-4">
               <div className="relative w-full h-[clamp(64px,12vh,132px)] mb-2 sm:mb-3 overflow-hidden">
+                <div className="mb-visualizer-sweep absolute -top-[15%] bottom-0 left-0 z-20 w-[18%] bg-gradient-to-r from-transparent via-white/25 to-transparent blur-md pointer-events-none" />
                 <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1 sm:gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
                   {Array.from({ length: 32 }).map((_, i) => (
                     <div
