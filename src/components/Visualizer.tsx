@@ -336,33 +336,33 @@ export default function Visualizer() {
         <div className="absolute rounded-full blur-[48px] opacity-55 animate-[drift_26s_ease-in-out_infinite_alternate] w-[460px] h-[460px] left-[38%] -bottom-[180px] bg-[radial-gradient(circle,rgba(139,92,246,0.55),transparent_70%)]"></div>
       </div>
 
+      {/* Creative Party Effects - Spotlights & Floating Notes */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-[1]">
+        {/* Spotlights */}
+        <div className="absolute -top-[20%] left-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#33d8ff]/30 to-transparent origin-top animate-[spotlight_8s_ease-in-out_infinite_alternate] blur-2xl"></div>
+        <div className="absolute -top-[20%] right-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#ff4fd8]/30 to-transparent origin-top animate-[spotlight_10s_ease-in-out_infinite_alternate-reverse] blur-2xl"></div>
+        
+        {/* Floating Notes */}
+        <div className="absolute top-1/4 left-[15%] animate-[float_15s_linear_infinite] opacity-30 text-[#ffd76a]">
+          <Music size={48} />
+        </div>
+        <div className="absolute top-2/3 left-[10%] animate-[float_12s_linear_infinite_reverse] opacity-20 text-[#33d8ff]">
+          <Music size={32} />
+        </div>
+        <div className="absolute top-[30%] right-[15%] animate-[float_18s_linear_infinite] opacity-40 text-[#ff4fd8]">
+          <Music size={64} />
+        </div>
+        <div className="absolute bottom-[20%] right-[10%] animate-[float_14s_linear_infinite_reverse] opacity-20 text-white">
+          <Music size={24} />
+        </div>
+        <div className="absolute top-[15%] left-[45%] animate-[float_20s_linear_infinite] opacity-25 text-white/50">
+          <Music size={40} />
+        </div>
+      </div>
+
       {!gameState?.started && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-transparent overflow-hidden">
           
-          {/* Creative Party Effects - Spotlights & Floating Notes */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-            {/* Spotlights */}
-            <div className="absolute -top-[20%] left-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#33d8ff]/30 to-transparent origin-top animate-[spotlight_8s_ease-in-out_infinite_alternate] blur-2xl"></div>
-            <div className="absolute -top-[20%] right-[10%] w-[150px] h-[150vh] bg-gradient-to-b from-[#ff4fd8]/30 to-transparent origin-top animate-[spotlight_10s_ease-in-out_infinite_alternate-reverse] blur-2xl"></div>
-            
-            {/* Floating Notes */}
-            <div className="absolute top-1/4 left-[15%] animate-[float_15s_linear_infinite] opacity-30 text-[#ffd76a]">
-              <Music size={48} />
-            </div>
-            <div className="absolute top-2/3 left-[10%] animate-[float_12s_linear_infinite_reverse] opacity-20 text-[#33d8ff]">
-              <Music size={32} />
-            </div>
-            <div className="absolute top-[30%] right-[15%] animate-[float_18s_linear_infinite] opacity-40 text-[#ff4fd8]">
-              <Music size={64} />
-            </div>
-            <div className="absolute bottom-[20%] right-[10%] animate-[float_14s_linear_infinite_reverse] opacity-20 text-white">
-              <Music size={24} />
-            </div>
-            <div className="absolute top-[15%] left-[45%] animate-[float_20s_linear_infinite] opacity-25 text-white/50">
-              <Music size={40} />
-            </div>
-          </div>
-
           <div className="w-full max-w-[900px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10 mt-10">
             
             {/* Integrated Logo Section */}
@@ -459,7 +459,7 @@ export default function Visualizer() {
 
                 {/* Stage Screen Song Fun Fact Teaser */}
                 {gameState.nowPlaying && (
-                  <div className="mt-6 p-5 md:p-8 rounded-3xl bg-black/60 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl max-w-3xl shadow-2xl animate-[fadeIn_0.5s_ease-out]">
+                  <div className="mt-6 p-5 md:p-8 rounded-3xl bg-black/60 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl max-w-3xl shadow-2xl animate-[fadeIn_0.5s_ease-out] group">
                     <div className="flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2 gap-2">
                       <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-xs md:text-sm uppercase tracking-widest">
                         <Lightbulb className="w-5 h-5 text-[var(--scene-c)] animate-pulse" />
@@ -467,7 +467,7 @@ export default function Visualizer() {
                       </div>
                       <button 
                         onClick={() => setTriviaScale(prev => prev === 'normal' ? 'large' : prev === 'large' ? 'huge' : 'normal')}
-                        className="px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                        className="opacity-0 group-hover:opacity-100 px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-opacity duration-300 cursor-pointer flex items-center gap-1.5"
                         title="Adjust text size for venue TV/projector screens"
                       >
                         <Type className="w-3.5 h-3.5 text-[var(--scene-c)]" /> <span className="hidden sm:inline">Text Size:</span> <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>

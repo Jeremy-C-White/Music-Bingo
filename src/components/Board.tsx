@@ -49,12 +49,13 @@ export default function Board() {
 
   useEffect(() => {
     const storedName = localStorage.getItem(PLAYER_NAME_KEY);
-    const activeName = storedName ? storedName.trim() : playerName.trim();
     if (storedName && !playerName) setPlayerName(storedName.trim());
 
     const unsubscribe = subscribeToGameState((state) => {
       setGameState(state);
       if (!state) return;
+
+      const currentStoredName = localStorage.getItem(PLAYER_NAME_KEY);
 
       // Handle session reset / session change
       if (state.sessionId) {
@@ -74,19 +75,23 @@ export default function Board() {
 
       // Auto-enter game if started and player name is set
       if (state.started) {
-        if (activeName.length >= 2) {
+        if (currentStoredName && currentStoredName.length >= 2) {
           setInLobby(false);
           setWaiting(false);
           initBoard(state.sessionId);
         }
       } else {
         setInLobby(true);
-        setWaiting(true);
+        if (currentStoredName && currentStoredName.length >= 2) {
+          setWaiting(true);
+        } else {
+          setWaiting(false);
+        }
       }
     });
 
     return () => unsubscribe();
-  }, [playerName]);
+  }, []);
   
   useEffect(() => {
     if (boardSongs.length > 0) {
