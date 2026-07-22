@@ -449,7 +449,7 @@ export default function Visualizer() {
         @keyframes mbRingPulse { 0%,100% { transform: scale(.97); opacity: .18; } 50% { transform: scale(1.055); opacity: .72; } }
         @keyframes mbReflectSweep { 0% { transform: translateX(-170%) skewX(-18deg); opacity: 0; } 18% { opacity: .65; } 52%,100% { transform: translateX(230%) skewX(-18deg); opacity: 0; } }
         @keyframes mbTrackBurst { 0% { opacity: .95; transform: scale(.18); } 45% { opacity: .52; } 100% { opacity: 0; transform: scale(2.4); } }
-        @keyframes mbVisualizerSweep { 0% { transform: translateX(-130%) skewX(-16deg); } 100% { transform: translateX(430%) skewX(-16deg); } }
+        @keyframes mbVisualizerSweep { 0% { transform: translateX(-120%) skewX(-16deg); } 100% { transform: translateX(520%) skewX(-16deg); } }
         @keyframes mbPanelShimmer { 0%,100% { opacity: .16; transform: translateX(-8%); } 50% { opacity: .34; transform: translateX(8%); } }
 
         .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
@@ -786,7 +786,7 @@ export default function Visualizer() {
                     )}
                     <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 50% 45%, rgba(${theme.cr}, .08), transparent 52%), linear-gradient(145deg, rgba(${theme.ar}, .14), transparent 48%, rgba(${theme.br}, .12))` }} />
                     <div className="mb-reflect-sweep absolute -top-[20%] -bottom-[20%] left-[-35%] w-[24%] bg-gradient-to-r from-transparent via-white/55 to-transparent blur-[2px] mix-blend-screen" />
-                    <div className="relative z-10 text-[clamp(106px,17vh,190px)] font-black text-[var(--scene-c)] animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: `0 0 52px rgba(${theme.cr}, .72), 3px 0 0 rgba(${theme.br}, .58), -3px 0 0 rgba(${theme.ar}, .58)` }}>?</div>
+                    <div className="relative z-10 text-[clamp(88px,14vh,150px)] font-black text-[var(--scene-c)] animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: `0 0 52px rgba(${theme.cr}, .72), 3px 0 0 rgba(${theme.br}, .58), -3px 0 0 rgba(${theme.ar}, .58)` }}>?</div>
                   </div>
                 </div>
               </div>
@@ -802,7 +802,7 @@ export default function Visualizer() {
                   )}
                 </div>
 
-                <h2 className="text-[clamp(2rem,5.3vw,4.8rem)] font-black leading-[0.98] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
+                <h2 className="text-[clamp(2rem,4.6vw,4rem)] font-black leading-[0.98] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
                   {gameState.nowPlaying ? `Mystery Track #${gameState.history.length + 1}` : 'Ready?'}
                 </h2>
 
@@ -811,7 +811,7 @@ export default function Visualizer() {
                 </div>
 
                 {gameState.nowPlaying && (
-                  <div className="relative z-30 p-[clamp(12px,1.6vw,22px)] rounded-2xl lg:rounded-3xl bg-black/60 border border-[var(--scene-c)]/35 backdrop-blur-xl max-w-3xl shadow-xl animate-[fadeIn_0.5s_ease-out] group">
+                  <div className="relative z-30 p-[clamp(12px,1.6vw,22px)] rounded-2xl lg:rounded-3xl bg-black/60 border border-[var(--scene-c)]/50 backdrop-blur-xl max-w-3xl shadow-[0_0_46px_rgba(var(--scene-c-rgb),0.22),0_10px_40px_rgba(0,0,0,0.5)] animate-[fadeIn_0.5s_ease-out] group">
                     <div className="flex flex-wrap items-center justify-between mb-2 border-b border-white/10 pb-2 gap-2">
                       <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-[10px] sm:text-xs uppercase tracking-widest">
                         <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)] animate-pulse" />
@@ -842,7 +842,7 @@ export default function Visualizer() {
             {/* Compact visualizer and countdown zone */}
             <div className="relative z-20 flex-none rounded-2xl lg:rounded-3xl border border-white/10 bg-black/25 px-3 sm:px-5 pt-2 sm:pt-3 pb-3 sm:pb-4">
               <div className="relative w-full h-[clamp(64px,12vh,132px)] mb-2 sm:mb-3 overflow-hidden">
-                <div className="mb-visualizer-sweep absolute -top-[15%] bottom-0 left-0 z-20 w-[18%] bg-gradient-to-r from-transparent via-white/25 to-transparent blur-md pointer-events-none" />
+                <div className="mb-visualizer-sweep absolute inset-y-0 left-0 z-20 w-1/4 bg-gradient-to-r from-transparent via-white/20 to-transparent blur-md pointer-events-none" />
                 <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1 sm:gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
                   {Array.from({ length: 32 }).map((_, i) => (
                     <div
