@@ -482,143 +482,194 @@ export default function Visualizer() {
 
           </div>
         </div>
-      )}      {gameState?.started && (
-        <div className="absolute inset-0 z-10 flex p-2 sm:p-6 md:p-10 gap-4 md:gap-8 transition-all min-h-0">
-          <div className="flex-1 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-3xl md:rounded-[36px] p-4 sm:p-8 md:p-12 flex flex-col shadow-2xl relative overflow-hidden min-h-0">
-            
-            {/* Music Bingo Top Left Logo */}
-            <div className="absolute top-4 left-4 sm:top-8 sm:left-10 flex items-center gap-2.5 sm:gap-3.5 z-30 select-none">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-2xl border border-white/20 bg-black/60 backdrop-blur-md flex items-center justify-center shadow-[0_0_20px_rgba(51,216,255,0.4)]">
-                <Music className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--scene-a)] animate-pulse" />
-              </div>
-              <div className="flex flex-col text-left leading-none">
-                <span className="font-black text-xs sm:text-base tracking-wider bg-gradient-to-r from-white via-[#33d8ff] to-white bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(51,216,255,0.6)] uppercase">
-                  Music
-                </span>
-                <span className="font-black text-xs sm:text-base tracking-wider bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#ffd76a] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(255,79,216,0.6)] uppercase">
-                  Bingo
-                </span>
-              </div>
-            </div>
+      )}
 
-            {/* Round info overlay */}
-            <div className="absolute top-4 right-4 sm:top-8 sm:right-10 flex items-center gap-2 sm:gap-4 z-30 scale-75 sm:scale-100 origin-top-right">
-              {totalClaims > 0 && (
-                <div className="flex flex-col items-center justify-center w-[84px] h-[84px] rounded-2xl border border-[var(--scene-c)]/50 bg-black/60 backdrop-blur-md shadow-[0_0_30px_var(--scene-c)] animate-bounce">
-                  <span className="text-[9px] font-black tracking-widest text-[var(--scene-c)] uppercase">Bingos</span>
-                  <strong className="text-3xl font-black text-[var(--scene-c)] tabular-nums leading-none mt-1">{String(totalClaims).padStart(2, '0')}</strong>
-                </div>
-              )}
-              <div className="flex flex-col items-center justify-center w-[84px] h-[84px] rounded-2xl border border-[var(--scene-b)]/40 bg-black/60 backdrop-blur-md shadow-[0_0_30px_var(--scene-b)]">
-                <span className="text-[9px] font-black tracking-widest text-white/50 uppercase">Track</span>
-                <strong className="text-3xl font-black text-white tabular-nums leading-none mt-1">{String(gameState.history.length + (gameState.nowPlaying ? 1 : 0)).padStart(2, '0')}</strong>
-              </div>
-            </div>
+      {gameState?.started && (
+        <div className="absolute inset-0 z-10 p-2 sm:p-4 lg:p-6 transition-all">
+          <div className="h-full min-h-0 bg-[#0e1226]/60 backdrop-blur-3xl border border-white/10 rounded-3xl lg:rounded-[36px] p-[clamp(12px,2vw,28px)] flex flex-col shadow-2xl relative overflow-hidden">
 
-            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 sm:gap-8 relative z-20 min-h-0 pt-16 sm:pt-0 max-w-5xl mx-auto w-full">
-              
-              {/* Album Art Deck */}
-              <div className="relative w-[180px] h-[180px] sm:w-[280px] sm:h-[280px] md:w-[380px] md:h-[380px] xl:w-[440px] xl:h-[440px] flex items-center justify-center flex-none">
-                <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_22px_rgba(51,216,255,0.25)]" viewBox="0 0 400 400">
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
-                  <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="6" strokeLinecap="round" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
-                </svg>
-                
-                {/* Vinyl Background */}
-                <div className={`absolute inset-[6%] rounded-full bg-[repeating-radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0,rgba(255,255,255,0.02)_1px,transparent_1px,transparent_4px),radial-gradient(circle_at_center,#1a1530_0%,#0a0918_75%)] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] ${themeIndex === 1 ? 'animate-[spin_13s_linear_infinite]' : 'animate-[spin_20s_linear_infinite]'} ${themeIndex === 3 ? 'inset-[2%] opacity-80' : ''}`}>
-                  <div className="absolute inset-[42%] rounded-full bg-gradient-to-br from-[var(--scene-a)] to-[var(--scene-b)] opacity-85"></div>
+            {/* Organized stage header */}
+            <header className="relative z-30 flex-none flex items-center justify-between gap-3 sm:gap-5 pb-3 sm:pb-4 border-b border-white/10">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 select-none">
+                <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-none mr-1">
+                  <div className="absolute -top-1 -left-1 -rotate-12 z-10">
+                    <Music className="w-5 h-5 sm:w-7 sm:h-7 text-[#33d8ff] animate-pulse drop-shadow-[0_0_10px_rgba(51,216,255,0.8)]" />
+                  </div>
+                  <div className="absolute bottom-0 -right-1 rotate-12 z-10">
+                    <Music className="w-5 h-5 sm:w-7 sm:h-7 text-[#ff4fd8] animate-pulse drop-shadow-[0_0_10px_rgba(255,79,216,0.8)]" />
+                  </div>
                 </div>
-
-                {/* The Album Art */}
-                <div 
-                  className="absolute z-10 overflow-hidden bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-2 border-[var(--scene-c)]/50 flex items-center justify-center shadow-[0_30px_90px_rgba(0,0,0,0.8),0_0_80px_var(--scene-b)] transition-all duration-700 ease-out"
-                  style={{
-                    width: themeIndex === 3 ? '84%' : (themeIndex === 4 ? '78%' : '76%'),
-                    height: themeIndex === 3 ? '68%' : (themeIndex === 4 ? '78%' : '76%'),
-                    borderRadius: themeIndex === 0 ? 'clamp(16px, 2.5vh, 28px)' : (themeIndex === 1 ? '50%' : (themeIndex === 2 ? '38px 12px 38px 12px' : (themeIndex === 3 ? '52px' : '28px'))),
-                    clipPath: themeIndex === 4 ? 'polygon(50% 0%, 92% 18%, 100% 60%, 72% 100%, 28% 100%, 0% 60%, 8% 18%)' : 'none',
-                    transform: themeIndex === 0 ? 'rotate(0deg) scale(1)' : (themeIndex === 1 ? 'scale(0.98)' : (themeIndex === 2 ? 'rotate(-4deg) scale(0.94)' : (themeIndex === 3 ? 'translateY(1%)' : 'scale(0.98)')))
-                  }}
-                >
-                  {previewData?.artworkUrl && <div className="absolute inset-0 bg-cover bg-center opacity-60 grayscale-[60%] blur-[5px] mix-blend-overlay" style={{backgroundImage: `url(${previewData.artworkUrl})`}}></div>}
-                  <div className="text-8xl sm:text-[110px] md:text-[140px] font-black text-[var(--scene-c)] z-10 animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: '0 0 40px rgba(248,113,113,0.55), 2px 0 0 rgba(255,79,216,0.5), -2px 0 0 rgba(51,216,255,0.5)'}}>?</div>
-                </div>
+                <h1 className="text-lg sm:text-2xl lg:text-3xl font-black tracking-tighter uppercase m-0 leading-none flex items-center gap-1.5 sm:gap-2 whitespace-nowrap">
+                  <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent drop-shadow-md">Music</span>
+                  <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,79,216,0.3)]">Bingo</span>
+                </h1>
               </div>
 
-              {/* Mystery Track Header */}
-              <div className="w-full text-center flex flex-col items-center min-h-0 overflow-y-auto custom-scrollbar px-2 pb-4">
-                <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-r from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-xs sm:text-sm font-black tracking-widest uppercase mb-3 sm:mb-4 shadow-lg">
-                  <Sparkles className="w-4 h-4" /> Mystery Track Live
+              <div className="flex items-center justify-end gap-2 sm:gap-3 flex-none">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] lg:text-xs font-black tracking-[0.18em] uppercase text-white/65">
+                  <Radio className="w-4 h-4 text-[#4ade80] animate-pulse" />
+                  Live Stage
                 </div>
-                
-                <div className="text-xs font-bold tracking-[0.3em] uppercase text-white/50 mb-1 sm:mb-2">Now Playing</div>
-                <h2 className="text-3xl sm:text-5xl md:text-7xl xl:text-8xl font-black leading-[1.05] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
+
+                {totalClaims > 0 && (
+                  <div className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border border-[var(--scene-c)]/45 bg-black/55 backdrop-blur-md shadow-[0_0_24px_var(--scene-c)]">
+                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)]" />
+                    <div className="leading-none text-left">
+                      <span className="block text-[8px] sm:text-[9px] font-black tracking-widest text-[var(--scene-c)] uppercase">Bingos</span>
+                      <strong className="block text-lg sm:text-2xl font-black text-[var(--scene-c)] tabular-nums mt-0.5">{String(totalClaims).padStart(2, '0')}</strong>
+                    </div>
+                  </div>
+                )}
+
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAudioPanel(!showAudioPanel)}
+                    className="p-2.5 sm:p-3 rounded-xl bg-black/50 border border-white/15 text-white hover:bg-white/10 transition-colors shadow-xl cursor-pointer"
+                    title="Audio controls"
+                  >
+                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  {showAudioPanel && (
+                    <div className="absolute top-[calc(100%+10px)] right-0 z-50 bg-[#12182a]/98 backdrop-blur-xl border border-white/20 p-3 sm:p-4 rounded-2xl flex items-center gap-3 shadow-2xl whitespace-nowrap">
+                      <button
+                        onClick={() => setIsAudioMuted(!isAudioMuted)}
+                        className="px-3 sm:px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] sm:text-xs font-bold uppercase cursor-pointer flex items-center gap-2"
+                      >
+                        {isAudioMuted ? <VolumeX className="w-4 h-4 text-[#f87171]" /> : <Volume2 className="w-4 h-4 text-[#4ade80]" />}
+                        {isAudioMuted ? 'Muted' : 'Audio On'}
+                      </button>
+                      <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={volume}
+                          onChange={e => setVolume(Number(e.target.value))}
+                          className="w-20 sm:w-28 cursor-pointer"
+                          aria-label="Stage audio volume"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            {/* Main stage content */}
+            <div className="relative z-20 flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(210px,0.82fr)_minmax(0,1.25fr)] items-center gap-[clamp(14px,3vw,52px)] py-[clamp(10px,2vh,24px)] overflow-y-auto md:overflow-hidden">
+
+              {/* Album art zone */}
+              <div className="flex items-center justify-center min-h-0">
+                <div className="relative w-[clamp(170px,34vh,360px)] h-[clamp(170px,34vh,360px)] max-w-full aspect-square flex items-center justify-center flex-none">
+                  <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_22px_rgba(51,216,255,0.25)]" viewBox="0 0 400 400">
+                    <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                    <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="6" strokeLinecap="round" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
+                  </svg>
+
+                  <div className={`absolute inset-[6%] rounded-full bg-[repeating-radial-gradient(circle_at_center,rgba(255,255,255,0.02)_0,rgba(255,255,255,0.02)_1px,transparent_1px,transparent_4px),radial-gradient(circle_at_center,#1a1530_0%,#0a0918_75%)] shadow-[inset_0_0_60px_rgba(0,0,0,0.8)] ${themeIndex === 1 ? 'animate-[spin_13s_linear_infinite]' : 'animate-[spin_20s_linear_infinite]'} ${themeIndex === 3 ? 'inset-[2%] opacity-80' : ''}`}>
+                    <div className="absolute inset-[42%] rounded-full bg-gradient-to-br from-[var(--scene-a)] to-[var(--scene-b)] opacity-85"></div>
+                  </div>
+
+                  <div
+                    className="absolute z-10 overflow-hidden bg-gradient-to-br from-[#2a0a1a] to-[#1a0510] border-2 border-[var(--scene-c)]/50 flex items-center justify-center shadow-[0_24px_70px_rgba(0,0,0,0.8),0_0_60px_var(--scene-b)] transition-all duration-700 ease-out"
+                    style={{
+                      width: themeIndex === 3 ? '84%' : (themeIndex === 4 ? '78%' : '76%'),
+                      height: themeIndex === 3 ? '68%' : (themeIndex === 4 ? '78%' : '76%'),
+                      borderRadius: themeIndex === 0 ? 'clamp(16px, 2.5vh, 28px)' : (themeIndex === 1 ? '50%' : (themeIndex === 2 ? '38px 12px 38px 12px' : (themeIndex === 3 ? '52px' : '28px'))),
+                      clipPath: themeIndex === 4 ? 'polygon(50% 0%, 92% 18%, 100% 60%, 72% 100%, 28% 100%, 0% 60%, 8% 18%)' : 'none',
+                      transform: themeIndex === 0 ? 'rotate(0deg) scale(1)' : (themeIndex === 1 ? 'scale(0.98)' : (themeIndex === 2 ? 'rotate(-4deg) scale(0.94)' : (themeIndex === 3 ? 'translateY(1%)' : 'scale(0.98)')))
+                    }}
+                  >
+                    {previewData?.artworkUrl && (
+                      <div className="absolute inset-0 bg-cover bg-center opacity-60 grayscale-[60%] blur-[5px] mix-blend-overlay" style={{ backgroundImage: `url(${previewData.artworkUrl})` }}></div>
+                    )}
+                    <div className="text-[clamp(72px,12vh,120px)] font-black text-[var(--scene-c)] z-10 animate-[glitch_2.4s_steps(2,end)_infinite] select-none" style={{ textShadow: '0 0 40px rgba(248,113,113,0.55), 2px 0 0 rgba(255,79,216,0.5), -2px 0 0 rgba(51,216,255,0.5)' }}>?</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Track information zone */}
+              <div className="min-w-0 min-h-0 flex flex-col justify-center text-center md:text-left">
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2 sm:mb-3">
+                  <div className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-white/45">Now Playing</div>
+                  {gameState.nowPlaying && (
+                    <div className="px-2.5 py-1 rounded-full bg-[var(--scene-a)]/10 border border-[var(--scene-a)]/25 text-[9px] sm:text-[10px] font-black tracking-[0.18em] uppercase text-[var(--scene-a)]">
+                      Track {String(gameState.history.length + 1).padStart(2, '0')}
+                    </div>
+                  )}
+                </div>
+
+                <h2 className="text-[clamp(2rem,5.3vw,4.8rem)] font-black leading-[0.98] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
                   {gameState.nowPlaying ? `Mystery Track #${gameState.history.length + 1}` : 'Ready?'}
                 </h2>
-                <div className="text-base sm:text-xl md:text-2xl font-medium text-white/80 max-w-2xl mx-auto mb-4">
-                  {gameState.nowPlaying ? 'Listen closely to the hook! Find this song on your 5x5 board.' : 'Next track incoming...'}
+
+                <div className="text-[clamp(0.9rem,1.7vw,1.45rem)] font-medium leading-snug text-white/70 mb-[clamp(10px,2vh,20px)] max-w-3xl">
+                  {gameState.nowPlaying ? 'Listen closely to the hook and find this song on your 5x5 board.' : 'Next track incoming...'}
                 </div>
 
-                {/* Stage Screen Song Fun Fact Teaser */}
                 {gameState.nowPlaying && (
-                  <div className="mt-2 sm:mt-4 p-4 sm:p-6 rounded-2xl md:rounded-3xl bg-black/65 border-2 border-[var(--scene-c)]/40 backdrop-blur-xl max-w-2xl w-full shadow-2xl animate-[fadeIn_0.5s_ease-out] group text-center flex flex-col items-center">
-                    <div className="flex flex-wrap items-center justify-between w-full mb-2 sm:mb-3 border-b border-white/10 pb-2 gap-2">
-                      <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-xs sm:text-sm uppercase tracking-widest mx-auto sm:mx-0">
+                  <div className="p-[clamp(12px,1.6vw,22px)] rounded-2xl lg:rounded-3xl bg-black/45 border border-[var(--scene-c)]/35 backdrop-blur-xl max-w-3xl shadow-xl animate-[fadeIn_0.5s_ease-out] group">
+                    <div className="flex flex-wrap items-center justify-between mb-2 border-b border-white/10 pb-2 gap-2">
+                      <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-[10px] sm:text-xs uppercase tracking-widest">
                         <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)] animate-pulse" />
                         <span>Did You Know?</span>
                       </div>
-                      <button 
+                      <button
                         onClick={() => setTriviaScale(prev => prev === 'normal' ? 'large' : prev === 'large' ? 'huge' : 'normal')}
-                        className="opacity-100 sm:opacity-0 group-hover:opacity-100 px-3 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-opacity duration-300 cursor-pointer flex items-center gap-1.5 mx-auto sm:mx-0"
+                        className="opacity-100 lg:opacity-0 group-hover:opacity-100 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[10px] font-bold transition-opacity duration-300 cursor-pointer flex items-center gap-1.5"
                         title="Adjust text size for venue TV/projector screens"
                       >
-                        <Type className="w-3.5 h-3.5 text-[var(--scene-c)]" /> <span className="hidden sm:inline">Text Size:</span> <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>
+                        <Type className="w-3.5 h-3.5 text-[var(--scene-c)]" />
+                        <span className="hidden sm:inline">Text Size</span>
+                        <span className="uppercase font-extrabold text-[var(--scene-c)]">{triviaScale}</span>
                       </button>
                     </div>
                     <p className={`text-white/95 leading-relaxed font-bold m-0 transition-all ${
-                      triviaScale === 'normal' ? 'text-xs sm:text-sm md:text-lg' :
-                      triviaScale === 'large' ? 'text-sm sm:text-base md:text-2xl xl:text-3xl' :
-                      'text-base sm:text-lg md:text-3xl xl:text-4xl'
+                      triviaScale === 'normal' ? 'text-[clamp(0.78rem,1.2vw,1.05rem)]' :
+                      triviaScale === 'large' ? 'text-[clamp(0.95rem,1.65vw,1.45rem)]' :
+                      'text-[clamp(1.05rem,2vw,1.8rem)]'
                     }`}>
-                      "{getSongFact(gameState.nowPlaying)}"
+                      &ldquo;{getSongFact(gameState.nowPlaying)}&rdquo;
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Footer Audio Vis */}
-            <div className="flex-none mt-4 sm:mt-8">
-              <div className="flex justify-between items-end mb-2 sm:mb-3">
-                <div className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-white/40">Track Preview Countdown</div>
-                <div className={`text-3xl sm:text-4xl md:text-6xl font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_30px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
-                  0:{String(remaining).padStart(2, '0')}
-                </div>
-              </div>
-              
-              <div className="w-full h-1.5 sm:h-2 rounded-full bg-white/10 mb-4 sm:mb-6 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-all ease-linear shadow-[0_0_20px_var(--scene-a)]" style={{width: `${progress * 100}%`}}></div>
-              </div>
-              
-              <div className="relative w-full h-[50px] sm:h-[90px]">
-                <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
+            {/* Compact visualizer and countdown zone */}
+            <div className="relative z-20 flex-none rounded-2xl lg:rounded-3xl border border-white/10 bg-black/25 px-3 sm:px-5 pt-2 sm:pt-3 pb-3 sm:pb-4">
+              <div className="relative w-full h-[clamp(64px,12vh,132px)] mb-2 sm:mb-3 overflow-hidden">
+                <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1 sm:gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
                   {Array.from({ length: 32 }).map((_, i) => (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       ref={el => barsRef.current[i] = el}
                       className="flex-1 min-w-[2px] sm:min-w-[3px] rounded-t-full bg-gradient-to-b from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-[height] duration-75 ease-out h-[10%]"
                     ></div>
                   ))}
                 </div>
-                <canvas 
-                  ref={canvasRef} 
-                  width="1000" 
-                  height="90" 
-                  className={`absolute inset-0 w-full h-full transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-0' : 'opacity-40'}`}
+                <canvas
+                  ref={canvasRef}
+                  width="1000"
+                  height="200"
+                  className={`absolute inset-0 w-full h-full transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-0' : 'opacity-55'}`}
                 ></canvas>
               </div>
+
+              <div className="flex items-center gap-3 sm:gap-5">
+                <div className="flex-1 min-w-0">
+                  <div className="w-full h-1.5 sm:h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-all ease-linear shadow-[0_0_20px_var(--scene-a)]" style={{ width: `${progress * 100}%` }}></div>
+                  </div>
+                  <div className="mt-2 text-[9px] sm:text-[10px] lg:text-xs font-bold tracking-[0.22em] uppercase text-white/40">Track Preview Countdown</div>
+                </div>
+                <div className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_40px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
+                  0:{String(remaining).padStart(2, '0')}
+                </div>
+              </div>
             </div>
-            
+
           </div>
         </div>
       )}
@@ -693,23 +744,6 @@ export default function Visualizer() {
         document.body
       )}
 
-      {/* Audio controls popup */}
-      <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 z-50">
-        <button onClick={() => setShowAudioPanel(!showAudioPanel)} className="p-2 sm:p-3 rounded-full bg-black/60 border border-white/20 text-white hover:bg-white/10 transition-colors shadow-2xl cursor-pointer">
-          <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-        {showAudioPanel && (
-          <div className="absolute bottom-14 left-0 bg-[#12182a]/95 backdrop-blur-xl border border-white/20 p-4 rounded-2xl flex items-center gap-3 shadow-2xl">
-            <button onClick={() => setIsAudioMuted(!isAudioMuted)} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold uppercase cursor-pointer flex items-center gap-2">
-              {isAudioMuted ? <VolumeX className="w-4 h-4 text-[#f87171]" /> : <Volume2 className="w-4 h-4 text-[#4ade80]" />}
-              {isAudioMuted ? 'Muted' : 'Audio On'}
-            </button>
-            <div className="flex items-center gap-2 bg-white/5 px-3 py-2 rounded-xl border border-white/10">
-              <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(Number(e.target.value))} className="w-24 cursor-pointer" />
-            </div>
-          </div>
-        )}
-      </div>
 
       <audio 
         ref={audioRef} 
