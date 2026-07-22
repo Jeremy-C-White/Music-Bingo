@@ -1,3 +1,4 @@
+import { handleFirestoreError, OperationType } from './firebase-error';
 import { db } from './firebase';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc } from 'firebase/firestore';
 import { GameState, Claim } from './types';
@@ -14,7 +15,7 @@ export function subscribeToGameState(callback: (state: GameState | null) => void
     } else {
       callback(null);
     }
-  });
+  }, (err) => handleFirestoreError(err, OperationType.GET, 'games/current'));
 }
 
 export function subscribeToClaims(callback: (claims: Claim[]) => void) {
@@ -34,10 +35,11 @@ export function subscribeToClaims(callback: (claims: Claim[]) => void) {
     });
     
     callback(processed);
-  });
+  }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/claims'));
 }
 
 export async function startNewGame() {
+  try {
   const sessionId = Date.now().toString();
   
   // Create or overwrite current game state
@@ -51,9 +53,14 @@ export async function startNewGame() {
   });
   
   return sessionId;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
+    throw err;
+  }
 }
 
 export async function resetGame() {
+  try {
   await setDoc(gameDocRef, {
     sessionId: Date.now().toString(),
     started: false,
@@ -62,24 +69,39 @@ export async function resetGame() {
     visualizerAudioActive: false,
     updatedAt: Date.now()
   });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
+    throw err;
+  }
 }
 
 export async function setNowPlaying(songKey: string, history: string[]) {
+  try {
   await updateDoc(gameDocRef, {
     nowPlaying: songKey,
     history: history,
     updatedAt: Date.now()
   });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
+    throw err;
+  }
 }
 
 export async function setVisualizerAudioActive(active: boolean) {
+  try {
   await updateDoc(gameDocRef, {
     visualizerAudioActive: active,
     updatedAt: Date.now()
   });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
+    throw err;
+  }
 }
 
 export async function submitClaim(playerName: string, boardSongs: string[], selected: boolean[], gameState: GameState) {
+  try {
   // Integrity check
   if (boardSongs[12] !== 'FREE SPACE' || boardSongs.length !== 25) {
     throw new Error('Board data malformed.');
@@ -144,14 +166,23 @@ export async function submitClaim(playerName: string, boardSongs: string[], sele
   
   await addDoc(claimsCollection, claim);
   return claim;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, 'games/current/claims');
+    throw err;
+  }
 }
 
 export async function dismissClaim(claimId: string) {
+  try {
   // We can just add a 'dismissed' flag or delete it. Let's delete it.
   // Wait, no, we shouldn't delete claims entirely if we want them out of view for caller, 
   // but deletion is easiest. Let's delete it.
   const { deleteDoc, doc } = await import('firebase/firestore');
   await deleteDoc(doc(db, 'games', GAME_DOC_ID, 'claims', claimId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, 'games/current/claims');
+    throw err;
+  }
 }
 
 export async function pingPresence(playerName: string) {
@@ -179,7 +210,5 @@ export function subscribeToPlayerCount(callback: (count: number) => void) {
       return data.lastSeen && (now - data.lastSeen) < 30000;
     }).length;
     callback(activeCount);
-  }, (err) => {
-    console.error("subscribeToPlayerCount error:", err);
-  });
+  }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/players'));
 }
