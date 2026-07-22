@@ -580,18 +580,21 @@ export default function Visualizer() {
               )}
 
               {sceneIndex === 1 && (
-                <div className="absolute inset-0 overflow-hidden">
+                <div
+                  className="absolute inset-0 overflow-hidden opacity-40"
+                  style={{ maskImage: 'radial-gradient(ellipse 62% 70% at 50% 60%, transparent 30%, black 78%)' }}
+                >
                   {Array.from({ length: 11 }).map((_, i) => {
                     const angle = -48 + i * 9.5;
                     const rgb = i % 3 === 0 ? theme.ar : i % 3 === 1 ? theme.br : theme.cr;
                     return (
                       <div
                         key={i}
-                        className="absolute left-1/2 bottom-[-18%] h-[118%] w-[2px] origin-bottom"
+                        className="absolute left-1/2 bottom-[-18%] h-[118%] w-[2px] origin-bottom blur-[1px]"
                         style={{
                           '--laser-angle': `${angle}deg`,
-                          background: `linear-gradient(to top, rgba(${rgb}, .92), rgba(${rgb}, .10) 72%, transparent)`,
-                          boxShadow: `0 0 16px rgba(${rgb}, .72)`,
+                          background: `linear-gradient(to top, rgba(${rgb}, .55), rgba(${rgb}, .06) 72%, transparent)`,
+                          boxShadow: `0 0 10px rgba(${rgb}, .35)`,
                           animation: `mbLaserSweep ${3.2 + (i % 4) * .6}s ease-in-out ${-(i * .23)}s infinite`,
                         } as React.CSSProperties}
                       />
@@ -716,15 +719,15 @@ export default function Visualizer() {
             </header>
 
             {/* Main stage content */}
-            <div className="relative z-20 flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(390px,1.35fr)_minmax(320px,0.85fr)] items-center gap-[clamp(16px,2.4vw,42px)] py-[clamp(8px,1.4vh,18px)] overflow-y-auto md:overflow-hidden">
+            <div className="relative z-20 flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[minmax(300px,0.95fr)_minmax(360px,1.05fr)] items-center gap-[clamp(16px,2.4vw,42px)] py-[clamp(8px,1.4vh,18px)] overflow-y-auto md:overflow-hidden">
 
               {/* Large audio-reactive album art, vinyl, and timer centerpiece */}
               <div className="flex items-center justify-center min-h-0 min-w-0">
                 <div
                   className="mb-album-bass relative max-w-full aspect-square flex items-center justify-center flex-none"
                   style={{
-                    width: 'min(620px, 58vh, 100%)',
-                    height: 'min(620px, 58vh, 100%)',
+                    width: 'min(480px, 46vh, 100%)',
+                    height: 'min(480px, 46vh, 100%)',
                     filter: 'brightness(calc(.92 + var(--bass-glow, .3))) drop-shadow(0 0 42px rgba(var(--scene-a-rgb), var(--bass-glow, .3)))',
                   }}
                 >
@@ -743,7 +746,7 @@ export default function Visualizer() {
                           height: light % 2 ? 8 : 11,
                           background: light % 3 === 0 ? theme.a : light % 3 === 1 ? theme.b : theme.c,
                           boxShadow: `0 0 20px ${light % 3 === 0 ? theme.a : light % 3 === 1 ? theme.b : theme.c}`,
-                          transform: `rotate(${light * 60}deg) translateY(max(-292px, -27vh, -46vw))`,
+                          transform: `rotate(${light * 60}deg) translateY(max(-232px, -22vh, -40vw))`,
                           transformOrigin: '0 0',
                         }}
                       />
@@ -789,7 +792,7 @@ export default function Visualizer() {
               </div>
 
               {/* Track information zone */}
-              <div className="min-w-0 min-h-0 flex flex-col justify-center text-center md:text-left">
+              <div className="relative z-30 min-w-0 min-h-0 flex flex-col justify-center text-center md:text-left">
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2 sm:mb-3">
                   <div className="text-[10px] sm:text-xs font-bold tracking-[0.3em] uppercase text-white/45">Now Playing</div>
                   {gameState.nowPlaying && (
@@ -808,7 +811,7 @@ export default function Visualizer() {
                 </div>
 
                 {gameState.nowPlaying && (
-                  <div className="p-[clamp(12px,1.6vw,22px)] rounded-2xl lg:rounded-3xl bg-black/45 border border-[var(--scene-c)]/35 backdrop-blur-xl max-w-3xl shadow-xl animate-[fadeIn_0.5s_ease-out] group">
+                  <div className="relative z-30 p-[clamp(12px,1.6vw,22px)] rounded-2xl lg:rounded-3xl bg-black/60 border border-[var(--scene-c)]/35 backdrop-blur-xl max-w-3xl shadow-xl animate-[fadeIn_0.5s_ease-out] group">
                     <div className="flex flex-wrap items-center justify-between mb-2 border-b border-white/10 pb-2 gap-2">
                       <div className="flex items-center gap-2 text-[var(--scene-c)] font-black text-[10px] sm:text-xs uppercase tracking-widest">
                         <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)] animate-pulse" />
