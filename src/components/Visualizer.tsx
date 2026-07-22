@@ -296,11 +296,16 @@ export default function Visualizer() {
     let interval: NodeJS.Timeout;
     if (audioRef.current) {
       interval = setInterval(() => {
-        if (audioRef.current && !audioRef.current.paused) {
+        if (audioRef.current) {
           const current = audioRef.current.currentTime;
-          const dur = 30; // 30 second tracks typically
-          setProgress(Math.min(1, current / dur));
-          setRemaining(Math.max(0, Math.ceil(dur - current)));
+          const dur = audioRef.current.duration || 30; // 30 second tracks typically
+          if (audioRef.current.ended || dur - current < 0.2) {
+            setProgress(1);
+            setRemaining(0);
+          } else if (!audioRef.current.paused) {
+            setProgress(Math.min(1, current / dur));
+            setRemaining(Math.max(0, Math.ceil(dur - current)));
+          }
         }
       }, 100);
     }
@@ -428,10 +433,10 @@ export default function Visualizer() {
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 relative z-20">
+            <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-12 relative z-20 min-h-0">
               
               {/* Album Art Deck */}
-              <div className="relative w-[280px] h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center">
+              <div className="relative w-[280px] h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center flex-none">
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 400 400">
                   <circle cx="200" cy="200" r="190" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" />
                   <circle cx="200" cy="200" r="190" fill="none" stroke="var(--scene-c)" strokeWidth="8" strokeDasharray="1194" strokeDashoffset={1194 * (1 - progress)} className="transition-all duration-150 ease-linear" />
@@ -444,7 +449,7 @@ export default function Visualizer() {
               </div>
 
               {/* Mystery Track Header */}
-              <div className="flex-1 text-center lg:text-left">
+              <div className="flex-1 text-center lg:text-left min-h-0 overflow-y-auto custom-scrollbar pr-2 pb-4">
                 <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[var(--scene-c)]/40 bg-gradient-to-r from-[var(--scene-b)]/20 to-[var(--scene-c)]/10 text-[var(--scene-c)] text-xs font-black tracking-widest uppercase mb-6 shadow-lg">
                   <Sparkles className="w-4 h-4" /> Mystery Track Live
                 </div>
