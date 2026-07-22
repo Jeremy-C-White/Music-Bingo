@@ -317,33 +317,33 @@ export default function Board() {
       
       <div className="fixed inset-0 z-[2] pointer-events-none opacity-[0.35] bg-[radial-gradient(circle,rgba(255,255,255,0.06)_0_2px,transparent_2px_100%)] bg-[size:130px_130px] animate-[drift_24s_linear_infinite]"></div>
 
-      <div className="w-full max-w-4xl 2xl:max-w-6xl 3xl:max-w-7xl mx-auto flex flex-col gap-3 2xl:gap-5 relative z-10 flex-1 h-[calc(100vh-16px)]">
+      <div className="w-full max-w-4xl mx-auto flex flex-col gap-3 relative z-10 flex-1 h-[calc(100vh-16px)]">
         {/* Top Header */}
-        <header className="flex-none flex items-center justify-between flex-wrap gap-2 bg-[#131728]/80 backdrop-blur-xl border border-white/10 p-3 px-4 md:px-6 2xl:p-5 2xl:px-8 rounded-2xl md:rounded-3xl shadow-2xl relative z-50">
-          <h1 className="text-xl md:text-3xl 2xl:text-4xl font-black tracking-tighter uppercase m-0 leading-none flex items-center gap-2">
+        <header className="flex-none flex items-center justify-between flex-wrap gap-2 bg-[#131728]/80 backdrop-blur-xl border border-white/10 p-3 px-4 md:px-6 rounded-2xl md:rounded-3xl shadow-2xl relative z-50">
+          <h1 className="text-xl md:text-3xl font-black tracking-tighter uppercase m-0 leading-none flex items-center gap-2">
             <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent drop-shadow-md">Music</span>
             <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,79,216,0.3)]">Bingo</span>
           </h1>
           
-          <div className="flex items-center gap-2 2xl:gap-3">
-            <span className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-full bg-white/5 border border-white/10 text-xs 2xl:text-sm font-bold text-white">
+          <div className="flex items-center gap-2">
+            <span className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-white">
               👤 {playerName}
             </span>
 
             <button 
               onClick={() => setShowRulesModal(true)} 
-              className="flex items-center gap-1.5 px-3 py-2 2xl:px-4 2xl:py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs 2xl:text-sm font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
-              <BookOpen size={14} className="text-[#33d8ff] 2xl:w-4 2xl:h-4" /> <span className="hidden sm:inline">How To Play</span>
+              <BookOpen size={14} className="text-[#33d8ff]" /> <span className="hidden sm:inline">How To Play</span>
             </button>
 
             <div className="relative">
               <button 
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-                className="flex items-center gap-1.5 px-3 py-2 2xl:px-4 2xl:py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs 2xl:text-sm font-bold transition-all shadow-md cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                 title="Send a reaction to the stage screen"
               >
-                <SmilePlus size={14} className="text-[#ff4fd8] 2xl:w-4 2xl:h-4" /> <span className="hidden sm:inline">React</span>
+                <SmilePlus size={14} className="text-[#ff4fd8]" /> <span className="hidden sm:inline">React</span>
               </button>
               
               {showEmojiPicker && (
@@ -365,7 +365,7 @@ export default function Board() {
             </div>
 
             <button 
-              className={`relative px-5 md:px-6 2xl:px-8 py-2.5 2xl:py-3 rounded-xl font-black text-xs md:text-sm 2xl:text-base transition-all duration-300 cursor-pointer
+              className={`relative px-5 md:px-6 py-2.5 rounded-xl font-black text-xs md:text-sm transition-all duration-300 cursor-pointer
                 ${winningLines.length > 0 && !hasConfirmedWin
                   ? 'bg-gradient-to-br from-[#ffd76a] to-[#ff4fd8] text-[#1a0510] ring-4 ring-[#ff4fd8]/20 shadow-[0_8px_30px_rgba(255,79,216,0.4)] animate-pulse' 
                   : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 opacity-60'
@@ -380,23 +380,23 @@ export default function Board() {
 
         {/* Main Board Container */}
         <main className="flex-1 min-h-0 bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl flex flex-col overflow-hidden shadow-2xl">
-          <div className="flex-none p-3 px-4 md:px-6 2xl:p-4 2xl:px-8 border-b border-white/10 flex justify-between items-center bg-white/5">
+          <div className="flex-none p-3 px-4 md:px-6 border-b border-white/10 flex justify-between items-center bg-white/5">
             <div>
-              <h2 className="text-xs md:text-sm 2xl:text-base uppercase tracking-wider font-black text-white/90">Your Bingo Card</h2>
-              <p className="text-[10px] md:text-xs 2xl:text-sm text-white/60 mt-0.5">Mark 5 tiles in a row, column, or diagonal to win!</p>
+              <h2 className="text-xs md:text-sm uppercase tracking-wider font-black text-white/90">Your Bingo Card</h2>
+              <p className="text-[10px] md:text-xs text-white/60 mt-0.5">Mark 5 tiles in a row, column, or diagonal to win!</p>
             </div>
-            <div className="text-[10px] 2xl:text-xs font-bold px-2.5 py-1 2xl:px-4 2xl:py-1.5 rounded-full bg-white/5 border border-white/10 text-[#33d8ff]">
+            <div className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[#33d8ff]">
               {winningLines.length > 0 ? `🔥 ${winningLines.length / 5} Line${winningLines.length > 5 ? 's' : ''} Complete!` : nearWins.length > 0 ? `⚡ ${nearWins.length} Tile Away!` : '🎧 Listening...'}
             </div>
           </div>
           
-          <div className="flex-1 min-h-0 p-3 md:p-5 2xl:p-8 flex flex-col items-center justify-center relative overflow-hidden">
+          <div className="flex-1 min-h-0 p-3 md:p-5 flex flex-col items-center justify-center relative overflow-hidden">
             {/* B-I-N-G-O Headers */}
-            <div className="w-full max-w-[min(100%,calc(100vh-280px))] 2xl:max-w-[min(100%,calc(100vh-340px))] 3xl:max-w-[min(100%,calc(100vh-400px))] grid grid-cols-5 gap-1 md:gap-3 2xl:gap-4 mb-1.5 md:mb-2 2xl:mb-3 text-center font-black text-sm sm:text-base md:text-2xl 2xl:text-3xl 3xl:text-4xl tracking-widest text-[#ffd76a]">
+            <div className="w-full max-w-[min(100%,calc(100vh-280px))] grid grid-cols-5 gap-1 md:gap-3 mb-1.5 md:mb-2 text-center font-black text-sm sm:text-base md:text-2xl tracking-widest text-[#ffd76a]">
               {['B', 'I', 'N', 'G', 'O'].map((letter, colIdx) => {
                 const isColComplete = [0,1,2,3,4].every(rowIdx => selected[rowIdx * 5 + colIdx]);
                 return (
-                  <div key={letter} className={`py-1 2xl:py-2 rounded-lg transition-all ${isColComplete ? 'bg-[#ffd76a] text-black shadow-[0_0_15px_#ffd76a]' : 'bg-white/5 text-white/80'}`}>
+                  <div key={letter} className={`py-1 rounded-lg transition-all ${isColComplete ? 'bg-[#ffd76a] text-black shadow-[0_0_15px_#ffd76a]' : 'bg-white/5 text-white/80'}`}>
                     {letter}
                   </div>
                 );
@@ -404,7 +404,7 @@ export default function Board() {
             </div>
 
             {/* 5x5 Grid */}
-            <div className="w-full max-w-[min(100%,calc(100vh-280px))] 2xl:max-w-[min(100%,calc(100vh-340px))] 3xl:max-w-[min(100%,calc(100vh-400px))] aspect-square grid grid-cols-5 gap-1 md:gap-3 2xl:gap-4 relative">
+            <div className="w-full max-w-[min(100%,calc(100vh-280px))] aspect-square grid grid-cols-5 gap-1 md:gap-3 relative">
               {boardSongs.map((song, i) => {
                 const isSelected = selected[i];
                 const isFree = i === 12;
@@ -413,7 +413,7 @@ export default function Board() {
                 const isHighlighted = highlightIdx === i;
                 const { title, artist } = splitSong(song);
                 
-                let cellClass = "relative w-full aspect-square rounded-lg md:rounded-xl 2xl:rounded-2xl p-0.5 sm:p-1 md:p-2 2xl:p-3 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-all duration-200 overflow-hidden border border-white/10 shadow-lg ";
+                let cellClass = "relative w-full aspect-square rounded-lg md:rounded-xl p-0.5 sm:p-1 md:p-2 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-all duration-200 overflow-hidden border border-white/10 shadow-lg ";
                 
                 if (isFree) {
                   cellClass += " bg-gradient-to-br from-[#ffd76a]/20 via-[#ff4fd8]/20 to-[#33d8ff]/20 bg-[#171c2f] cursor-default border-[#ffd76a]/40";
@@ -439,14 +439,14 @@ export default function Board() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50 pointer-events-none"></div>
                     {isFree ? (
-                      <div className="font-black text-[9px] sm:text-[10px] md:text-base 2xl:text-xl leading-tight uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] z-10 flex flex-col items-center">
-                        <Sparkles className="w-3.5 h-3.5 md:w-5 md:h-5 2xl:w-7 2xl:h-7 text-[#ffd76a] mb-0.5" />
+                      <div className="font-black text-[9px] sm:text-[10px] md:text-base leading-tight uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] z-10 flex flex-col items-center">
+                        <Sparkles className="w-3.5 h-3.5 md:w-5 md:h-5 text-[#ffd76a] mb-0.5" />
                         <span>FREE</span>
                       </div>
                     ) : (
                       <div className="z-10 w-full px-0.5 sm:px-1">
-                        <div className={`font-black text-[8px] sm:text-[10px] md:text-[13px] 2xl:text-[16px] 3xl:text-[19px] leading-[1.1] sm:leading-tight line-clamp-3 text-balance ${isSelected ? 'text-white' : 'text-white'} drop-shadow-md`}>{title}</div>
-                        <div className={`font-bold text-[6px] sm:text-[8px] md:text-[9px] 2xl:text-[12px] 3xl:text-[14px] mt-0.5 md:mt-1 line-clamp-2 text-balance ${isSelected ? 'text-white/90' : 'text-[#ffd76a]'} drop-shadow-md`}>{artist}</div>
+                        <div className={`font-black text-[8px] sm:text-[10px] md:text-[13px] leading-[1.1] sm:leading-tight line-clamp-3 text-balance ${isSelected ? 'text-white' : 'text-white'} drop-shadow-md`}>{title}</div>
+                        <div className={`font-bold text-[6px] sm:text-[8px] md:text-[9px] mt-0.5 md:mt-1 line-clamp-2 text-balance ${isSelected ? 'text-white/90' : 'text-[#ffd76a]'} drop-shadow-md`}>{artist}</div>
                       </div>
                     )}
                   </div>

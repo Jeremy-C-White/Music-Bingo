@@ -162,88 +162,88 @@ export default function Caller() {
     <div className="min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans p-4 md:p-6 relative overflow-hidden selection:bg-[#ff4fd8] selection:text-white">
       <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.16)_0%,transparent_28%),radial-gradient(ellipse_at_82%_20%,rgba(51,216,255,0.16)_0%,transparent_30%),radial-gradient(ellipse_at_50%_85%,rgba(139,92,246,0.16)_0%,transparent_34%),linear-gradient(135deg,#0b1020,#170f2e_55%,#09121f)] opacity-100 transition-all duration-1000 pointer-events-none"></div>
 
-      <div className="max-w-[1400px] 2xl:max-w-[1800px] 3xl:max-w-[2200px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] 2xl:grid-cols-[1fr_480px] 3xl:grid-cols-[1fr_560px] gap-6 2xl:gap-8 min-h-screen lg:min-h-[calc(100vh-48px)] relative z-10">
+      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 min-h-screen lg:min-h-[calc(100vh-48px)] relative z-10">
         
         {/* Header (Span full width) */}
-        <div className="col-span-1 lg:col-span-full flex flex-wrap justify-between items-center p-5 px-6 2xl:p-6 2xl:px-8 bg-[#131728]/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl md:rounded-3xl">
+        <div className="col-span-1 lg:col-span-full flex flex-wrap justify-between items-center p-5 px-6 bg-[#131728]/80 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl md:rounded-3xl">
           <div className="flex items-center gap-4">
-            <div className="p-2.5 2xl:p-3.5 rounded-xl border border-white/20 bg-gradient-to-br from-[#ff4fd8]/20 to-[#33d8ff]/20">
-              <Radio className="w-5 h-5 2xl:w-6 2xl:h-6 text-white" />
+            <div className="p-2.5 rounded-xl border border-white/20 bg-gradient-to-br from-[#ff4fd8]/20 to-[#33d8ff]/20">
+              <Radio className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl md:text-2xl 2xl:text-3xl font-black m-0 tracking-tight text-white uppercase flex items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-black m-0 tracking-tight text-white uppercase flex items-center gap-2">
               Host <span className="text-[#33d8ff]">Studio Console</span>
             </h1>
           </div>
-          <div className="flex flex-wrap gap-3 text-xs 2xl:text-sm font-bold text-white/60 mt-4 md:mt-0 uppercase tracking-widest">
-            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 2xl:px-5 2xl:py-2.5 flex items-center gap-2 shadow-inner">
+          <div className="flex flex-wrap gap-3 text-xs font-bold text-white/60 mt-4 md:mt-0 uppercase tracking-widest">
+            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 flex items-center gap-2 shadow-inner">
               <span className="w-1.5 h-1.5 bg-[#4ade80] rounded-full animate-pulse shadow-[0_0_8px_#4ade80]"></span>
               Players: <strong className="text-white ml-1">{activePlayers}</strong>
             </span>
-            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 2xl:px-5 2xl:py-2.5 shadow-inner">
+            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 shadow-inner">
               Called: <strong className="text-white ml-1">{gameState?.history.length || 0}</strong>
             </span>
-            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 2xl:px-5 2xl:py-2.5 shadow-inner">
+            <span className="rounded-xl border border-white/10 bg-black/40 px-4 py-2 shadow-inner">
               Remaining: <strong className="text-white ml-1">{pool.length}</strong>
             </span>
-            <span className="rounded-xl border border-white/10 bg-gradient-to-r from-[#ffd76a]/20 to-black/40 text-[#ffd76a] px-4 py-2 2xl:px-5 2xl:py-2.5 flex items-center gap-2 shadow-inner">
-              <Trophy className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" /> Winners: {validWinnersCount}
+            <span className="rounded-xl border border-white/10 bg-gradient-to-r from-[#ffd76a]/20 to-black/40 text-[#ffd76a] px-4 py-2 flex items-center gap-2 shadow-inner">
+              <Trophy className="w-3.5 h-3.5" /> Winners: {validWinnersCount}
             </span>
           </div>
         </div>
 
         {/* Main Stage */}
-        <div className="bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-8 md:p-12 2xl:p-16 flex flex-col items-center justify-center relative min-h-[400px] md:min-h-[500px] 2xl:min-h-[620px] text-center">
+        <div className="bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl p-4 sm:p-8 md:p-12 flex flex-col items-center justify-center relative min-h-[400px] md:min-h-[500px] text-center">
           
           {/* Spinning Turntable Deck */}
-          <div className="relative mb-6 sm:mb-8 2xl:mb-12">
-            <div className={`w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] md:w-[240px] md:h-[240px] 2xl:w-[320px] 2xl:h-[320px] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_40px_rgba(255,79,216,0.3)] border-4 border-white/10 p-2 2xl:p-3 flex items-center justify-center transition-transform ${previewData?.previewUrl && !isAudioLocked ? 'animate-[spin_6s_linear_infinite]' : ''}`}>
+          <div className="relative mb-6 sm:mb-8">
+            <div className={`w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] md:w-[240px] md:h-[240px] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_40px_rgba(255,79,216,0.3)] border-4 border-white/10 p-2 flex items-center justify-center transition-transform ${previewData?.previewUrl && !isAudioLocked ? 'animate-[spin_6s_linear_infinite]' : ''}`}>
               <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
-                {!previewData?.artworkUrl && <Disc className="w-16 h-16 2xl:w-24 2xl:h-24 text-white/20" />}
-                <div className="absolute w-8 h-8 2xl:w-12 2xl:h-12 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
+                {!previewData?.artworkUrl && <Disc className="w-16 h-16 text-white/20" />}
+                <div className="absolute w-8 h-8 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
               </div>
             </div>
             
             {gameState?.nowPlaying && (
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-5 py-1.5 2xl:px-7 2xl:py-2 rounded-full bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black text-[10px] 2xl:text-xs uppercase tracking-widest shadow-[0_0_20px_#ff4fd8] flex items-center gap-2">
-                <Sparkles className="w-3 h-3 2xl:w-4 2xl:h-4" /> Live
+              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-5 py-1.5 rounded-full bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black text-[10px] uppercase tracking-widest shadow-[0_0_20px_#ff4fd8] flex items-center gap-2">
+                <Sparkles className="w-3 h-3" /> Live
               </div>
             )}
           </div>
 
-          <h2 className="font-black text-2xl sm:text-3xl md:text-5xl 2xl:text-6xl mb-2 sm:mb-3 2xl:mb-4 tracking-tighter uppercase max-w-[95%] sm:max-w-[85%] text-balance">
+          <h2 className="font-black text-2xl sm:text-3xl md:text-5xl mb-2 sm:mb-3 tracking-tighter uppercase max-w-[95%] sm:max-w-[85%] text-balance">
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).title : (gameState?.started ? 'Game is Live!' : 'Lobby Open')}
           </h2>
-          <div className="text-xs sm:text-sm md:text-lg 2xl:text-2xl text-white/70 font-medium mb-4 sm:mb-6 2xl:mb-8 tracking-widest uppercase text-balance px-2">
+          <div className="text-xs sm:text-sm md:text-lg text-white/70 font-medium mb-4 sm:mb-6 tracking-widest uppercase text-balance px-2">
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).artist : (gameState?.started ? "Click 'Play First Song' to begin" : 'Waiting to start the game')}
           </div>
 
           {/* Host Mic Script & Fun Fact */}
           {gameState?.nowPlaying && (
-            <div className="w-full max-w-[560px] 2xl:max-w-[720px] mb-6 sm:mb-8 2xl:mb-10 p-4 sm:p-5 2xl:p-8 bg-black/60 border border-[#33d8ff]/30 rounded-2xl text-left relative overflow-hidden group shadow-2xl backdrop-blur-md">
+            <div className="w-full max-w-[560px] mb-6 sm:mb-8 p-4 sm:p-5 bg-black/60 border border-[#33d8ff]/30 rounded-2xl text-left relative overflow-hidden group shadow-2xl backdrop-blur-md">
               <div className="flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
-                <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-xs 2xl:text-sm uppercase tracking-widest">
-                  <Lightbulb className="w-4 h-4 2xl:w-5 2xl:h-5 text-[#33d8ff]" />
+                <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-xs uppercase tracking-widest">
+                  <Lightbulb className="w-4 h-4 text-[#33d8ff]" />
                   <span>Host Mic Script & Trivia</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] 2xl:text-xs font-bold">
+                  <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] font-bold">
                     <button 
                       onClick={() => setScriptFontSize('normal')} 
-                      className={`px-2 py-0.5 2xl:px-3 2xl:py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
                       title="Standard text size"
                     >
                       A
                     </button>
                     <button 
                       onClick={() => setScriptFontSize('large')} 
-                      className={`px-2 py-0.5 2xl:px-3 2xl:py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
                       title="Large text size"
                     >
                       A+
                     </button>
                     <button 
                       onClick={() => setScriptFontSize('xl')} 
-                      className={`px-2 py-0.5 2xl:px-3 2xl:py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
+                      className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
                       title="Extra Large text size"
                     >
                       A++
@@ -251,17 +251,17 @@ export default function Caller() {
                   </div>
                   <button
                     onClick={() => setShowTeleprompter(true)}
-                    className="px-2.5 py-1 2xl:px-4 2xl:py-2 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1 text-[11px] 2xl:text-xs font-bold uppercase tracking-wider"
+                    className="px-2.5 py-1 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider"
                     title="Open Fullscreen Host Teleprompter"
                   >
-                    <Maximize2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" /> <span className="hidden sm:inline">Teleprompter</span>
+                    <Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Teleprompter</span>
                   </button>
                 </div>
               </div>
-              <div className="max-h-[220px] 2xl:max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+              <div className="max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
                 <p className={`text-white/95 leading-relaxed m-0 transition-all ${
-                  scriptFontSize === 'normal' ? 'text-sm md:text-base 2xl:text-lg font-medium' : 
-                  scriptFontSize === 'large' ? 'text-base md:text-xl 2xl:text-2xl font-semibold' : 'text-lg md:text-2xl 2xl:text-3xl font-bold'
+                  scriptFontSize === 'normal' ? 'text-sm md:text-base font-medium' : 
+                  scriptFontSize === 'large' ? 'text-base md:text-xl font-semibold' : 'text-lg md:text-2xl font-bold'
                 }`}>
                   "{getSongFact(gameState.nowPlaying)}"
                 </p>
@@ -270,10 +270,10 @@ export default function Caller() {
           )}
 
           {/* Action Controls & Auto-Caller Switch */}
-          <div className="w-full max-w-[480px] 2xl:max-w-[620px] flex flex-col gap-4">
+          <div className="w-full max-w-[480px] flex flex-col gap-4">
             {!gameState?.started ? (
               <button 
-                className="w-full py-5 2xl:py-6 rounded-2xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-sm md:text-base 2xl:text-lg font-black tracking-widest uppercase hover:opacity-90 transition-opacity cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,79,216,0.4)]"
+                className="w-full py-5 rounded-2xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-sm md:text-base font-black tracking-widest uppercase hover:opacity-90 transition-opacity cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,79,216,0.4)]"
                 onClick={handleStartGame}
               >
                 Start Game
@@ -281,11 +281,11 @@ export default function Caller() {
             ) : (
               <>
                 <button 
-                  className={`w-full py-5 2xl:py-6 rounded-2xl text-sm md:text-base 2xl:text-lg font-black tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 ${pool.length > 0 && !callInFlight ? 'bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white shadow-[0_0_30px_rgba(51,216,255,0.4)] hover:opacity-90' : 'bg-black/60 border border-white/10 text-white/50 shadow-inner'}`}
+                  className={`w-full py-5 rounded-2xl text-sm md:text-base font-black tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 ${pool.length > 0 && !callInFlight ? 'bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white shadow-[0_0_30px_rgba(51,216,255,0.4)] hover:opacity-90' : 'bg-black/60 border border-white/10 text-white/50 shadow-inner'}`}
                   onClick={handleCallNext}
                   disabled={callInFlight || pool.length === 0}
                 >
-                  <Disc className="w-5 h-5 2xl:w-6 2xl:h-6" /> {gameState.history.length === 0 && !gameState.nowPlaying ? 'Play First Song' : 'Call Next Track'}
+                  <Disc className="w-5 h-5" /> {gameState.history.length === 0 && !gameState.nowPlaying ? 'Play First Song' : 'Call Next Track'}
                 </button>
 
                 {/* Auto Caller Mode Toggle */}

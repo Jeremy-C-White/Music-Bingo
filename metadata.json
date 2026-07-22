@@ -1,0 +1,6 @@
+{
+  "name": "Music Bingo",
+  "description": "Interactive host, player, and visualizer platform for playing live Music Bingo games with automatic audio preview lookup and line verification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
