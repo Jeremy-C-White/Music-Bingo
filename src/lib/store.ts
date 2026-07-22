@@ -205,6 +205,43 @@ export async function pingPresence(playerName: string) {
   }
 }
 
+export interface Reaction {
+  id: string;
+  playerName: string;
+  emoji: string;
+  timestamp: number;
+}
+
+export function subscribeToReactions(callback: (reactions: Reaction[]) => void) {
+  const reactionsCollection = collection(db, 'games', GAME_DOC_ID, 'reactions');
+  const q = query(reactionsCollection, orderBy('timestamp', 'desc'));
+  
+  // Notice we use a query that listens for the newest reactions.
+  // Actually, we should just subscribe to the collection and process new ones, but firestore onSnapshot will give us everything.
+  // We can return all reactions that happened in the last 10 seconds.
+  return onSnapshot(q, (snapshot) => {
+    const now = Date.now();
+    const reactions = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Reaction))
+      .filter(r => (now - r.timestamp) < 15000); // Only keep recent ones in the callback
+    callback(reactions);
+  }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/reactions'));
+}
+
+export async function sendReaction(playerName: string, emoji: string) {
+  if (!playerName || !playerName.trim() || !emoji) return;
+  try {
+    const reactionsCollection = collection(db, 'games', GAME_DOC_ID, 'reactions');
+    await addDoc(reactionsCollection, {
+      playerName: playerName.trim(),
+      emoji,
+      timestamp: Date.now()
+    });
+  } catch (err) {
+    console.error("Failed to send reaction:", err);
+  }
+}
+
 export function subscribeToPlayerCount(callback: (count: number) => void) {
   const playersCollection = collection(db, 'games', GAME_DOC_ID, 'players');
   return onSnapshot(playersCollection, (snapshot) => {
