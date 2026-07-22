@@ -13,6 +13,7 @@
   --animate-noteSpin: noteSpin 4s linear infinite;
   --animate-sponsorGlow: sponsorGlow 4.5s ease-in-out infinite;
   --animate-idleBreath: idleBreath 3s ease-in-out infinite;
+  --animate-emojiFloat: emojiFloat 6s ease-out forwards;
 }
 
 @keyframes popIn2 {

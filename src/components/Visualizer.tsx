@@ -13,7 +13,7 @@ export default function Visualizer() {
   
   const [themeIndex, setThemeIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
-  const [triviaScale, setTriviaScale] = useState<'normal' | 'large' | 'huge'>('large');
+  const [triviaScale, setTriviaScale] = useState<'normal' | 'large' | 'huge'>('normal');
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [showAudioPanel, setShowAudioPanel] = useState(false);
@@ -538,7 +538,7 @@ export default function Visualizer() {
           return (
             <div 
               key={reaction.id}
-              className="absolute bottom-0 text-center flex flex-col items-center animate-[emojiFloat_6s_ease-out_forwards]"
+              className="absolute bottom-0 text-center flex flex-col items-center animate-emojiFloat"
               style={{
                 left: `${leftPercent}%`,
                 '--rot': `${rot}deg`
