@@ -228,20 +228,31 @@ export default function Board() {
 
   if (inLobby) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-50 font-sans flex flex-col items-center justify-center p-6 selection:bg-white selection:text-black">
-        <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 p-8 shadow-2xl flex flex-col gap-8">
-          <div className="text-left">
-            <h1 className="text-3xl font-serif font-medium tracking-tight mb-2">
-              Music Bingo
+      <div className="min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans flex flex-col items-center justify-center p-4 overflow-hidden relative">
+      <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.16)_0%,transparent_28%),radial-gradient(ellipse_at_82%_20%,rgba(51,216,255,0.16)_0%,transparent_30%),radial-gradient(ellipse_at_50%_85%,rgba(139,92,246,0.16)_0%,transparent_34%),linear-gradient(135deg,#0b1020,#170f2e_55%,#09121f)] opacity-100 transition-all duration-1000"></div>
+      
+      <div className="fixed inset-0 z-[1] pointer-events-none overflow-hidden">
+        <div className="absolute rounded-full blur-[14px] opacity-25 animate-[drift_18s_ease-in-out_infinite_alternate] w-[180px] h-[180px] left-[6%] top-[12%] bg-[#ff4fd8]"></div>
+        <div className="absolute rounded-full blur-[14px] opacity-25 animate-[drift_24s_ease-in-out_infinite_alternate] w-[220px] h-[220px] right-[8%] top-[18%] bg-[#33d8ff]"></div>
+        <div className="absolute rounded-full blur-[14px] opacity-25 animate-[drift_22s_ease-in-out_infinite_alternate] w-[190px] h-[190px] left-[35%] bottom-[4%] bg-[#8b5cf6]"></div>
+      </div>
+      
+      <div className="fixed inset-0 z-[2] pointer-events-none opacity-[0.35] bg-[radial-gradient(circle,rgba(255,255,255,0.06)_0_2px,transparent_2px_100%)] bg-[size:130px_130px] animate-[drift_24s_linear_infinite]"></div>
+
+      <div className="w-full max-w-md bg-[#131728]/80 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 shadow-2xl relative z-10 overflow-hidden flex flex-col gap-6">
+          <div className="text-center">
+            <h1 className="text-5xl font-black tracking-tighter uppercase m-0 leading-none mb-2">
+              <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent drop-shadow-md">Music</span><br/>
+              <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,79,216,0.3)]">Bingo</span>
             </h1>
-            <p className="text-neutral-400 text-sm font-light">Join the lobby to start playing.</p>
+            <p className="text-white/60 text-sm font-medium mt-3">Enter your name so the host knows who won.</p>
           </div>
           
           <div className="text-left">
-            <label className="block text-xs uppercase tracking-widest font-semibold text-neutral-500 mb-2">Player Name</label>
+            <label className="block text-[11px] tracking-widest uppercase font-black text-[#33d8ff] mb-2 ml-1">Your Name</label>
             <input 
               type="text" 
-              className="w-full px-4 py-3 border border-neutral-700 bg-neutral-950 text-white text-base outline-none focus:border-white transition-colors"
+              className="w-full px-4 py-3.5 rounded-2xl border border-white/10 bg-[#0a0b1e]/50 text-white text-base font-bold outline-none focus:border-[#ff4fd8] focus:bg-[#0a0b1e]/80 transition-all shadow-inner"
               placeholder="e.g. Sarah M."
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
@@ -252,16 +263,16 @@ export default function Board() {
           </div>
           
           <button 
-            className="w-full py-4 bg-white text-black text-sm font-semibold tracking-wide uppercase hover:bg-neutral-200 active:bg-neutral-300 disabled:opacity-50 transition-colors cursor-pointer"
+            className="w-full py-4 rounded-2xl bg-gradient-to-br from-[#ffd76a] to-[#ff4fd8] text-[#1a0510] text-lg font-black shadow-[0_8px_30px_rgba(255,79,216,0.4)] hover:scale-[0.98] active:scale-[0.95] ring-4 ring-[#ff4fd8]/20 disabled:opacity-50 disabled:grayscale transition-all mt-2 cursor-pointer"
             onClick={joinLobby}
             disabled={waiting || playerName.trim().length < 2}
           >
-            {waiting ? 'Joining...' : 'Enter Game'}
+            {waiting ? 'Joining...' : 'Enter Waiting Room ✨'}
           </button>
           
           {waiting && (
-            <div className="text-sm text-neutral-500 font-medium flex items-center gap-2">
-              <span className="w-2 h-2 bg-neutral-400 rounded-full animate-pulse"></span>
+            <div className="mt-2 p-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white/60 text-center">
+              <span className="inline-block w-2 h-2 rounded-full bg-[#4ade80] mr-2 animate-pulse"></span>
               {gameState?.started ? 'Entering game...' : 'Waiting for the host to start…'}
             </div>
           )}
@@ -273,58 +284,69 @@ export default function Board() {
   const { title: currentTitle, artist: currentArtist } = gameState?.nowPlaying ? splitSong(gameState.nowPlaying) : { title: '', artist: '' };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-50 font-sans flex flex-col p-4 selection:bg-white selection:text-black">
-      <div className="w-full max-w-4xl mx-auto flex flex-col gap-4 flex-1 h-[calc(100vh-32px)]">
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans flex flex-col p-2 md:p-4 overflow-hidden relative selection:bg-[#ff4fd8] selection:text-white">
+      <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.16)_0%,transparent_28%),radial-gradient(ellipse_at_82%_20%,rgba(51,216,255,0.16)_0%,transparent_30%),radial-gradient(ellipse_at_50%_85%,rgba(139,92,246,0.16)_0%,transparent_34%),linear-gradient(135deg,#0b1020,#170f2e_55%,#09121f)] opacity-100 transition-all duration-1000"></div>
+      
+      <div className="fixed inset-0 z-[1] pointer-events-none overflow-hidden">
+        <div className="absolute rounded-full blur-[14px] opacity-25 animate-[drift_18s_ease-in-out_infinite_alternate] w-[180px] h-[180px] left-[6%] top-[12%] bg-[#ff4fd8]"></div>
+        <div className="absolute rounded-full blur-[14px] opacity-25 animate-[drift_24s_ease-in-out_infinite_alternate] w-[220px] h-[220px] right-[8%] top-[18%] bg-[#33d8ff]"></div>
+        <div className="absolute rounded-full blur-[14px] opacity-25 animate-[drift_22s_ease-in-out_infinite_alternate] w-[190px] h-[190px] left-[35%] bottom-[4%] bg-[#8b5cf6]"></div>
+      </div>
+      
+      <div className="fixed inset-0 z-[2] pointer-events-none opacity-[0.35] bg-[radial-gradient(circle,rgba(255,255,255,0.06)_0_2px,transparent_2px_100%)] bg-[size:130px_130px] animate-[drift_24s_linear_infinite]"></div>
+
+      <div className="w-full max-w-4xl mx-auto flex flex-col gap-3 relative z-10 flex-1 h-[calc(100vh-16px)]">
         {/* Top Header */}
-        <header className="flex-none flex items-center justify-between flex-wrap gap-4 bg-neutral-900 border border-neutral-800 p-4 px-6 shadow-sm">
-          <h1 className="text-xl md:text-2xl font-serif font-medium tracking-tight">
-            Music Bingo
+        <header className="flex-none flex items-center justify-between flex-wrap gap-2 bg-[#131728]/80 backdrop-blur-xl border border-white/10 p-3 px-4 md:px-6 rounded-2xl md:rounded-3xl shadow-2xl">
+          <h1 className="text-xl md:text-3xl font-black tracking-tighter uppercase m-0 leading-none flex items-center gap-2">
+            <span className="bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent drop-shadow-md">Music</span>
+            <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,79,216,0.3)]">Bingo</span>
           </h1>
           
-          <div className="flex items-center gap-3">
-            <span className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 border border-neutral-700 bg-neutral-950 text-xs font-medium text-neutral-300">
+          <div className="flex items-center gap-2">
+            <span className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-white">
               👤 {playerName}
             </span>
 
             <button 
               onClick={() => setShowRulesModal(true)} 
-              className="flex items-center gap-1.5 px-3 py-2 border border-neutral-700 hover:border-neutral-500 text-xs font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
-              <BookOpen size={14} /> <span className="hidden sm:inline">How To Play</span>
+              <BookOpen size={14} className="text-[#33d8ff]" /> <span className="hidden sm:inline">How To Play</span>
             </button>
 
             <button 
-              className={`px-6 py-2 text-xs font-semibold tracking-wide uppercase transition-colors cursor-pointer
+              className={`relative px-5 md:px-6 py-2.5 rounded-xl font-black text-xs md:text-sm transition-all duration-300 cursor-pointer
                 ${winningLines.length > 0 && !hasConfirmedWin
-                  ? 'bg-white text-black hover:bg-neutral-200' 
-                  : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                  ? 'bg-gradient-to-br from-[#ffd76a] to-[#ff4fd8] text-[#1a0510] ring-4 ring-[#ff4fd8]/20 shadow-[0_8px_30px_rgba(255,79,216,0.4)] animate-pulse' 
+                  : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 opacity-60'
                 }`}
               onClick={handleCallBingo}
               disabled={winningLines.length === 0 && !hasConfirmedWin}
             >
-              CALL BINGO
+              📣 CALL BINGO!
             </button>
           </div>
         </header>
 
         {/* Live Audio Track Locator Bar */}
         {gameState?.nowPlaying && (
-          <div className="flex-none flex flex-col gap-3 bg-neutral-900 border border-neutral-800 p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 min-w-0">
-                <div className="w-10 h-10 bg-neutral-950 border border-neutral-800 flex items-center justify-center shrink-0 animate-spin" style={{ animationDuration: '4s' }}>
-                  <Disc className="w-5 h-5 text-neutral-300" />
+          <div className="flex-none flex flex-col gap-2 bg-gradient-to-r from-[#ff4fd8]/20 via-[#8b5cf6]/20 to-[#33d8ff]/20 border border-white/15 p-2.5 px-4 rounded-2xl backdrop-blur-md">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-black/60 border border-white/20 flex items-center justify-center shrink-0 animate-spin" style={{ animationDuration: '4s' }}>
+                  <Disc className="w-5 h-5 text-[#ff4fd8]" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Currently Playing Track</div>
-                  <div className="text-sm font-medium text-white truncate">Listen closely! Mark your board if you have it.</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#ffd76a]">Currently Playing Track</div>
+                  <div className="text-xs font-black text-white truncate">Listen closely! Mark your board if you have it!</div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 <button 
                   onClick={() => setShowFactModal(!showFactModal)}
-                  className={`flex items-center gap-1.5 px-4 py-2 border text-xs font-medium transition-colors cursor-pointer ${showFactModal ? 'bg-white text-black border-white' : 'hover:bg-neutral-800 border-neutral-700 text-neutral-300'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${showFactModal ? 'bg-[#ffd76a] text-black border-[#ffd76a]' : 'bg-white/10 hover:bg-white/20 border-white/20 text-[#ffd76a]'}`}
                 >
                   <Lightbulb className="w-3.5 h-3.5" /> Fun Fact
                 </button>
@@ -333,10 +355,10 @@ export default function Board() {
 
             {/* Expandable Song Fact Drawer */}
             {showFactModal && (
-              <div className="mt-2 p-4 bg-neutral-950 border border-neutral-800 text-sm text-neutral-300 leading-relaxed font-light flex items-start gap-3">
-                <Lightbulb className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5" />
+              <div className="mt-1 p-3 rounded-xl bg-black/40 border border-[#ffd76a]/30 text-xs text-white/90 leading-relaxed font-medium flex items-start gap-2.5 animate-[fadeIn_0.2s_ease-out]">
+                <Lightbulb className="w-4 h-4 text-[#ffd76a] shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-white block mb-1">Song Trivia</span>
+                  <span className="font-bold text-[#ffd76a] block mb-0.5">Song Trivia:</span>
                   "{getSongFact(gameState.nowPlaying)}"
                 </div>
               </div>
@@ -379,22 +401,22 @@ export default function Board() {
                 const isHighlighted = highlightIdx === i;
                 const { title, artist } = splitSong(song);
                 
-                let cellClass = "relative w-full aspect-square p-2 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-colors border border-neutral-800 shadow-sm ";
+                let cellClass = "relative w-full aspect-square rounded-xl p-1 md:p-2 flex flex-col items-center justify-center text-center cursor-pointer select-none transition-all duration-200 overflow-hidden border border-white/10 shadow-lg ";
                 
                 if (isFree) {
-                  cellClass += " bg-neutral-900 cursor-default";
+                  cellClass += " bg-gradient-to-br from-[#ffd76a]/20 via-[#ff4fd8]/20 to-[#33d8ff]/20 bg-[#171c2f] cursor-default border-[#ffd76a]/40";
                 } else if (isSelected) {
-                  cellClass += " bg-white border-white text-black";
+                  cellClass += " bg-gradient-to-br from-[#ff4fd8]/70 via-[#8b5cf6]/80 to-[#33d8ff]/60 border-white/40 shadow-[0_0_18px_rgba(139,92,246,0.4)]";
                 } else if (isHighlighted) {
-                  cellClass += " bg-neutral-800 border-neutral-400 z-20 animate-pulse";
+                  cellClass += " bg-gradient-to-br from-[#ffd76a]/60 to-[#ff4fd8]/60 border-[#ffd76a] shadow-[0_0_25px_#ffd76a] scale-105 z-20 animate-bounce";
                 } else {
-                  cellClass += " bg-neutral-950 hover:bg-neutral-900 hover:border-neutral-700";
+                  cellClass += " bg-gradient-to-b from-[#1a2238] to-[#131a2d] hover:-translate-y-0.5 hover:border-white/30";
                 }
                 
                 if (isWin) {
-                  cellClass += " border-2 border-white z-10 scale-[1.02]";
+                  cellClass += " ring-2 ring-white ring-offset-2 ring-offset-black/50 shadow-[0_0_22px_rgba(255,215,106,0.8)] z-10 scale-[1.03]";
                 } else if (isNear && !isSelected) {
-                  cellClass += " border-neutral-500 animate-pulse";
+                  cellClass += " border-[#33d8ff] shadow-[0_0_12px_rgba(51,216,255,0.5)] animate-pulse";
                 }
 
                 return (
@@ -403,15 +425,16 @@ export default function Board() {
                     className={cellClass}
                     onClick={() => toggleCell(i)}
                   >
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50 pointer-events-none"></div>
                     {isFree ? (
-                      <div className="font-serif font-bold text-xs md:text-base leading-tight uppercase z-10 flex flex-col items-center text-neutral-300">
-                        <Sparkles className="w-3.5 h-3.5 md:w-5 md:h-5 text-neutral-400 mb-1" />
+                      <div className="font-black text-[10px] md:text-base leading-tight uppercase drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] z-10 flex flex-col items-center">
+                        <Sparkles className="w-3.5 h-3.5 md:w-5 md:h-5 text-[#ffd76a] mb-0.5" />
                         <span>FREE</span>
                       </div>
                     ) : (
-                      <div className="z-10 w-full px-1">
-                        <div className={`font-serif font-bold text-[9px] md:text-sm leading-tight line-clamp-3 ${isSelected ? 'text-black' : 'text-neutral-200'}`}>{title}</div>
-                        <div className={`font-sans font-medium text-[7px] md:text-[10px] mt-1 line-clamp-2 uppercase tracking-wide ${isSelected ? 'text-neutral-700' : 'text-neutral-500'}`}>{artist}</div>
+                      <div className="z-10 w-full px-0.5">
+                        <div className={`font-black text-[8px] md:text-[13px] leading-tight line-clamp-3 text-balance ${isSelected ? 'text-white' : 'text-white'} drop-shadow-md`}>{title}</div>
+                        <div className={`font-bold text-[6px] md:text-[9px] mt-0.5 md:mt-1 line-clamp-2 text-balance ${isSelected ? 'text-white/90' : 'text-[#ffd76a]'} drop-shadow-md`}>{artist}</div>
                       </div>
                     )}
                   </div>
@@ -424,44 +447,44 @@ export default function Board() {
 
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-white text-black font-semibold text-xs md:text-sm shadow-md animate-[popIn2_0.2s_ease-out] pointer-events-none whitespace-nowrap">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-white text-black font-black text-xs md:text-sm shadow-xl animate-[popIn2_0.2s_ease-out] pointer-events-none whitespace-nowrap">
           {toastMsg.msg}
         </div>
       )}
 
       {/* How To Play Rules Modal */}
       {showRulesModal && (
-        <div className="fixed inset-0 bg-neutral-950/90 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-neutral-900 border border-neutral-800 p-8 shadow-2xl relative overflow-hidden animate-[popIn2_0.2s_ease-out]">
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-neutral-800">
-              <h2 className="text-xl font-serif font-medium uppercase text-white flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-neutral-400" /> How To Play
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#12182a] border border-white/15 rounded-3xl p-6 shadow-2xl relative overflow-hidden animate-[popIn2_0.2s_ease-out]">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+              <h2 className="text-xl font-black uppercase text-white flex items-center gap-2">
+                <BookOpen className="text-[#33d8ff]" /> How To Play
               </h2>
-              <button onClick={() => setShowRulesModal(false)} className="p-1 text-neutral-500 hover:text-white transition-colors cursor-pointer">
+              <button onClick={() => setShowRulesModal(false)} className="p-1 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-4 text-sm text-neutral-400 leading-relaxed mb-8 font-light">
-              <div className="p-4 bg-neutral-950 border border-neutral-800">
-                <strong className="text-white block font-medium mb-1 tracking-wide">1. Listen & Identify</strong>
+            <div className="space-y-3 text-xs text-white/80 leading-relaxed mb-6">
+              <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                <strong className="text-[#ffd76a] block text-sm mb-1">1. Listen & Identify</strong>
                 The Host plays song clips. Listen carefully to identify the track name or artist.
               </div>
-              <div className="p-4 bg-neutral-950 border border-neutral-800">
-                <strong className="text-white block font-medium mb-1 tracking-wide">2. Mark Your Card</strong>
-                If the song appears on your 5x5 grid, tap the tile to mark it. The center FREE space is already marked.
+              <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                <strong className="text-[#ff4fd8] block text-sm mb-1">2. Mark Your Card</strong>
+                If the song appears on your 5x5 grid, tap the tile to mark it. The center FREE space is already marked!
               </div>
-              <div className="p-4 bg-neutral-950 border border-neutral-800">
-                <strong className="text-white block font-medium mb-1 tracking-wide">3. Call Bingo!</strong>
-                Complete 5 tiles in any horizontal, vertical, or diagonal line and click <b>CALL BINGO</b>.
+              <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
+                <strong className="text-[#33d8ff] block text-sm mb-1">3. Call Bingo!</strong>
+                Complete 5 tiles in any horizontal, vertical, or diagonal line and click <b>CALL BINGO</b>!
               </div>
             </div>
 
             <button 
               onClick={() => setShowRulesModal(false)}
-              className="w-full py-4 bg-white text-black font-semibold tracking-wide uppercase hover:bg-neutral-200 transition-colors cursor-pointer text-sm"
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#ffd76a] to-[#ff4fd8] text-black font-black text-sm transition-all"
             >
-              Got It
+              Got It! Let's Play 🎵
             </button>
           </div>
         </div>
@@ -469,51 +492,52 @@ export default function Board() {
 
       {/* Win Verification Modal */}
       {showWinModal && (
-        <div className="fixed inset-0 bg-neutral-950/90 z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-neutral-900 border border-neutral-800 p-8 text-center shadow-2xl relative overflow-hidden animate-[popIn2_0.2s_ease-out]">
+        <div className="fixed inset-0 bg-[#03060e]/85 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#12182a] border border-white/15 rounded-3xl p-6 text-center shadow-2xl relative overflow-hidden animate-[popIn2_0.2s_ease-out]">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#ff4fd8]/10 to-[#33d8ff]/10 pointer-events-none"></div>
             
             {!winClaim?.status ? (
               <>
-                <h2 className="text-3xl font-serif font-medium uppercase tracking-tighter mb-2 text-white">Checking...</h2>
-                <div className="text-neutral-400 text-sm mb-6 flex items-center justify-center gap-2">
+                <h2 className="text-3xl font-black uppercase tracking-tighter mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-transparent">Checking...</h2>
+                <div className="text-white/80 text-sm mb-6 flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                   Validating your bingo with the host...
                 </div>
               </>
             ) : winClaim.status === 'valid' ? (
               <>
-                <h2 className="text-4xl font-serif font-medium uppercase tracking-tighter mb-2 text-white">BINGO!</h2>
-                <p className="text-neutral-400 text-sm mb-4 font-light">
+                <h2 className="text-4xl font-black uppercase tracking-tighter mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(255,215,106,0.3)]">BINGO!</h2>
+                <p className="text-white/80 text-sm mb-4">
                   Your claim is in! The host has been notified.
                 </p>
                 {winClaim.winningLines?.[0] && (
-                  <p className="text-white font-medium text-sm mb-4">{winClaim.winningLines[0].label}</p>
+                  <p className="text-[#33d8ff] font-bold text-sm mb-4">{winClaim.winningLines[0].label}</p>
                 )}
                 {winClaim.position && (
-                  <div className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-neutral-700 bg-neutral-950 text-white text-lg font-serif mb-6">
+                  <div className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-br from-[#ffd76a]/20 to-[#ff4fd8]/10 border border-[#ffd76a]/40 text-[#ffd76a] text-xl font-black mb-6">
                     {winClaim.position === 1 ? '🥇 1st Place' : winClaim.position === 2 ? '🥈 2nd Place' : winClaim.position === 3 ? '🥉 3rd Place' : `#${winClaim.position}`}
                   </div>
                 )}
               </>
             ) : winClaim.status === 'cheating' ? (
               <>
-                <h2 className="text-3xl font-serif font-medium uppercase tracking-tighter mb-2 text-white">Not Quite Right</h2>
-                <p className="text-neutral-400 text-sm mb-6 font-light">
+                <h2 className="text-3xl font-black uppercase tracking-tighter mb-2 bg-gradient-to-br from-[#f87171] to-white bg-clip-text text-transparent">Not Quite Right</h2>
+                <p className="text-white/80 text-sm mb-6">
                   Hmm — your board doesn't match the songs that have actually been called.<br/><br/>
                   Double-check your marks and unselect any squares you aren't 100% sure about, then press <b>Call Bingo</b> again.
                 </p>
               </>
             ) : (
               <>
-                <h2 className="text-3xl font-serif font-medium uppercase tracking-tighter mb-2 text-white">Almost!</h2>
-                <p className="text-neutral-400 text-sm mb-6 font-light">
+                <h2 className="text-3xl font-black uppercase tracking-tighter mb-2 bg-gradient-to-br from-[#fb923c] to-white bg-clip-text text-transparent">Almost!</h2>
+                <p className="text-white/80 text-sm mb-6">
                   {winClaim.reason || "The host didn't find a complete line on your board. Keep going!"}
                 </p>
               </>
             )}
             
             <button 
-              className="w-full py-4 bg-white text-black font-semibold tracking-wide uppercase hover:bg-neutral-200 transition-colors cursor-pointer text-sm"
+              className="w-full py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all relative z-10 cursor-pointer"
               onClick={() => setShowWinModal(false)}
             >
               Close to View Board
