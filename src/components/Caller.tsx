@@ -14,18 +14,23 @@ type HostCue = {
 };
 
 // NOTE: On-mic DJ lines intentionally never reveal the song title or artist.
-// Players identify the track by ear — the host just keeps the energy up.
+// These lines are designed to be spoken as the CURRENT track is finishing, 
+// leading right up to the DJ clicking the "Next Track" button.
 const STANDARD_DJ_LINES = [
-  ({ trackNumber }: { trackNumber: number }) =>
-    `Track ${trackNumber} is live and in the air. Listen for the hook, check every corner of that card, and mark it only if you know you've got it.`,
-  ({ trackNumber }: { trackNumber: number }) =>
-    `Alright music detectives, Track ${trackNumber} has entered the mix. Trust those ears, find the match, and keep that bingo line moving.`,
-  ({ trackNumber }: { trackNumber: number }) =>
-    `Turn those ears all the way up. Track ${trackNumber} is rolling. If this one is sitting on your board, now is the time to lock it in.`,
-  ({ trackNumber }: { trackNumber: number }) =>
-    `The next square could change everything. Track ${trackNumber} is playing now. Scan the board, trust your music memory, and make your move.`,
-  ({ trackNumber }: { trackNumber: number }) =>
-    `We are keeping the party rolling with Track ${trackNumber}. Catch the chorus, hunt down your match, and stay ready to call bingo.`
+  ({ current }: { current: number }) =>
+    `Alright, wrapping up Track ${current}. Check your corners, check your diagonals... let's see what the next drop has in store for us.`,
+  ({ current }: { current: number }) =>
+    `That is Track ${current} in the books. If you didn't get that one, shake it off. We're shuffling the deck and bringing in the next song right now.`,
+  ({ current }: { current: number }) =>
+    `We are keeping the tempo up tonight. If you are sitting on four-in-a-row, cross your fingers and trust your ears. Let's roll the next track.`,
+  ({ current }: { current: number }) =>
+    `Hope you caught the hook on that one! Time to keep this party moving. Drop a reaction on your phone if you're one square away, and let's spin the next one.`,
+  ({ current }: { current: number }) =>
+    `Whether you knew that last track immediately or had to ask your neighbor, it's time to move forward. Dropping the next beat in three, two, one...`,
+  ({ current }: { current: number }) =>
+    `Take a quick scan of your board, music fans. Every single song changes the game, and the next one could be your golden ticket. Let's play it!`,
+  ({ current }: { current: number }) =>
+    `Track ${current} is fading out. If you're waiting on just one more square to complete your line, make some noise! Let's see if this next song is the one you need.`
 ];
 
 function getPregameCues(activePlayers: number): HostCue[] {
@@ -99,20 +104,20 @@ function getLiveHostCue(
     return {
       kicker: 'Game Live • First Track Ready',
       title: 'Kick Off the Music',
-      script: 'The room is ready, the cards are live, and the only thing missing is the music. Let us drop the first track and get this game moving.',
+      script: 'The room is ready, the cards are live, and the only thing missing is the music. Let us drop the very first track and get this game moving.',
       followUp: 'Remind players to mark a square only when they recognize a song that appears on their own card.'
     };
   }
 
-  const trackNumber = gameState.history.length + 1;
-  const setNumber = Math.floor((trackNumber - 1) / 5) + 1;
+  const currentTrackNumber = gameState.history.length + 1;
+  const setNumber = Math.floor((currentTrackNumber - 1) / 5) + 1;
 
-  if (trackNumber === 1) {
+  if (currentTrackNumber === 1) {
     return {
       kicker: 'Opening Drop • Track 01',
       title: 'The Game Is Officially Live',
-      script: 'Here we go! Your very first track of the night is on the air. Listen close, hunt it down on your card, tap it if you have it, and let the bingo chase begin!',
-      followUp: 'This is only the first square, so settle in, tune those ears, and get familiar with your board.'
+      script: 'That is our very first track of the night officially in the mix. Find it, mark it, and get comfortable, because we are rolling right into track number two.',
+      followUp: 'If the crowd looks totally stumped, throw them a bone by reading the trivia fact below before hitting the next track.'
     };
   }
 
@@ -120,36 +125,39 @@ function getLiveHostCue(
     return {
       kicker: 'Final Stretch • Pressure Is Up',
       title: 'Every Track Matters Now',
-      script: `We are deep in the final stretch. Track ${trackNumber} is in the air right now, and this could be the one that completes somebody's line.`,
+      script: `We are deep in the final stretch, finishing up Track ${currentTrackNumber}. We only have a few songs left in the vault, which means somebody is dangerously close. Let's spin the next one.`,
       followUp: 'Check those near-bingo squares carefully. If five are connected, hit CALL BINGO immediately.'
     };
   }
 
-  if (trackNumber > 1 && trackNumber % 5 === 1) {
+  // Energy Shift every 5 tracks
+  if (currentTrackNumber > 1 && currentTrackNumber % 5 === 1) {
     return {
       kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`,
       title: 'Fresh Set, Fresh Chances',
-      script: `New set, new energy! Track ${trackNumber} is rolling. Reset your focus, scan that whole board, and see where this next run takes you.`,
-      followUp: 'If you are one square away, this is your reminder that the next few tracks can change everything.'
+      script: `We are officially ${currentTrackNumber - 1} tracks deep into the game! Reset your focus, check your whole board, and let's kick off this next block of music.`,
+      followUp: 'Read the bonus trivia below if you want to drop a fun fact before the next beat drops.'
     };
   }
 
-  if (trackNumber % 5 === 0) {
+  // Milestone Check every 5 tracks
+  if (currentTrackNumber % 5 === 0) {
     return {
-      kicker: `Milestone • ${trackNumber} Tracks Called`,
+      kicker: `Milestone • ${currentTrackNumber} Tracks Reached`,
       title: 'Board Check',
-      script: `That brings us to Track ${trackNumber}. Take a quick look across your full card, because a winning line can sneak up on you.`,
+      script: `That brings us to Track ${currentTrackNumber}. Take a quick second to look across your full card, because a winning line can sneak up on you. Let's see what's queued up next.`,
       followUp: 'Check rows, columns, and both diagonals. If you see five connected marks, call it now.'
     };
   }
 
+  // Standard dynamic lines
   const line = STANDARD_DJ_LINES[Math.abs(variation) % STANDARD_DJ_LINES.length];
   return {
-    kicker: `Live Mix • Track ${String(trackNumber).padStart(2, '0')}`,
+    kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`,
     title: 'DJ Talk Track',
-    script: line({ trackNumber }),
-    followUp: trackNumber >= 12
-      ? 'We are far enough into the round that every mark matters. Watch for a complete row, column, or diagonal.'
+    script: line({ current: currentTrackNumber }),
+    followUp: currentTrackNumber >= 12
+      ? 'Read the song trivia below to reward the room before you click to the next track.'
       : 'Stay patient, keep the board clean, and remember that the center FREE space is already working for you.'
   };
 }
@@ -446,7 +454,7 @@ export default function Caller() {
               </p>
               {activeHostCue.followUp && (
                 <p className="mt-2.5 mb-0 text-xs sm:text-sm leading-relaxed text-white/60 font-medium border-l-2 border-[#ff4fd8]/45 pl-3">
-                  Optional follow-up: “{activeHostCue.followUp}”
+                  Host Note: {activeHostCue.followUp}
                 </p>
               )}
               {gameState?.nowPlaying && (
@@ -758,9 +766,9 @@ export default function Caller() {
                 </p>
                 {activeHostCue.followUp && (
                   <div className="relative mt-5 pt-5 border-t border-white/15">
-                    <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.24em] text-[#ff4fd8] mb-2">Optional Follow-Up</div>
+                    <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.24em] text-[#ff4fd8] mb-2">Host Note:</div>
                     <p className="text-base sm:text-lg md:text-2xl text-white/72 font-semibold leading-relaxed m-0 text-balance">
-                      “{activeHostCue.followUp}”
+                      {activeHostCue.followUp}
                     </p>
                   </div>
                 )}
