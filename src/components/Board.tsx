@@ -484,7 +484,7 @@ export default function Board() {
 
               {showEmojiPicker && (
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
+                  {/* Added: A subtle dark tint and blur to push the board into the background when the menu is open */} <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] transition-all duration-300" onClick={() => setShowEmojiPicker(false)} />
                   <div className={`animate-pop-in absolute right-0 top-full z-[100] mt-3 w-[280px] origin-top-right rounded-[24px] p-5 ${floatingGlass}`}>
                     {/* Added: A dark contrast underlay to block out the bright animated stage background */}
                     <div className="pointer-events-none absolute inset-0 rounded-[24px] bg-[#070b16]/80" />
