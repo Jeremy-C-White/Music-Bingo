@@ -8,7 +8,14 @@ import { playPopSound, playNearWinChime, playBingoFanfare } from '../lib/soundEf
 
 const BOARD_STATE_KEY = 'music_bingo_board_state_v3';
 const PLAYER_NAME_KEY = 'music_bingo_player_name';
-const EMOJI_OPTIONS = ['🔥', '🎉', '🎸', '❤️', '🤘', '🕺', '💃', '🤣'];
+
+// Upgraded to categorized groups for a much cleaner UI
+const EMOJI_GROUPS = [
+  { label: 'Hype', emojis: ['🔥', '🙌', '🤯', '⚡'] },
+  { label: 'Vibe', emojis: ['🕺', '💃', '🪩', '🎧'] },
+  { label: 'Music', emojis: ['🎤', '🎸', '🥁', '🎹'] },
+  { label: 'Status', emojis: ['👀', '😤', '🧠', '🏆'] },
+];
 
 const primaryGlass = 'bg-[rgba(13,18,34,0.70)] backdrop-blur-[28px] backdrop-saturate-150 border border-white/[0.14] shadow-[0_28px_90px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.10)]';
 const secondaryGlass = 'bg-white/[0.055] backdrop-blur-xl backdrop-saturate-150 border border-white/[0.11] shadow-[0_12px_34px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.08)]';
@@ -71,11 +78,20 @@ function StageBackground({ theme, celebratory = false }: { theme: AmbientTheme; 
           0%, 100% { filter: hue-rotate(0deg) saturate(1.05); transform: scale(1); }
           50% { filter: hue-rotate(36deg) saturate(1.28); transform: scale(1.08); }
         }
+        /* Modal & Popover pop-in animation */
+        @keyframes popIn {
+          0% { opacity: 0; transform: scale(0.95) translateY(10px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-pop-in {
+          animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
         @media (prefers-reduced-motion: reduce) {
           .mb-ambient-motion,
           .mb-tile-shimmer,
           .mb-letter-sweep,
-          .mb-letter-pulse { animation: none !important; }
+          .mb-letter-pulse,
+          .animate-pop-in { animation: none !important; }
         }
       `}</style>
 
@@ -359,14 +375,14 @@ export default function Board() {
         <StageBackground theme={ambientTheme} />
 
         <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-lg items-center justify-center">
-          <div className={`relative w-full overflow-hidden rounded-[34px] p-[1px] ${primaryGlass}`}>
+          <div className={`animate-pop-in relative w-full overflow-hidden rounded-[34px] p-[1px] ${primaryGlass}`}>
             <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_28%,transparent_70%,rgba(255,255,255,0.12))]" />
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
 
             <div className="relative rounded-[33px] bg-[linear-gradient(180deg,rgba(17,22,39,0.84),rgba(13,18,32,0.9))] px-7 py-8 md:px-9 md:py-10">
               <div className="mb-7 text-center">
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.08] px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.28em] text-white/70">
-                  <span className="h-2 w-2 rounded-full bg-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.75)]" />
+                  <span className="h-2 w-2 rounded-full bg-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.75)] animate-pulse" />
                   Live Party Room
                 </div>
 
@@ -399,7 +415,7 @@ export default function Board() {
               </div>
 
               <button
-                className="group relative mt-1 w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#ffe083] via-[#ff74da] to-[#44dcff] px-6 py-4 text-lg font-black text-[#160611] shadow-[0_18px_44px_rgba(255,79,216,0.35)] ring-1 ring-white/20 transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_54px_rgba(255,79,216,0.42)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:grayscale"
+                className="group relative mt-1 w-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#ffe083] via-[#ff74da] to-[#44dcff] px-6 py-4 text-lg font-black text-[#160611] shadow-[0_18px_44px_rgba(255,79,216,0.35)] ring-1 ring-white/20 transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_54px_rgba(255,79,216,0.42)] active:scale-[0.98] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:grayscale"
                 onClick={joinLobby}
                 disabled={waiting || playerName.trim().length < 2}
               >
@@ -408,7 +424,7 @@ export default function Board() {
               </button>
 
               {waiting && (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-center text-sm text-white/70">
+                <div className="animate-pop-in mt-4 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-center text-sm text-white/70">
                   <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#4ade80] animate-pulse" />
                   {gameState?.started ? 'Entering game...' : 'Waiting for the host to start...'}
                 </div>
@@ -424,7 +440,7 @@ export default function Board() {
     <div className="relative min-h-screen overflow-hidden px-2 py-2 text-[#f7f8ff] md:px-4 md:py-4 selection:bg-[#ff4fd8] selection:text-white">
       <StageBackground theme={ambientTheme} celebratory={hasCompletedLine} />
 
-      <div className="relative z-10 mx-auto flex h-[calc(100vh-16px)] w-full max-w-4xl flex-1 flex-col gap-3 2xl:max-w-6xl 2xl:gap-5 3xl:max-w-7xl">
+      <div className="animate-pop-in relative z-10 mx-auto flex h-[calc(100vh-16px)] w-full max-w-4xl flex-1 flex-col gap-3 2xl:max-w-6xl 2xl:gap-5 3xl:max-w-7xl">
         <header className={`relative flex flex-none flex-wrap items-center justify-between gap-3 overflow-visible rounded-[28px] px-4 py-3 md:px-6 2xl:px-8 2xl:py-5 ${primaryGlass}`}>
           <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_28%,transparent_78%,rgba(255,255,255,0.10))]" />
           <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/75 to-transparent" />
@@ -450,7 +466,7 @@ export default function Board() {
           <div className="relative flex items-center gap-2 2xl:gap-3">
             <button
               onClick={() => setShowRulesModal(true)}
-              className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
+              className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
             >
               <BookOpen size={14} className="text-[#33d8ff] 2xl:h-4 2xl:w-4" />
               <span className="hidden sm:inline">How To Play</span>
@@ -459,7 +475,7 @@ export default function Board() {
             <div className="relative">
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
+                className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
                 title="Send a reaction to the stage screen"
               >
                 <SmilePlus size={14} className="text-[#ff4fd8] 2xl:h-4 2xl:w-4" />
@@ -469,26 +485,38 @@ export default function Board() {
               {showEmojiPicker && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
-                  <div className={`absolute right-0 top-full z-[100] mt-2 grid w-48 grid-cols-4 place-items-center gap-3 rounded-2xl p-4 ${floatingGlass}`}>
-                    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_30%,transparent_70%,rgba(255,255,255,0.12))]" />
-                    {EMOJI_OPTIONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => handleSendReaction(emoji)}
-                        className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06] text-2xl transition-transform hover:scale-125 hover:bg-white/[0.10]"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+                  <div className={`animate-pop-in absolute right-0 top-full z-[100] mt-3 w-64 origin-top-right rounded-[24px] p-4 ${floatingGlass}`}>
+                    <div className="pointer-events-none absolute inset-0 rounded-[24px] bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_30%,transparent_70%,rgba(255,255,255,0.12))]" />
+                    
+                    <div className="relative flex flex-col gap-3.5">
+                      {EMOJI_GROUPS.map((group) => (
+                        <div key={group.label}>
+                          <div className="mb-1.5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                            {group.label}
+                          </div>
+                          <div className="grid grid-cols-4 gap-2">
+                            {group.emojis.map((emoji) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleSendReaction(emoji)}
+                                className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-2xl transition-all hover:scale-110 hover:bg-white/[0.12] active:scale-95"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
             </div>
 
             <button
-              className={`relative overflow-hidden rounded-xl px-5 py-2.5 text-xs font-black transition-all duration-300 md:px-6 md:text-sm 2xl:px-8 2xl:py-3 2xl:text-base ${
+              className={`relative overflow-hidden rounded-xl px-5 py-2.5 text-xs font-black transition-all duration-300 md:px-6 md:text-sm 2xl:px-8 2xl:py-3 2xl:text-base active:scale-[0.96] ${
                 winningLines.length > 0 && !hasConfirmedWin
-                  ? 'bg-gradient-to-br from-[#ffe083] via-[#ff74da] to-[#44dcff] text-[#1a0510] ring-1 ring-white/[0.25] shadow-[0_18px_44px_rgba(255,79,216,0.35)] animate-pulse'
+                  ? 'bg-gradient-to-br from-[#ffe083] via-[#ff74da] to-[#44dcff] text-[#1a0510] ring-2 ring-white/[0.5] shadow-[0_0_24px_rgba(255,79,216,0.6)] animate-pulse hover:shadow-[0_0_34px_rgba(255,79,216,0.8)]'
                   : `${secondaryGlass} text-white/70 hover:bg-white/[0.09]`
               }`}
               onClick={handleCallBingo}
@@ -509,7 +537,7 @@ export default function Board() {
               <h2 className="text-xs font-black uppercase tracking-[0.24em] text-white/90 md:text-sm 2xl:text-base">Your Bingo Card</h2>
               <p className="mt-0.5 text-[10px] text-white/60 md:text-xs 2xl:text-sm">Mark 5 tiles in a row, column, or diagonal to win.</p>
             </div>
-            <div className={`rounded-full px-3 py-1.5 text-[10px] font-bold 2xl:px-4 2xl:py-2 2xl:text-xs ${secondaryGlass} text-[#7fe8ff]`}>
+            <div className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition-colors 2xl:px-4 2xl:py-2 2xl:text-xs ${secondaryGlass} ${winningLines.length > 0 ? 'text-[#ff4fd8] border-[#ff4fd8]/30 bg-[#ff4fd8]/10' : 'text-[#7fe8ff]'}`}>
               {winningLines.length > 0
                 ? `🔥 ${winningLines.length / 5} Line${winningLines.length > 5 ? 's' : ''} Complete!`
                 : nearWins.length > 0
@@ -557,14 +585,14 @@ export default function Board() {
                 const isNear = nearWins.includes(i);
                 const { title, artist } = splitSong(song);
 
-                let cellClass = 'group relative flex aspect-square w-full cursor-pointer select-none flex-col items-center justify-center overflow-hidden rounded-xl border p-0.5 text-center shadow-[0_14px_30px_rgba(0,0,0,0.24)] transition-all duration-200 md:rounded-2xl md:p-2 2xl:p-3 ';
+                let cellClass = 'group relative flex aspect-square w-full cursor-pointer select-none flex-col items-center justify-center overflow-hidden rounded-xl border p-0.5 text-center shadow-[0_14px_30px_rgba(0,0,0,0.24)] transition-all duration-200 md:rounded-2xl md:p-2 2xl:p-3 active:scale-[0.96] ';
 
                 if (isFree) {
                   cellClass += ' border-[#ffd76a]/[0.35] bg-[linear-gradient(145deg,rgba(255,215,106,0.18),rgba(255,79,216,0.18),rgba(51,216,255,0.18))] backdrop-blur-xl cursor-default shadow-[0_18px_38px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.18)]';
                 } else if (isSelected) {
-                  cellClass += ' border-[#8ce8ff]/70 bg-[linear-gradient(145deg,rgba(13,20,38,0.86),rgba(35,24,67,0.84),rgba(13,31,48,0.82))] backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_0_22px_rgba(51,216,255,0.25),0_18px_42px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.16)] hover:-translate-y-0.5';
+                  cellClass += ' border-[#8ce8ff]/70 bg-[linear-gradient(145deg,rgba(13,20,38,0.86),rgba(35,24,67,0.84),rgba(13,31,48,0.82))] backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.07),0_0_22px_rgba(51,216,255,0.25),0_18px_42px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.16)] hover:-translate-y-0.5 active:translate-y-0';
                 } else {
-                  cellClass += ' border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-[0_14px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.09]';
+                  cellClass += ' border-white/10 bg-white/[0.06] backdrop-blur-xl shadow-[0_14px_30px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.10)] hover:-translate-y-0.5 active:translate-y-0 hover:border-white/20 hover:bg-white/[0.09]';
                 }
 
                 if (isWin) {
@@ -626,7 +654,7 @@ export default function Board() {
       </div>
 
       {toastMsg && (
-        <div className={`fixed left-1/2 top-6 z-[100] -translate-x-1/2 whitespace-nowrap rounded-full px-6 py-3 text-xs font-black text-white shadow-[0_16px_42px_rgba(0,0,0,0.42)] md:text-sm ${floatingGlass}`}>
+        <div className={`animate-pop-in fixed left-1/2 top-6 z-[100] -translate-x-1/2 whitespace-nowrap rounded-full px-6 py-3 text-xs font-black text-white shadow-[0_16px_42px_rgba(0,0,0,0.42)] md:text-sm ${floatingGlass}`}>
           <div className="pointer-events-none absolute inset-0 rounded-full bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_28%,transparent_78%,rgba(255,255,255,0.10))]" />
           <span className="relative">{toastMsg.msg}</span>
         </div>
@@ -634,14 +662,14 @@ export default function Board() {
 
       {showRulesModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className={`relative w-full max-w-lg overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
+          <div className={`animate-pop-in relative w-full max-w-lg overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
             <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.18),transparent_30%,transparent_72%,rgba(255,255,255,0.12))]" />
             <div className="relative rounded-[29px] bg-[linear-gradient(180deg,rgba(16,22,37,0.92),rgba(12,17,31,0.95))] p-6">
               <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
                 <h2 className="flex items-center gap-2 text-xl font-black uppercase text-white">
                   <BookOpen className="text-[#33d8ff]" /> How To Play
                 </h2>
-                <button onClick={() => setShowRulesModal(false)} className="rounded-full bg-white/10 p-1 text-white/70 transition-all hover:bg-white/20 hover:text-white">
+                <button onClick={() => setShowRulesModal(false)} className="rounded-full bg-white/10 p-1 text-white/70 transition-all hover:bg-white/20 hover:text-white active:scale-95">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -663,7 +691,7 @@ export default function Board() {
 
               <button
                 onClick={() => setShowRulesModal(false)}
-                className="w-full rounded-2xl bg-gradient-to-r from-[#ffe083] via-[#ff74da] to-[#44dcff] py-3 text-sm font-black text-black shadow-[0_14px_32px_rgba(255,79,216,0.32)] transition-all hover:-translate-y-0.5"
+                className="w-full rounded-2xl bg-gradient-to-r from-[#ffe083] via-[#ff74da] to-[#44dcff] py-3 text-sm font-black text-black shadow-[0_14px_32px_rgba(255,79,216,0.32)] transition-all hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0"
               >
                 Got It! Let's Play 🎵
               </button>
@@ -674,7 +702,7 @@ export default function Board() {
 
       {showWinModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#03060e]/80 p-4 backdrop-blur-md">
-          <div className={`relative w-full max-w-md overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
+          <div className={`animate-pop-in relative w-full max-w-md overflow-hidden rounded-[30px] p-[1px] ${floatingGlass}`}>
             <div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(135deg,rgba(255,255,255,0.18),transparent_30%,transparent_72%,rgba(255,255,255,0.12))]" />
             <div className="relative rounded-[29px] bg-[linear-gradient(180deg,rgba(16,22,37,0.92),rgba(12,17,31,0.96))] p-6 text-center">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,79,216,0.10),transparent_36%),radial-gradient(circle_at_bottom,rgba(51,216,255,0.10),transparent_34%)]" />
@@ -693,7 +721,7 @@ export default function Board() {
                   <p className="mb-4 text-sm text-white/80">Your claim is in. The host has been notified.</p>
                   {winClaim.winningLines?.[0] && <p className="mb-4 text-sm font-bold text-[#33d8ff]">{winClaim.winningLines[0].label}</p>}
                   {winClaim.position && (
-                    <div className="mb-6 inline-flex items-center justify-center gap-2 rounded-full border border-[#ffd76a]/[0.35] bg-gradient-to-br from-[#ffd76a]/[0.18] to-[#ff4fd8]/[0.10] px-6 py-3 text-xl font-black text-[#ffd76a]">
+                    <div className="mb-6 inline-flex items-center justify-center gap-2 rounded-full border border-[#ffd76a]/[0.35] bg-gradient-to-br from-[#ffd76a]/[0.18] to-[#ff4fd8]/[0.10] px-6 py-3 text-xl font-black text-[#ffd76a] shadow-[0_0_20px_rgba(255,215,106,0.2)]">
                       {winClaim.position === 1
                         ? '🥇 1st Place'
                         : winClaim.position === 2
@@ -722,7 +750,7 @@ export default function Board() {
               )}
 
               <button
-                className="relative z-10 w-full rounded-2xl border border-white/[0.15] bg-white/[0.08] py-3 font-bold text-white transition-all hover:bg-white/[0.14]"
+                className="relative z-10 w-full rounded-2xl border border-white/[0.15] bg-white/[0.08] py-3 font-bold text-white transition-all hover:bg-white/[0.14] active:scale-[0.98]"
                 onClick={() => setShowWinModal(false)}
               >
                 Close to View Board
