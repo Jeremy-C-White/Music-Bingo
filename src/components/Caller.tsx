@@ -3,7 +3,7 @@ import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNo
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
-import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Maximize2, Minimize2, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Maximize2, Minimize2, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play, Volume2, VolumeX, Keyboard } from 'lucide-react';
 import { playCallSound } from '../lib/soundEffects';
 
 type HostCue = {
@@ -14,23 +14,14 @@ type HostCue = {
 };
 
 // NOTE: On-mic DJ lines intentionally never reveal the song title or artist.
-// These lines are designed to be spoken as the CURRENT track is finishing, 
-// leading right up to the DJ clicking the "Next Track" button.
 const STANDARD_DJ_LINES = [
-  ({ current }: { current: number }) =>
-    `Alright, wrapping up Track ${current}. Check your corners, check your diagonals... let's see what the next drop has in store for us.`,
-  ({ current }: { current: number }) =>
-    `That is Track ${current} in the books. If you didn't get that one, shake it off. We're shuffling the deck and bringing in the next song right now.`,
-  ({ current }: { current: number }) =>
-    `We are keeping the tempo up tonight. If you are sitting on four-in-a-row, cross your fingers and trust your ears. Let's roll the next track.`,
-  ({ current }: { current: number }) =>
-    `Hope you caught the hook on that one! Time to keep this party moving. Drop a reaction on your phone if you're one square away, and let's spin the next one.`,
-  ({ current }: { current: number }) =>
-    `Whether you knew that last track immediately or had to ask your neighbor, it's time to move forward. Dropping the next beat in three, two, one...`,
-  ({ current }: { current: number }) =>
-    `Take a quick scan of your board, music fans. Every single song changes the game, and the next one could be your golden ticket. Let's play it!`,
-  ({ current }: { current: number }) =>
-    `Track ${current} is fading out. If you're waiting on just one more square to complete your line, make some noise! Let's see if this next song is the one you need.`
+  ({ current }: { current: number }) => `Alright, wrapping up Track ${current}. Check your corners, check your diagonals... let's see what the next drop has in store for us.`,
+  ({ current }: { current: number }) => `That is Track ${current} in the books. If you didn't get that one, shake it off. We're shuffling the deck and bringing in the next song right now.`,
+  ({ current }: { current: number }) => `We are keeping the tempo up tonight. If you are sitting on four-in-a-row, cross your fingers and trust your ears. Let's roll the next track.`,
+  ({ current }: { current: number }) => `Hope you caught the hook on that one! Time to keep this party moving. Drop a reaction on your phone if you're one square away, and let's spin the next one.`,
+  ({ current }: { current: number }) => `Whether you knew that last track immediately or had to ask your neighbor, it's time to move forward. Dropping the next beat in three, two, one...`,
+  ({ current }: { current: number }) => `Take a quick scan of your board, music fans. Every single song changes the game, and the next one could be your golden ticket. Let's play it!`,
+  ({ current }: { current: number }) => `Track ${current} is fading out. If you're waiting on just one more square to complete your line, make some noise! Let's see if this next song is the one you need.`
 ];
 
 function getPregameCues(activePlayers: number): HostCue[] {
@@ -72,19 +63,9 @@ function getPregameCues(activePlayers: number): HostCue[] {
   ];
 }
 
-function getLiveHostCue(
-  gameState: GameState | null,
-  claims: Claim[],
-  poolLength: number,
-  variation: number
-): HostCue {
+function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength: number, variation: number): HostCue {
   if (!gameState?.started) {
-    return {
-      kicker: 'Lobby Open',
-      title: 'Welcome the Players',
-      script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.',
-      followUp: 'Open the full teleprompter for the complete introduction and rules before starting the round.'
-    };
+    return { kicker: 'Lobby Open', title: 'Welcome the Players', script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.', followUp: 'Open the full teleprompter for the complete introduction and rules before starting the round.' };
   }
 
   const sessionClaims = claims.filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId);
@@ -92,74 +73,34 @@ function getLiveHostCue(
   const latestWinner = validClaims.slice().sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0];
 
   if (latestWinner) {
-    return {
-      kicker: 'Winner Moment • Pause the Music',
-      title: 'We Have an Official Bingo',
-      script: `Hold everything! We have a verified bingo from ${latestWinner.playerName}. That card is official, that line is complete, and we have our winner!`,
-      followUp: 'Everybody light up the reactions and make some noise for our Music Bingo champion. Host note: pause the round and celebrate before resetting.'
-    };
+    return { kicker: 'Winner Moment • Pause the Music', title: 'We Have an Official Bingo', script: `Hold everything! We have a verified bingo from ${latestWinner.playerName}. That card is official, that line is complete, and we have our winner!`, followUp: 'Everybody light up the reactions and make some noise for our Music Bingo champion. Host note: pause the round and celebrate before resetting.' };
   }
 
   if (!gameState.nowPlaying) {
-    return {
-      kicker: 'Game Live • First Track Ready',
-      title: 'Kick Off the Music',
-      script: 'The room is ready, the cards are live, and the only thing missing is the music. Let us drop the very first track and get this game moving.',
-      followUp: 'Remind players to mark a square only when they recognize a song that appears on their own card.'
-    };
+    return { kicker: 'Game Live • First Track Ready', title: 'Kick Off the Music', script: 'The room is ready, the cards are live, and the only thing missing is the music. Let us drop the very first track and get this game moving.', followUp: 'Remind players to mark a square only when they recognize a song that appears on their own card.' };
   }
 
   const currentTrackNumber = gameState.history.length + 1;
   const setNumber = Math.floor((currentTrackNumber - 1) / 5) + 1;
 
   if (currentTrackNumber === 1) {
-    return {
-      kicker: 'Opening Drop • Track 01',
-      title: 'The Game Is Officially Live',
-      script: 'That is our very first track of the night officially in the mix. Find it, mark it, and get comfortable, because we are rolling right into track number two.',
-      followUp: 'If the crowd looks totally stumped, throw them a bone by reading the trivia fact below before hitting the next track.'
-    };
+    return { kicker: 'Opening Drop • Track 01', title: 'The Game Is Officially Live', script: 'That is our very first track of the night officially in the mix. Find it, mark it, and get comfortable, because we are rolling right into track number two.', followUp: 'If the crowd looks totally stumped, throw them a bone by reading the trivia fact below before hitting the next track.' };
   }
 
   if (poolLength <= 5) {
-    return {
-      kicker: 'Final Stretch • Pressure Is Up',
-      title: 'Every Track Matters Now',
-      script: `We are deep in the final stretch, finishing up Track ${currentTrackNumber}. We only have a few songs left in the vault, which means somebody is dangerously close. Let's spin the next one.`,
-      followUp: 'Check those near-bingo squares carefully. If five are connected, hit CALL BINGO immediately.'
-    };
+    return { kicker: 'Final Stretch • Pressure Is Up', title: 'Every Track Matters Now', script: `We are deep in the final stretch, finishing up Track ${currentTrackNumber}. We only have a few songs left in the vault, which means somebody is dangerously close. Let's spin the next one.`, followUp: 'Check those near-bingo squares carefully. If five are connected, hit CALL BINGO immediately.' };
   }
 
-  // Energy Shift every 5 tracks
   if (currentTrackNumber > 1 && currentTrackNumber % 5 === 1) {
-    return {
-      kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`,
-      title: 'Fresh Set, Fresh Chances',
-      script: `We are officially ${currentTrackNumber - 1} tracks deep into the game! Reset your focus, check your whole board, and let's kick off this next block of music.`,
-      followUp: 'Read the bonus trivia below if you want to drop a fun fact before the next beat drops.'
-    };
+    return { kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`, title: 'Fresh Set, Fresh Chances', script: `We are officially ${currentTrackNumber - 1} tracks deep into the game! Reset your focus, check your whole board, and let's kick off this next block of music.`, followUp: 'Read the bonus trivia below if you want to drop a fun fact before the next beat drops.' };
   }
 
-  // Milestone Check every 5 tracks
   if (currentTrackNumber % 5 === 0) {
-    return {
-      kicker: `Milestone • ${currentTrackNumber} Tracks Reached`,
-      title: 'Board Check',
-      script: `That brings us to Track ${currentTrackNumber}. Take a quick second to look across your full card, because a winning line can sneak up on you. Let's see what's queued up next.`,
-      followUp: 'Check rows, columns, and both diagonals. If you see five connected marks, call it now.'
-    };
+    return { kicker: `Milestone • ${currentTrackNumber} Tracks Reached`, title: 'Board Check', script: `That brings us to Track ${currentTrackNumber}. Take a quick second to look across your full card, because a winning line can sneak up on you. Let's see what's queued up next.`, followUp: 'Check rows, columns, and both diagonals. If you see five connected marks, call it now.' };
   }
 
-  // Standard dynamic lines
   const line = STANDARD_DJ_LINES[Math.abs(variation) % STANDARD_DJ_LINES.length];
-  return {
-    kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`,
-    title: 'DJ Talk Track',
-    script: line({ current: currentTrackNumber }),
-    followUp: currentTrackNumber >= 12
-      ? 'Read the song trivia below to reward the room before you click to the next track.'
-      : 'Stay patient, keep the board clean, and remember that the center FREE space is already working for you.'
-  };
+  return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: line({ current: currentTrackNumber }), followUp: currentTrackNumber >= 12 ? 'Read the song trivia below to reward the room before you click to the next track.' : 'Stay patient, keep the board clean, and remember that the center FREE space is already working for you.' };
 }
  
 export default function Caller() {
@@ -171,7 +112,10 @@ export default function Caller() {
   
   const [callInFlight, setCallInFlight] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [volume] = useState(0.5);
+  
+  // Upgraded: Host Volume & Audio Progress tracking
+  const [volume, setVolume] = useState(0.6);
+  const [audioProgress, setAudioProgress] = useState(0);
   const [isAudioLocked, setIsAudioLocked] = useState(false);
   
   const [showPreviewModal, setShowPreviewModal] = useState<Claim | null>(null);
@@ -186,17 +130,31 @@ export default function Caller() {
   const [autoIntervalSeconds] = useState(20);
   const [autoCountdown, setAutoCountdown] = useState(20);
  
+  // Spacebar Hotkey Setup
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input, or if modals are open
+      if (e.code === 'Space' && e.target === document.body && !showResetModal && !showPreviewModal) {
+        e.preventDefault();
+        if (gameState?.started && pool.length > 0 && !callInFlight) {
+          handleCallNext();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameState?.started, pool.length, callInFlight, showResetModal, showPreviewModal]);
+
   useEffect(() => {
     const unsubState = subscribeToGameState((state) => {
       setGameState(state);
+      // Lock host audio if the visualizer is playing to prevent echo
       setIsAudioLocked(state?.visualizerAudioActive || false);
       
       if (state) {
-        // Rebuild pool by removing history and nowPlaying
         const calledSet = new Set(state.history);
         if (state.nowPlaying) calledSet.add(state.nowPlaying);
         
-        // Only shuffle if pool is empty or we reset
         if (pool.length === 0 || (!state.started && pool.length < songs.length)) {
           const fresh = shuffle(songs);
           setPool(fresh.filter(s => !calledSet.has(s)));
@@ -208,27 +166,21 @@ export default function Caller() {
           const { title, artist } = splitSong(state.nowPlaying);
           lookupPreview(title, artist).then(data => {
             setPreviewData(data);
+            setAudioProgress(0); // Reset progress on new song
           });
         } else {
           setPreviewData(null);
+          setAudioProgress(0);
         }
       }
     });
     
-    const unsubClaims = subscribeToClaims((allClaims) => {
-      setClaims(allClaims);
-    });
-    
-    return () => {
-      unsubState();
-      unsubClaims();
-    };
-  }, []);
+    const unsubClaims = subscribeToClaims((allClaims) => setClaims(allClaims));
+    return () => { unsubState(); unsubClaims(); };
+  }, [pool.length]);
  
   useEffect(() => {
-    const unsubPlayers = subscribeToPlayerCount((count) => {
-      setActivePlayers(count);
-    });
+    const unsubPlayers = subscribeToPlayerCount((count) => setActivePlayers(count));
     return () => unsubPlayers();
   }, []);
  
@@ -251,12 +203,12 @@ export default function Caller() {
     return () => clearInterval(timer);
   }, [autoCallerActive, gameState?.started, pool.length, autoIntervalSeconds]);
  
+  // Audio Playback Sync
   useEffect(() => {
     if (audioRef.current && previewData?.previewUrl) {
       if (audioRef.current.src !== previewData.previewUrl) {
         audioRef.current.src = previewData.previewUrl;
       }
-      
       if (!isAudioLocked && volume > 0) {
         audioRef.current.play().catch(() => console.log('Audio autoplay prevented'));
       } else {
@@ -265,6 +217,7 @@ export default function Caller() {
     }
   }, [previewData, isAudioLocked]);
   
+  // Volume Sync
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = isAudioLocked ? 0 : volume;
@@ -276,9 +229,7 @@ export default function Caller() {
     await startNewGame();
   };
  
-  const handleResetGame = () => {
-    setShowResetModal(true);
-  };
+  const handleResetGame = () => setShowResetModal(true);
  
   const confirmResetGame = async () => {
     setShowResetModal(false);
@@ -301,11 +252,8 @@ export default function Caller() {
     playCallSound();
     
     const nextSong = pool[pool.length - 1];
-    
     const nextHistory = [...gameState.history];
-    if (gameState.nowPlaying) {
-      nextHistory.push(gameState.nowPlaying);
-    }
+    if (gameState.nowPlaying) nextHistory.push(gameState.nowPlaying);
     
     try {
       await setNowPlaying(nextSong, nextHistory);
@@ -327,10 +275,8 @@ export default function Caller() {
   const currentTrack = gameState?.nowPlaying ? splitSong(gameState.nowPlaying) : null;
   const currentTrackNumber = gameState?.nowPlaying ? gameState.history.length + 1 : 0;
   const teleprompterTextClass = scriptFontSize === 'normal'
-    ? 'text-lg sm:text-xl md:text-2xl'
-    : scriptFontSize === 'large'
-      ? 'text-xl sm:text-2xl md:text-4xl'
-      : 'text-2xl sm:text-3xl md:text-5xl';
+    ? 'text-lg sm:text-xl md:text-2xl' : scriptFontSize === 'large'
+      ? 'text-xl sm:text-2xl md:text-4xl' : 'text-2xl sm:text-3xl md:text-5xl';
  
   return (
     <div className="host-shell min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans p-3 sm:p-4 xl:p-5 relative overflow-x-hidden selection:bg-[#ff4fd8] selection:text-white">
@@ -348,6 +294,28 @@ export default function Caller() {
               Host <span className="text-[#33d8ff]">Studio Console</span>
             </h1>
           </div>
+
+          {/* Upgraded: Host Volume & Audio Routing Status */}
+          <div className="flex items-center gap-3 ml-auto mr-2 lg:mr-6">
+            {isAudioLocked ? (
+              <div className="hidden md:flex items-center gap-1.5 bg-[#4ade80]/15 border border-[#4ade80]/40 text-[#4ade80] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest">
+                <VolumeX className="w-3.5 h-3.5" /> Stage Audio Active
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center gap-2 bg-black/40 border border-white/10 px-3 py-1.5 rounded-lg">
+                <Volume2 className="w-3.5 h-3.5 text-white/50" />
+                <input
+                  type="range"
+                  min="0" max="1" step="0.05"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="w-20 sm:w-24 cursor-pointer accent-[#33d8ff]"
+                  title="Host Preview Volume"
+                />
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 text-[10px] xl:text-xs font-bold text-white/60 uppercase tracking-[0.14em]">
             <span className="rounded-xl border border-white/10 bg-black/35 px-3 py-2 flex items-center justify-center gap-2 shadow-inner whitespace-nowrap">
               <span className="w-1.5 h-1.5 bg-[#4ade80] rounded-full animate-pulse shadow-[0_0_8px_#4ade80]"></span>
@@ -368,9 +336,37 @@ export default function Caller() {
         {/* Main Stage */}
         <div className="host-stage min-w-0 min-h-[520px] lg:min-h-0 bg-[#131728]/82 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl px-4 py-5 sm:p-6 xl:p-7 flex flex-col items-center justify-center lg:overflow-y-auto custom-scrollbar relative text-center">
           
-          {/* Spinning Turntable Deck (caller-only view — full 360 rotation) */}
-          <div className="host-record-wrap relative mb-5 sm:mb-6">
-            <div className={`host-record w-[clamp(150px,24vh,250px)] h-[clamp(150px,24vh,250px)] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_36px_rgba(255,79,216,0.26)] border-[3px] border-white/10 p-2 flex items-center justify-center ${previewData?.previewUrl && !isAudioLocked ? 'is-spinning' : ''}`}>
+          {/* Spinning Turntable Deck & Audio Progress Ring */}
+          <div className="host-record-wrap relative mb-5 sm:mb-6 flex items-center justify-center">
+            
+            {/* Critical Fix: Hidden Audio Element */}
+            <audio 
+              ref={audioRef} 
+              onTimeUpdate={(e) => {
+                const { currentTime, duration } = e.currentTarget;
+                if (duration) setAudioProgress((currentTime / duration) * 100);
+              }}
+              onEnded={() => setAudioProgress(100)}
+              className="hidden" 
+            />
+
+            {/* Glowing Audio Progress Ring */}
+            <svg 
+              className="absolute pointer-events-none w-[clamp(166px,26vh,270px)] h-[clamp(166px,26vh,270px)] -rotate-90 drop-shadow-[0_0_10px_rgba(51,216,255,0.6)] z-10" 
+              viewBox="0 0 100 100"
+            >
+              <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
+              {audioProgress > 0 && (
+                <circle 
+                  cx="50" cy="50" r="48" fill="none" stroke="#33d8ff" strokeWidth="2"
+                  strokeDasharray={`${(audioProgress / 100) * 301.59} 301.59`}
+                  strokeLinecap="round"
+                  className="transition-all duration-200 ease-linear"
+                />
+              )}
+            </svg>
+
+            <div className={`host-record relative z-20 w-[clamp(150px,24vh,250px)] h-[clamp(150px,24vh,250px)] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_36px_rgba(255,79,216,0.26)] border-[3px] border-white/10 p-2 flex items-center justify-center ${previewData?.previewUrl && !isAudioLocked ? 'is-spinning' : ''}`}>
               <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
                 {!previewData?.artworkUrl && <Disc className="w-16 h-16 text-white/20" />}
                 <div className="absolute w-9 h-9 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
@@ -378,13 +374,13 @@ export default function Caller() {
             </div>
             
             {gameState?.nowPlaying && (
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black text-[10px] uppercase tracking-widest shadow-[0_0_20px_#ff4fd8] flex items-center gap-2">
+              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black text-[10px] uppercase tracking-widest shadow-[0_0_20px_#ff4fd8] flex items-center gap-2 z-30">
                 <Sparkles className="w-3 h-3" /> Live
               </div>
             )}
           </div>
  
-          {/* Caller-only track readout: the host may know the song, players hear it by ear */}
+          {/* Caller-only track readout */}
           <h2 className="host-track-title font-black text-[clamp(1.65rem,3.6vw,3.35rem)] mb-1.5 tracking-tighter uppercase max-w-[96%] sm:max-w-[88%] leading-[0.98] text-balance">
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).title : (gameState?.started ? 'Game is Live!' : 'Lobby Open')}
           </h2>
@@ -392,7 +388,7 @@ export default function Caller() {
             {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).artist : (gameState?.started ? "Click 'Play First Song' to begin" : 'Waiting to start the game')}
           </div>
  
-          {/* Dynamic Host Mic Script, DJ Talk Track & Trivia (never names the song) */}
+          {/* Dynamic Host Mic Script */}
           <div className="host-script-card w-full max-w-[700px] mb-4 p-4 sm:p-5 bg-black/55 border border-[#33d8ff]/28 rounded-2xl text-left relative overflow-hidden shadow-xl backdrop-blur-md">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.10),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.08),transparent_32%)]" />
             <div className="relative flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
@@ -402,42 +398,16 @@ export default function Caller() {
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] font-bold">
-                  <button 
-                    onClick={() => setScriptFontSize('normal')} 
-                    className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
-                    title="Standard text size"
-                  >
-                    A
-                  </button>
-                  <button 
-                    onClick={() => setScriptFontSize('large')} 
-                    className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
-                    title="Large text size"
-                  >
-                    A+
-                  </button>
-                  <button 
-                    onClick={() => setScriptFontSize('xl')} 
-                    className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`}
-                    title="Extra Large text size"
-                  >
-                    A++
-                  </button>
+                  <button onClick={() => setScriptFontSize('normal')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Standard text size">A</button>
+                  <button onClick={() => setScriptFontSize('large')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Large text size">A+</button>
+                  <button onClick={() => setScriptFontSize('xl')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Extra Large text size">A++</button>
                 </div>
                 {gameState?.nowPlaying && (
-                  <button
-                    onClick={() => setCueVariation(prev => prev + 1)}
-                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
-                    title="Show another DJ line"
-                  >
+                  <button onClick={() => setCueVariation(prev => prev + 1)} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/70 hover:text-white transition-colors cursor-pointer" title="Show another DJ line">
                     <RefreshCw className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button
-                  onClick={() => setShowTeleprompter(true)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
-                  title="Open Fullscreen Host Teleprompter"
-                >
+                <button onClick={() => setShowTeleprompter(true)} className="px-2.5 py-1.5 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" title="Open Fullscreen Host Teleprompter">
                   <Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Teleprompter</span>
                 </button>
               </div>
@@ -472,10 +442,7 @@ export default function Caller() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
                   className="w-full py-4 rounded-2xl bg-black/35 hover:bg-[#33d8ff]/15 border border-[#33d8ff]/35 text-[#7fe8ff] text-sm font-black tracking-widest uppercase transition-all cursor-pointer flex items-center justify-center gap-2 shadow-inner"
-                  onClick={() => {
-                    setTeleprompterStep(0);
-                    setShowTeleprompter(true);
-                  }}
+                  onClick={() => { setTeleprompterStep(0); setShowTeleprompter(true); }}
                 >
                   <Mic2 className="w-5 h-5" /> Open DJ Intro
                 </button>
@@ -495,6 +462,11 @@ export default function Caller() {
                 >
                   <Disc className="w-5 h-5" /> {gameState.history.length === 0 && !gameState.nowPlaying ? 'Play First Song' : 'Call Next Track'}
                 </button>
+                
+                {/* Spacebar Hint */}
+                <div className="flex justify-center text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                  <Keyboard className="w-3.5 h-3.5 mr-1" /> Press [Space] to skip
+                </div>
  
                 {/* Auto Caller Mode Toggle */}
                 <div className="flex items-center justify-between px-4 py-3 bg-black/35 border border-white/10 rounded-2xl text-xs shadow-inner">
@@ -600,7 +572,6 @@ export default function Caller() {
             End Round & Reset
           </button>
         </div>
-        
       </div>
  
       {/* Inspect Player Board Modal */}
@@ -698,7 +669,7 @@ export default function Caller() {
         </div>
       )}
  
-      {/* Fullscreen Dynamic Host Teleprompter Modal (read on-mic — never names the song) */}
+      {/* Fullscreen Dynamic Host Teleprompter Modal */}
       {showTeleprompter && gameState && (
         <div className="fixed inset-0 bg-[#070914]/96 backdrop-blur-2xl z-[600] flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
           <div className="max-w-5xl mx-auto w-full min-h-full flex flex-col">
@@ -746,17 +717,29 @@ export default function Caller() {
             )}
  
             <div className="flex-1 flex flex-col justify-center py-3 md:py-6">
-              <div className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-[#ff4fd8] mb-2">
-                {activeHostCue.kicker}
+              <div className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-[#ff4fd8] mb-2 flex justify-between items-center">
+                <span>{activeHostCue.kicker}</span>
+                {gameState.nowPlaying && (
+                  <span className="text-white/40 tracking-widest font-mono bg-white/10 px-2 py-1 rounded-md">
+                    {audioProgress < 100 ? `${Math.max(0, Math.ceil(30 - (audioProgress / 100) * 30))}s remaining` : 'ENDED'}
+                  </span>
+                )}
               </div>
 
-              {/* Cue title only — the song's title/artist are never shown here */}
               <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-5 md:mb-7 text-balance">
                 {activeHostCue.title}
               </h2>
  
               <div className="relative p-5 sm:p-7 md:p-9 bg-black/70 border-2 border-[#33d8ff]/45 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.16)] overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.10),transparent_35%)]" />
+                
+                {/* Teleprompter audio progress bar */}
+                {gameState.nowPlaying && (
+                  <div className="absolute top-0 left-0 w-full h-1.5 bg-white/5">
+                    <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear shadow-[0_0_10px_#33d8ff]" style={{ width: `${audioProgress}%` }} />
+                  </div>
+                )}
+
                 <div className="relative text-xs md:text-sm font-black uppercase tracking-widest text-[#ffd76a] mb-4 flex items-center gap-2">
                   <MessageSquareQuote className="w-5 h-5 text-[#ffd76a]" />
                   Read On Mic
@@ -852,7 +835,6 @@ export default function Caller() {
           min-height: 100dvh;
         }
 
-        /* Full continuous 360 rotation for the turntable deck */
         @keyframes recordSpin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -872,130 +854,43 @@ export default function Caller() {
           scrollbar-color: rgba(255,255,255,0.18) transparent;
         }
 
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background: rgba(255,255,255,0.18);
           border-radius: 999px;
         }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255,255,255,0.3);
-        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
 
         @media (min-width: 1024px) {
-          .host-shell {
-            height: 100dvh;
-            min-height: 0;
-            overflow: hidden;
-          }
-
-          .host-layout {
-            height: 100%;
-            min-height: 0;
-          }
-
-          .host-stage,
-          .host-sidebar {
-            height: 100%;
-            min-height: 0;
-          }
+          .host-shell { height: 100dvh; min-height: 0; overflow: hidden; }
+          .host-layout { height: 100%; min-height: 0; }
+          .host-stage, .host-sidebar { height: 100%; min-height: 0; }
         }
 
         @media (min-width: 1024px) and (max-height: 850px) {
-          .host-header {
-            padding-top: 0.7rem;
-            padding-bottom: 0.7rem;
-          }
-
-          .host-stage {
-            padding: 1rem 1.25rem;
-          }
-
-          .host-record-wrap {
-            margin-bottom: 0.9rem;
-          }
-
-          .host-record {
-            width: clamp(132px, 21vh, 190px);
-            height: clamp(132px, 21vh, 190px);
-          }
-
-          .host-track-title {
-            font-size: clamp(1.45rem, 3vw, 2.55rem);
-            margin-bottom: 0.2rem;
-          }
-
-          .host-track-artist {
-            margin-bottom: 0.75rem;
-          }
-
-          .host-script-card {
-            padding: 0.85rem;
-            margin-bottom: 0.8rem;
-          }
-
-          .host-script-copy {
-            max-height: 130px;
-          }
-
-          .host-actions {
-            gap: 0.65rem;
-          }
-
-          .host-actions > button {
-            padding-top: 0.8rem;
-            padding-bottom: 0.8rem;
-          }
-
-          .host-sidebar {
-            padding: 0.9rem;
-            gap: 0.85rem;
-          }
-
-          .host-claims {
-            flex-basis: 47%;
-            max-height: 47%;
-          }
+          .host-header { padding-top: 0.7rem; padding-bottom: 0.7rem; }
+          .host-stage { padding: 1rem 1.25rem; }
+          .host-record-wrap { margin-bottom: 0.9rem; }
+          .host-record { width: clamp(132px, 21vh, 190px); height: clamp(132px, 21vh, 190px); }
+          .host-track-title { font-size: clamp(1.45rem, 3vw, 2.55rem); margin-bottom: 0.2rem; }
+          .host-track-artist { margin-bottom: 0.75rem; }
+          .host-script-card { padding: 0.85rem; margin-bottom: 0.8rem; }
+          .host-script-copy { max-height: 130px; }
+          .host-actions { gap: 0.65rem; }
+          .host-actions > button { padding-top: 0.8rem; padding-bottom: 0.8rem; }
+          .host-sidebar { padding: 0.9rem; gap: 0.85rem; }
+          .host-claims { flex-basis: 47%; max-height: 47%; }
         }
 
         @media (min-width: 1024px) and (max-height: 720px) {
-          .host-record-wrap {
-            margin-bottom: 0.65rem;
-          }
-
-          .host-record {
-            width: clamp(110px, 18vh, 145px);
-            height: clamp(110px, 18vh, 145px);
-          }
-
-          .host-track-title {
-            font-size: clamp(1.3rem, 2.7vw, 2.15rem);
-          }
-
-          .host-track-artist {
-            font-size: 0.72rem;
-            margin-bottom: 0.55rem;
-          }
-
-          .host-script-card {
-            margin-bottom: 0.55rem;
-          }
-
-          .host-script-copy {
-            max-height: 92px;
-          }
-
-          .host-sidebar {
-            padding: 0.75rem;
-            gap: 0.7rem;
-          }
+          .host-record-wrap { margin-bottom: 0.65rem; }
+          .host-record { width: clamp(110px, 18vh, 145px); height: clamp(110px, 18vh, 145px); }
+          .host-track-title { font-size: clamp(1.3rem, 2.7vw, 2.15rem); }
+          .host-track-artist { font-size: 0.72rem; margin-bottom: 0.55rem; }
+          .host-script-card { margin-bottom: 0.55rem; }
+          .host-script-copy { max-height: 92px; }
+          .host-sidebar { padding: 0.75rem; gap: 0.7rem; }
         }
       `}</style>
     </div>
@@ -1007,9 +902,7 @@ const HistoryItem: React.FC<{ songKey: string, label: string, isCurrent: boolean
   
   useEffect(() => {
     const { title, artist } = splitSong(songKey);
-    lookupPreview(title, artist).then(res => {
-      setData({ title, artist, artworkUrl: res.artworkUrl });
-    });
+    lookupPreview(title, artist).then(res => setData({ title, artist, artworkUrl: res.artworkUrl }));
   }, [songKey]);
   
   if (!data) return null;
