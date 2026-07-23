@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { subscribeToGameState, submitClaim, pingPresence, sendReaction } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, WIN_PATTERNS } from '../lib/data';
@@ -9,7 +10,6 @@ import { playPopSound, playNearWinChime, playBingoFanfare } from '../lib/soundEf
 const BOARD_STATE_KEY = 'music_bingo_board_state_v3';
 const PLAYER_NAME_KEY = 'music_bingo_player_name';
 
-// Upgraded to categorized groups for a much cleaner UI
 const EMOJI_GROUPS = [
   { label: 'Hype', emojis: ['🔥', '🙌', '🤯', '⚡'] },
   { label: 'Vibe', emojis: ['🕺', '💃', '🪩', '🎧'] },
@@ -78,7 +78,6 @@ function StageBackground({ theme, celebratory = false }: { theme: AmbientTheme; 
           0%, 100% { filter: hue-rotate(0deg) saturate(1.05); transform: scale(1); }
           50% { filter: hue-rotate(36deg) saturate(1.28); transform: scale(1.08); }
         }
-        /* Modal & Popover pop-in animation */
         @keyframes popIn {
           0% { opacity: 0; transform: scale(0.95) translateY(10px); }
           100% { opacity: 1; transform: scale(1) translateY(0); }
@@ -127,6 +126,8 @@ export default function Board() {
   const [inLobby, setInLobby] = useState(true);
   const [waiting, setWaiting] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [pickerCoords, setPickerCoords] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const reactButtonRef = useRef<HTMLButtonElement>(null);
 
   const [boardSongs, setBoardSongs] = useState<string[]>([]);
   const [selected, setSelected] = useState<boolean[]>(Array(25).fill(false));
@@ -142,6 +143,17 @@ export default function Board() {
   const [hasConfirmedWin, setHasConfirmedWin] = useState(false);
 
   const prevNearWinsCount = useRef(0);
+
+  const toggleEmojiPicker = () => {
+    if (!showEmojiPicker && reactButtonRef.current) {
+      const rect = reactButtonRef.current.getBoundingClientRect();
+      setPickerCoords({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setShowEmojiPicker((prev) => !prev);
+  };
 
   useEffect(() => {
     let pingInterval: number;
@@ -358,8 +370,7 @@ export default function Board() {
 
   const handleSendReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
-    // Added: Re-use the pop sound so sending a reaction feels physically responsive
-    playPopSound(true); 
+    playPopSound(true);
     try {
       await sendReaction(playerName, emoji);
       showToast(`Sent ${emoji} to the big screen!`);
@@ -474,28 +485,33 @@ export default function Board() {
               <span className="hidden sm:inline">How To Play</span>
             </button>
 
-            <div className="relative">
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
-                title="Send a reaction to the stage screen"
-              >
-                <SmilePlus size={14} className="text-[#ff4fd8] 2xl:h-4 2xl:w-4" />
-                <span className="hidden sm:inline">React</span>
-              </button>
+            <button
+              ref={reactButtonRef}
+              onClick={toggleEmojiPicker}
+              className={`relative flex items-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] hover:bg-white/[0.09] 2xl:px-4 2xl:py-2.5 2xl:text-sm ${secondaryGlass}`}
+              title="Send a reaction to the stage screen"
+            >
+              <SmilePlus size={14} className="text-[#ff4fd8] 2xl:h-4 2xl:w-4" />
+              <span className="hidden sm:inline">React</span>
+            </button>
 
-              {showEmojiPicker && (
+            {showEmojiPicker &&
+              createPortal(
                 <>
-                  {/* Added: A subtle dark tint and blur to push the board into the background when the menu is open */} <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] transition-all duration-300" onClick={() => setShowEmojiPicker(false)} />
-                  <div className={`animate-pop-in absolute right-0 top-full z-[100] mt-3 w-[280px] origin-top-right rounded-[24px] p-5 ${floatingGlass}`}>
-                    {/* Added: A dark contrast underlay to block out the bright animated stage background */}
+                  <div
+                    className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-[3px] transition-all duration-300"
+                    onClick={() => setShowEmojiPicker(false)}
+                  />
+                  <div
+                    style={{ top: `${pickerCoords.top}px`, right: `${pickerCoords.right}px` }}
+                    className={`animate-pop-in fixed z-[9999] w-[280px] rounded-[24px] p-5 ${floatingGlass}`}
+                  >
                     <div className="pointer-events-none absolute inset-0 rounded-[24px] bg-[#070b16]/80" />
                     <div className="pointer-events-none absolute inset-0 rounded-[24px] bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_30%,transparent_70%,rgba(255,255,255,0.12))]" />
-                    
+
                     <div className="relative z-10 flex flex-col gap-4">
                       {EMOJI_GROUPS.map((group) => (
                         <div key={group.label}>
-                          {/* Brightened the category text from 40% to 75% opacity and added a drop shadow */}
                           <div className="mb-2 ml-1 text-[11px] font-black uppercase tracking-[0.24em] text-white/75 drop-shadow-md">
                             {group.label}
                           </div>
@@ -504,10 +520,8 @@ export default function Board() {
                               <button
                                 key={emoji}
                                 onClick={() => handleSendReaction(emoji)}
-                                /* Added: Borders, dark box shadows, and slightly stronger backgrounds to the buttons */
                                 className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.08] text-2xl shadow-[0_8px_16px_rgba(0,0,0,0.4)] transition-all hover:scale-110 hover:border-white/25 hover:bg-white/[0.18] hover:shadow-[0_8px_20px_rgba(255,255,255,0.12)] active:scale-95"
                               >
-                                {/* Added: A drop shadow directly to the emoji to make the icon itself pop */}
                                 <span className="drop-shadow-lg">{emoji}</span>
                               </button>
                             ))}
@@ -516,9 +530,9 @@ export default function Board() {
                       ))}
                     </div>
                   </div>
-                </>
+                </>,
+                document.body
               )}
-            </div>
 
             <button
               className={`relative overflow-hidden rounded-xl px-5 py-2.5 text-xs font-black transition-all duration-300 md:px-6 md:text-sm 2xl:px-8 2xl:py-3 2xl:text-base active:scale-[0.96] ${
@@ -643,31 +657,27 @@ export default function Board() {
                         <span className="text-[9px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] sm:text-[10px] md:text-base 2xl:text-xl">FREE</span>
                       </div>
                     ) : (
-                      <div 
+                      <div
                         className="relative z-10 flex h-full w-full flex-col overflow-y-auto px-1 py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                        /* Turns this specific tile into a measurement container */
                         style={{ containerType: 'inline-size' }}
                       >
                         <div className="my-auto flex w-full flex-col">
-                          <div 
+                          <div
                             className="w-full text-balance font-black leading-[1.15] text-white drop-shadow-md"
-                            style={{ 
-                              /* 18cqi = 18% of the tile's width. Clamps between 7.5px and 19px */
-                              fontSize: 'clamp(7.5px, 18cqi, 19px)', 
-                              /* Prevent word splitting unless a single word is literally wider than the whole tile */
-                              wordBreak: 'normal', 
-                              overflowWrap: 'break-word' 
+                            style={{
+                              fontSize: 'clamp(7.5px, 18cqi, 19px)',
+                              wordBreak: 'normal',
+                              overflowWrap: 'break-word',
                             }}
                           >
                             {title}
                           </div>
-                          <div 
+                          <div
                             className={`mt-[3px] w-full text-balance font-bold leading-tight drop-shadow-md md:mt-1 ${isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'}`}
-                            style={{ 
-                              /* 13cqi = 13% of the tile's width. Clamps between 6px and 14px */
+                            style={{
                               fontSize: 'clamp(6px, 13cqi, 14px)',
-                              wordBreak: 'normal', 
-                              overflowWrap: 'break-word'
+                              wordBreak: 'normal',
+                              overflowWrap: 'break-word',
                             }}
                           >
                             {artist}
