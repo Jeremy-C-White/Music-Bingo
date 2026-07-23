@@ -641,12 +641,15 @@ export default function Board() {
                         <span className="text-[9px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] sm:text-[10px] md:text-base 2xl:text-xl">FREE</span>
                       </div>
                     ) : (
-                      <div className="relative z-10 w-full px-0.5 sm:px-1">
-                        <div className="line-clamp-3 text-balance text-[8px] font-black leading-[1.1] text-white drop-shadow-md sm:text-[10px] sm:leading-tight md:text-[13px] 2xl:text-[16px] 3xl:text-[19px]">
-                          {title}
-                        </div>
-                        <div className={`mt-0.5 line-clamp-2 text-balance text-[6px] font-bold drop-shadow-md sm:text-[8px] md:mt-1 md:text-[9px] 2xl:text-[12px] 3xl:text-[14px] ${isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'}`}>
-                          {artist}
+                      <div className="relative z-10 flex h-full w-full flex-col overflow-y-auto px-0.5 py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-1">
+                        {/* my-auto ensures short text centers, but long text can scroll without the top getting clipped by flexbox */}
+                        <div className="my-auto flex w-full flex-col">
+                          <div className="w-full text-balance break-words text-[8.5px] font-black leading-[1.15] text-white drop-shadow-md sm:text-[10px] sm:leading-[1.2] md:text-xs 2xl:text-[15px] 3xl:text-[17px]">
+                            {title}
+                          </div>
+                          <div className={`mt-[3px] w-full text-balance break-words text-[6.5px] font-bold leading-tight drop-shadow-md sm:mt-1 sm:text-[8px] md:mt-1.5 md:text-[10px] 2xl:text-[12px] 3xl:text-[14px] ${isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'}`}>
+                            {artist}
+                          </div>
                         </div>
                       </div>
                     )}
