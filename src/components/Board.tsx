@@ -485,23 +485,28 @@ export default function Board() {
               {showEmojiPicker && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowEmojiPicker(false)} />
-                  <div className={`animate-pop-in absolute right-0 top-full z-[100] mt-3 w-64 origin-top-right rounded-[24px] p-4 ${floatingGlass}`}>
+                  <div className={`animate-pop-in absolute right-0 top-full z-[100] mt-3 w-[280px] origin-top-right rounded-[24px] p-5 ${floatingGlass}`}>
+                    {/* Added: A dark contrast underlay to block out the bright animated stage background */}
+                    <div className="pointer-events-none absolute inset-0 rounded-[24px] bg-[#070b16]/80" />
                     <div className="pointer-events-none absolute inset-0 rounded-[24px] bg-[linear-gradient(135deg,rgba(255,255,255,0.16),transparent_30%,transparent_70%,rgba(255,255,255,0.12))]" />
                     
-                    <div className="relative flex flex-col gap-3.5">
+                    <div className="relative z-10 flex flex-col gap-4">
                       {EMOJI_GROUPS.map((group) => (
                         <div key={group.label}>
-                          <div className="mb-1.5 ml-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+                          {/* Brightened the category text from 40% to 75% opacity and added a drop shadow */}
+                          <div className="mb-2 ml-1 text-[11px] font-black uppercase tracking-[0.24em] text-white/75 drop-shadow-md">
                             {group.label}
                           </div>
-                          <div className="grid grid-cols-4 gap-2">
+                          <div className="grid grid-cols-4 gap-2.5">
                             {group.emojis.map((emoji) => (
                               <button
                                 key={emoji}
                                 onClick={() => handleSendReaction(emoji)}
-                                className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.06] text-2xl transition-all hover:scale-110 hover:bg-white/[0.12] active:scale-95"
+                                /* Added: Borders, dark box shadows, and slightly stronger backgrounds to the buttons */
+                                className="relative flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.08] text-2xl shadow-[0_8px_16px_rgba(0,0,0,0.4)] transition-all hover:scale-110 hover:border-white/25 hover:bg-white/[0.18] hover:shadow-[0_8px_20px_rgba(255,255,255,0.12)] active:scale-95"
                               >
-                                {emoji}
+                                {/* Added: A drop shadow directly to the emoji to make the icon itself pop */}
+                                <span className="drop-shadow-lg">{emoji}</span>
                               </button>
                             ))}
                           </div>
