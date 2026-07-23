@@ -358,6 +358,8 @@ export default function Board() {
 
   const handleSendReaction = async (emoji: string) => {
     setShowEmojiPicker(false);
+    // Added: Re-use the pop sound so sending a reaction feels physically responsive
+    playPopSound(true); 
     try {
       await sendReaction(playerName, emoji);
       showToast(`Sent ${emoji} to the big screen!`);
