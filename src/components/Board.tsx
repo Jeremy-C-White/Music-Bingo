@@ -641,13 +641,33 @@ export default function Board() {
                         <span className="text-[9px] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] sm:text-[10px] md:text-base 2xl:text-xl">FREE</span>
                       </div>
                     ) : (
-                      <div className="relative z-10 flex h-full w-full flex-col overflow-y-auto px-0.5 py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:px-1">
-                        {/* my-auto ensures short text centers, but long text can scroll without the top getting clipped by flexbox */}
+                      <div 
+                        className="relative z-10 flex h-full w-full flex-col overflow-y-auto px-1 py-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                        /* Turns this specific tile into a measurement container */
+                        style={{ containerType: 'inline-size' }}
+                      >
                         <div className="my-auto flex w-full flex-col">
-                          <div className="w-full text-balance break-words text-[8.5px] font-black leading-[1.15] text-white drop-shadow-md sm:text-[10px] sm:leading-[1.2] md:text-xs 2xl:text-[15px] 3xl:text-[17px]">
+                          <div 
+                            className="w-full text-balance font-black leading-[1.15] text-white drop-shadow-md"
+                            style={{ 
+                              /* 18cqi = 18% of the tile's width. Clamps between 7.5px and 19px */
+                              fontSize: 'clamp(7.5px, 18cqi, 19px)', 
+                              /* Prevent word splitting unless a single word is literally wider than the whole tile */
+                              wordBreak: 'normal', 
+                              overflowWrap: 'break-word' 
+                            }}
+                          >
                             {title}
                           </div>
-                          <div className={`mt-[3px] w-full text-balance break-words text-[6.5px] font-bold leading-tight drop-shadow-md sm:mt-1 sm:text-[8px] md:mt-1.5 md:text-[10px] 2xl:text-[12px] 3xl:text-[14px] ${isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'}`}>
+                          <div 
+                            className={`mt-[3px] w-full text-balance font-bold leading-tight drop-shadow-md md:mt-1 ${isSelected ? 'text-white/[0.92]' : 'text-[#ffd76a]'}`}
+                            style={{ 
+                              /* 13cqi = 13% of the tile's width. Clamps between 6px and 14px */
+                              fontSize: 'clamp(6px, 13cqi, 14px)',
+                              wordBreak: 'normal', 
+                              overflowWrap: 'break-word'
+                            }}
+                          >
                             {artist}
                           </div>
                         </div>
