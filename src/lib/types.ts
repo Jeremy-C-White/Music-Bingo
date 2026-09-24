@@ -7,6 +7,7 @@ export interface GameState {
   updatedAt: number;
   trackStartedAt?: number | null;
   nextTrackAt?: number | null;
+  trackEndedAt?: number | null;
 }
 
 export interface Claim {

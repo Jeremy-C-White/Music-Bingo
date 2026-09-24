@@ -1,20 +1,24 @@
 import type { GameState } from './types';
 
-// iTunes previews are normally 30 seconds. Two extra seconds give the room a
-// natural breath before Auto-Caller advances, while keeping one shared clock.
-export const TRACK_CYCLE_SECONDS = 32;
+// iTunes previews are normally 30 seconds. The fallback cycle includes a small
+// loading allowance plus a five-second room breather. When audio actually ends,
+// the shared deadline is tightened to exactly five seconds after that moment.
+export const INTER_TRACK_DELAY_SECONDS = 5;
+export const TRACK_CYCLE_SECONDS = 37;
 export const TRACK_CYCLE_MS = TRACK_CYCLE_SECONDS * 1000;
+export const INTER_TRACK_DELAY_MS = INTER_TRACK_DELAY_SECONDS * 1000;
 
 export type TrackTiming = {
   remainingMs: number;
   remainingSeconds: number;
   progress: number;
   isComplete: boolean;
+  isInterTrackDelay: boolean;
 };
 
 export function getTrackTiming(gameState: GameState | null, now = Date.now()): TrackTiming {
   if (!gameState?.started || !gameState.nowPlaying) {
-    return { remainingMs: 0, remainingSeconds: 0, progress: 0, isComplete: false };
+    return { remainingMs: 0, remainingSeconds: 0, progress: 0, isComplete: false, isInterTrackDelay: false };
   }
 
   const startedAt = gameState.trackStartedAt
@@ -29,5 +33,6 @@ export function getTrackTiming(gameState: GameState | null, now = Date.now()): T
     remainingSeconds: Math.ceil(remainingMs / 1000),
     progress: Math.min(1, elapsed / duration),
     isComplete: now >= endsAt,
+    isInterTrackDelay: typeof gameState.trackEndedAt === 'number' && now < endsAt,
   };
 }

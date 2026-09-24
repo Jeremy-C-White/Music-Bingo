@@ -1,9 +1,9 @@
 import { handleFirestoreError, OperationType } from './firebase-error';
 import { db } from './firebase';
-import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, getDocs, deleteDoc, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, getDocs, deleteDoc, limit, runTransaction } from 'firebase/firestore';
 import { GameState, Claim } from './types';
 import { songs, WIN_PATTERNS } from './data';
-import { TRACK_CYCLE_MS } from './timing';
+import { INTER_TRACK_DELAY_MS, TRACK_CYCLE_MS } from './timing';
 
 export const GAME_DOC_ID = 'current';
 const gameDocRef = doc(db, 'games', GAME_DOC_ID);
@@ -22,6 +22,7 @@ export function subscribeToGameState(callback: (state: GameState | null) => void
         updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
         trackStartedAt: typeof data.trackStartedAt === 'number' ? data.trackStartedAt : null,
         nextTrackAt: typeof data.nextTrackAt === 'number' ? data.nextTrackAt : null,
+        trackEndedAt: typeof data.trackEndedAt === 'number' ? data.trackEndedAt : null,
       });
     } else {
       callback(null);
@@ -62,7 +63,8 @@ export async function startNewGame() {
     visualizerAudioActive: false,
     updatedAt: Date.now(),
     trackStartedAt: null,
-    nextTrackAt: null
+    nextTrackAt: null,
+    trackEndedAt: null
   });
   
   return sessionId;
@@ -82,7 +84,8 @@ export async function resetGame() {
       visualizerAudioActive: false,
       updatedAt: Date.now(),
       trackStartedAt: null,
-      nextTrackAt: null
+      nextTrackAt: null,
+      trackEndedAt: null
     });
 
     // Clear claims subcollection
@@ -103,11 +106,33 @@ export async function setNowPlaying(songKey: string, history: string[]) {
     history: history,
     updatedAt: trackStartedAt,
     trackStartedAt,
-    nextTrackAt: trackStartedAt + TRACK_CYCLE_MS
+    nextTrackAt: trackStartedAt + TRACK_CYCLE_MS,
+    trackEndedAt: null
   });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'games/current');
     throw err;
+  }
+}
+
+export async function markTrackEnded(songKey: string) {
+  try {
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(gameDocRef);
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.data() as Partial<GameState>;
+      if (data.nowPlaying !== songKey || typeof data.trackEndedAt === 'number') return;
+
+      const trackEndedAt = Date.now();
+      transaction.update(gameDocRef, {
+        trackEndedAt,
+        nextTrackAt: trackEndedAt + INTER_TRACK_DELAY_MS,
+        updatedAt: trackEndedAt,
+      });
+    });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
   }
 }
 

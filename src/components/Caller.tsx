@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, dismissClaim, subscribeToPlayerCount } from '../lib/store';
+import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, markTrackEnded, dismissClaim, subscribeToPlayerCount } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
@@ -405,7 +405,10 @@ export default function Caller() {
                 const { currentTime, duration } = e.currentTarget;
                 if (duration) setAudioProgress((currentTime / duration) * 100);
               }}
-              onEnded={() => setAudioProgress(100)}
+              onEnded={() => {
+                setAudioProgress(100);
+                if (gameState?.nowPlaying) void markTrackEnded(gameState.nowPlaying);
+              }}
               className="hidden" 
             />
 
@@ -550,7 +553,7 @@ export default function Caller() {
                     {autoCallerActive && (
                       <span className="font-mono text-white font-bold text-xs sm:text-sm border-r border-white/10 pr-3 sm:pr-4 whitespace-nowrap">
                         {gameState.nowPlaying
-                          ? `Next 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}`
+                          ? `${trackTiming.isInterTrackDelay ? 'Breather' : 'Next'} 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}`
                           : 'Starting...'}
                       </span>
                     )}
@@ -794,7 +797,11 @@ export default function Caller() {
                 <span>{activeHostCue.kicker}</span>
                 {gameState.nowPlaying && (
                   <span className="text-white/40 tracking-widest font-mono bg-white/10 px-2 py-1 rounded-md">
-                    {trackTiming.isComplete ? 'READY FOR NEXT' : `${trackTiming.remainingSeconds}s to next track`}
+                    {trackTiming.isComplete
+                      ? 'READY FOR NEXT'
+                      : trackTiming.isInterTrackDelay
+                        ? `${trackTiming.remainingSeconds}s room breather`
+                        : `${trackTiming.remainingSeconds}s to next track`}
                   </span>
                 )}
               </div>

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import confetti from 'canvas-confetti';
-import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subscribeToReactions, Reaction } from '../lib/store';
+import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subscribeToReactions, markTrackEnded, Reaction } from '../lib/store';
 import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
@@ -37,8 +37,15 @@ export default function Visualizer() {
   const [clockNow, setClockNow] = useState(Date.now());
   const [audioUnlocked, setAudioUnlocked] = useState(false);
   const trackTiming = getTrackTiming(gameState, clockNow);
-  const progress = trackTiming.progress;
   const remaining = trackTiming.remainingSeconds;
+  const progressAnimation = useMemo(() => {
+    const timing = getTrackTiming(gameState, Date.now());
+    return {
+      key: `${gameState?.sessionId ?? 'idle'}-${gameState?.nowPlaying ?? 'none'}-${gameState?.nextTrackAt ?? 0}`,
+      initialProgress: timing.progress,
+      remainingMs: timing.remainingMs,
+    };
+  }, [gameState?.sessionId, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt]);
 
   useEffect(() => {
     const unlockAudio = () => {
@@ -516,6 +523,8 @@ export default function Visualizer() {
         @keyframes mbDiscoSpin { to { background-position: 72px 36px; transform: rotate(360deg); } }
         @keyframes mbTrackStamp { 0% { opacity: 0; transform: scale(.35) rotate(-7deg); filter: blur(12px); } 16% { opacity: 1; transform: scale(1.06) rotate(1deg); filter: blur(0); } 76% { opacity: 1; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.2); } }
         @keyframes mbReactionHalo { 0%,100% { transform: scale(.7); opacity: .15; } 50% { transform: scale(1.2); opacity: .55; } }
+        @keyframes mbCountdownBar { to { transform: scaleX(1); } }
+        @keyframes mbCountdownRing { to { stroke-dashoffset: 0; } }
 
         .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
         .mb-spotlight { transform-origin: 50% 0%; mix-blend-mode: screen; filter: blur(18px); opacity: var(--bass-light, .55); }
@@ -875,10 +884,13 @@ export default function Visualizer() {
                   <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_34px_rgba(var(--scene-a-rgb),0.42)]" viewBox="0 0 400 400">
                     <circle cx="200" cy="200" r="188" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="11" />
                     <circle
+                      key={`ring-${progressAnimation.key}`}
                       cx="200" cy="200" r="188" fill="none" stroke="var(--scene-c)" strokeWidth="11" strokeLinecap="round"
-                      strokeDasharray="1181" strokeDashoffset={1181 * (1 - progress)}
-                      className="transition-all duration-150 ease-linear"
-                      style={{ filter: `drop-shadow(0 0 10px ${theme.c})` }}
+                      strokeDasharray="1181" strokeDashoffset={1181 * (1 - progressAnimation.initialProgress)}
+                      style={{
+                        filter: `drop-shadow(0 0 10px ${theme.c})`,
+                        animation: progressAnimation.remainingMs > 0 ? `mbCountdownRing ${progressAnimation.remainingMs}ms linear forwards` : undefined,
+                      }}
                     />
                   </svg>
 
@@ -985,11 +997,22 @@ export default function Visualizer() {
               <div className="flex items-center gap-3 sm:gap-5">
                 <div className="flex-1 min-w-0">
                   <div className="w-full h-1.5 sm:h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-all ease-linear shadow-[0_0_20px_var(--scene-a)]" style={{ width: `${progress * 100}%` }}></div>
+                    <div
+                      key={`bar-${progressAnimation.key}`}
+                      className="h-full w-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] shadow-[0_0_20px_var(--scene-a)]"
+                      style={{
+                        transformOrigin: 'left center',
+                        transform: `scaleX(${progressAnimation.initialProgress})`,
+                        animation: progressAnimation.remainingMs > 0 ? `mbCountdownBar ${progressAnimation.remainingMs}ms linear forwards` : undefined,
+                        willChange: 'transform',
+                      }}
+                    />
                   </div>
-                  <div className="mt-2 text-[9px] sm:text-[10px] lg:text-xs font-bold tracking-[0.22em] uppercase text-white/40">Track Countdown</div>
+                  <div className={`mt-2 text-[9px] sm:text-[10px] lg:text-xs font-black tracking-[0.22em] uppercase ${trackTiming.isInterTrackDelay ? 'text-[#ffd76a]' : 'text-white/40'}`}>
+                    {trackTiming.isInterTrackDelay ? 'Next Track In' : 'Track Countdown'}
+                  </div>
                 </div>
-                <div className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_40px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
+                <div aria-live="polite" className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${trackTiming.isInterTrackDelay ? 'text-[#ffd76a] drop-shadow-[0_0_40px_#ffd76a] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
                   0:{String(remaining).padStart(2, '0')}
                 </div>
               </div>
@@ -1098,6 +1121,9 @@ export default function Visualizer() {
       <audio 
         ref={audioRef} 
         preload="auto" 
+        onEnded={() => {
+          if (gameState?.nowPlaying) void markTrackEnded(gameState.nowPlaying);
+        }}
         onError={() => {
           if (audioRef.current && audioRef.current.src !== "https://whije02.github.io/song/Nimbus.mp3") {
             audioRef.current.src = "https://whije02.github.io/song/Nimbus.mp3";
