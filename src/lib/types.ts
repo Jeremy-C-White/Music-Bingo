@@ -5,6 +5,8 @@ export interface GameState {
   history: string[];
   visualizerAudioActive: boolean;
   updatedAt: number;
+  trackStartedAt?: number | null;
+  nextTrackAt?: number | null;
 }
 
 export interface Claim {

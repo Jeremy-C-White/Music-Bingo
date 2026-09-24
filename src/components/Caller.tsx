@@ -5,6 +5,7 @@ import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
 import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Maximize2, Minimize2, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play, Volume2, VolumeX, Keyboard } from 'lucide-react';
 import { playCallSound } from '../lib/soundEffects';
+import { getTrackTiming } from '../lib/timing';
 
 type HostCue = {
   kicker: string;
@@ -145,7 +146,9 @@ export default function Caller() {
   const [activePlayers, setActivePlayers] = useState(0);
   
   const [callInFlight, setCallInFlight] = useState(false);
+  const callInFlightRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const sessionIdRef = useRef<string | null>(null);
   
   // Upgraded: Host Volume & Audio Progress tracking
   const [volume, setVolume] = useState(0.6);
@@ -161,8 +164,7 @@ export default function Caller() {
   
   // Auto-Caller Mode state
   const [autoCallerActive, setAutoCallerActive] = useState(false);
-  const [autoIntervalSeconds] = useState(20);
-  const [autoCountdown, setAutoCountdown] = useState(20);
+  const [clockNow, setClockNow] = useState(Date.now());
  
   // Spacebar Hotkey Setup
   useEffect(() => {
@@ -184,17 +186,24 @@ export default function Caller() {
       setGameState(state);
       // Lock host audio if the visualizer is playing to prevent echo
       setIsAudioLocked(state?.visualizerAudioActive || false);
+
+      if (state?.sessionId && sessionIdRef.current && state.sessionId !== sessionIdRef.current) {
+        setAutoCallerActive(false);
+        setAudioProgress(0);
+        setClockNow(Date.now());
+      }
+      sessionIdRef.current = state?.sessionId ?? null;
       
       if (state) {
         const calledSet = new Set(state.history);
         if (state.nowPlaying) calledSet.add(state.nowPlaying);
         
-        if (pool.length === 0 || (!state.started && pool.length < songs.length)) {
-          const fresh = shuffle(songs);
-          setPool(fresh.filter(s => !calledSet.has(s)));
-        } else {
-          setPool(prev => prev.filter(s => !calledSet.has(s)));
-        }
+        setPool(prev => {
+          if (prev.length === 0 || !state.started) {
+            return shuffle(songs).filter(s => !calledSet.has(s));
+          }
+          return prev.filter(s => !calledSet.has(s));
+        });
         
         if (state.nowPlaying) {
           const { title, artist } = splitSong(state.nowPlaying);
@@ -211,31 +220,31 @@ export default function Caller() {
     
     const unsubClaims = subscribeToClaims((allClaims) => setClaims(allClaims));
     return () => { unsubState(); unsubClaims(); };
-  }, [pool.length]);
+  }, []);
  
   useEffect(() => {
     const unsubPlayers = subscribeToPlayerCount((count) => setActivePlayers(count));
     return () => unsubPlayers();
   }, []);
  
-  // Auto-Caller interval timer logic
+  // Keep every visible countdown tied to the same persisted track window.
   useEffect(() => {
-    let timer: number;
-    if (autoCallerActive && gameState?.started && pool.length > 0) {
-      timer = window.setInterval(() => {
-        setAutoCountdown((prev) => {
-          if (prev <= 1) {
-            handleCallNext();
-            return autoIntervalSeconds;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      setAutoCountdown(autoIntervalSeconds);
-    }
+    setClockNow(Date.now());
+    if (!gameState?.started || !gameState.nowPlaying) return;
+
+    const timer = window.setInterval(() => setClockNow(Date.now()), 250);
     return () => clearInterval(timer);
-  }, [autoCallerActive, gameState?.started, pool.length, autoIntervalSeconds]);
+  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt]);
+
+  // Auto-Caller advances exactly when the shared track countdown reaches zero.
+  // If it is enabled before Track 1, the first track begins immediately.
+  useEffect(() => {
+    if (!autoCallerActive || !gameState?.started || pool.length === 0 || callInFlight) return;
+
+    const delay = gameState.nowPlaying ? getTrackTiming(gameState, Date.now()).remainingMs : 0;
+    const timer = window.setTimeout(() => void handleCallNext(), delay);
+    return () => clearTimeout(timer);
+  }, [autoCallerActive, gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, pool.length, callInFlight]);
  
   // Audio Playback Sync
   useEffect(() => {
@@ -259,6 +268,9 @@ export default function Caller() {
   }, [volume, isAudioLocked]);
  
   const handleStartGame = async () => {
+    setAutoCallerActive(false);
+    setAudioProgress(0);
+    setClockNow(Date.now());
     setCueVariation(0);
     await startNewGame();
   };
@@ -271,6 +283,12 @@ export default function Caller() {
     setShowTeleprompter(false);
     setTeleprompterStep(0);
     setCueVariation(0);
+    setAudioProgress(0);
+    setClockNow(Date.now());
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     try {
       await resetGame();
       setPool(shuffle(songs));
@@ -280,8 +298,9 @@ export default function Caller() {
   };
  
   const handleCallNext = async () => {
-    if (callInFlight || pool.length === 0 || !gameState) return;
+    if (callInFlightRef.current || pool.length === 0 || !gameState) return;
     
+    callInFlightRef.current = true;
     setCallInFlight(true);
     playCallSound();
     
@@ -291,16 +310,19 @@ export default function Caller() {
     
     try {
       await setNowPlaying(nextSong, nextHistory);
-      setAutoCountdown(autoIntervalSeconds);
+      setClockNow(Date.now());
       setCueVariation(0);
     } catch (e) {
       console.error('Could not call next track:', e);
+      setAutoCallerActive(false);
     } finally {
+      callInFlightRef.current = false;
       setCallInFlight(false);
     }
   };
  
   const validWinnersCount = claims.filter(c => c.status === 'valid').length;
+  const trackTiming = getTrackTiming(gameState, clockNow);
   const pregameCues = getPregameCues(activePlayers);
   const currentPregameStep = Math.min(teleprompterStep, pregameCues.length - 1);
   const activeHostCue = gameState?.started
@@ -516,15 +538,20 @@ export default function Caller() {
  
                 {/* Auto Caller Mode Toggle */}
                 <div className="flex items-center justify-between px-4 py-3 bg-black/35 border border-white/10 rounded-2xl text-xs shadow-inner">
-                  <div className="flex items-center gap-2 text-[#ffd76a] font-bold uppercase tracking-widest">
-                    <Clock className="w-4 h-4" />
-                    <span>Auto-Caller</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[#ffd76a] font-bold uppercase tracking-widest">
+                      <Clock className="w-4 h-4" />
+                      <span>Auto-Caller</span>
+                    </div>
+                    <p className="mt-1 text-[9px] normal-case tracking-normal text-white/35">Uses the same countdown as the stage display</p>
                   </div>
  
                   <div className="flex items-center gap-3 min-w-0">
                     {autoCallerActive && (
-                      <span className="font-mono text-white font-bold text-sm border-r border-white/10 pr-4">
-                        {autoCountdown}s
+                      <span className="font-mono text-white font-bold text-xs sm:text-sm border-r border-white/10 pr-3 sm:pr-4 whitespace-nowrap">
+                        {gameState.nowPlaying
+                          ? `Next 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}`
+                          : 'Starting...'}
                       </span>
                     )}
                     <button 
@@ -767,7 +794,7 @@ export default function Caller() {
                 <span>{activeHostCue.kicker}</span>
                 {gameState.nowPlaying && (
                   <span className="text-white/40 tracking-widest font-mono bg-white/10 px-2 py-1 rounded-md">
-                    {audioProgress < 100 ? `${Math.max(0, Math.ceil(30 - (audioProgress / 100) * 30))}s remaining` : 'ENDED'}
+                    {trackTiming.isComplete ? 'READY FOR NEXT' : `${trackTiming.remainingSeconds}s to next track`}
                   </span>
                 )}
               </div>

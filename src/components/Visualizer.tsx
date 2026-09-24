@@ -6,6 +6,7 @@ import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
 import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame, PartyPopper, Sparkles } from 'lucide-react';
+import { getTrackTiming } from '../lib/timing';
 
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -33,9 +34,11 @@ export default function Visualizer() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataArrayRef = useRef<Uint8Array | null>(null);
   
-  const [progress, setProgress] = useState(0);
-  const [remaining, setRemaining] = useState(0);
+  const [clockNow, setClockNow] = useState(Date.now());
   const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const trackTiming = getTrackTiming(gameState, clockNow);
+  const progress = trackTiming.progress;
+  const remaining = trackTiming.remainingSeconds;
 
   useEffect(() => {
     const unlockAudio = () => {
@@ -398,24 +401,12 @@ export default function Visualizer() {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (audioRef.current) {
-      interval = setInterval(() => {
-        if (audioRef.current) {
-          const current = audioRef.current.currentTime;
-          const dur = audioRef.current.duration || 30; // 30 second tracks typically
-          if (audioRef.current.ended || dur - current < 0.2) {
-            setProgress(1);
-            setRemaining(0);
-          } else if (!audioRef.current.paused) {
-            setProgress(Math.min(1, current / dur));
-            setRemaining(Math.max(0, Math.ceil(dur - current)));
-          }
-        }
-      }, 100);
-    }
+    setClockNow(Date.now());
+    if (!gameState?.started || !gameState.nowPlaying) return;
+
+    const interval = window.setInterval(() => setClockNow(Date.now()), 250);
     return () => clearInterval(interval);
-  }, []);
+  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt]);
 
   const themes = [
     { a: '#33d8ff', b: '#ff4fd8', c: '#ffd76a', ar: '51,216,255', br: '255,79,216', cr: '255,215,106' },
@@ -996,7 +987,7 @@ export default function Visualizer() {
                   <div className="w-full h-1.5 sm:h-2 rounded-full bg-white/10 overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] transition-all ease-linear shadow-[0_0_20px_var(--scene-a)]" style={{ width: `${progress * 100}%` }}></div>
                   </div>
-                  <div className="mt-2 text-[9px] sm:text-[10px] lg:text-xs font-bold tracking-[0.22em] uppercase text-white/40">Track Preview Countdown</div>
+                  <div className="mt-2 text-[9px] sm:text-[10px] lg:text-xs font-bold tracking-[0.22em] uppercase text-white/40">Track Countdown</div>
                 </div>
                 <div className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${remaining <= 5 && remaining > 0 ? 'text-[#f87171] drop-shadow-[0_0_40px_#f87171] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
                   0:{String(remaining).padStart(2, '0')}

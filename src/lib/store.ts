@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, getDocs, deleteDoc, limit } from 'firebase/firestore';
 import { GameState, Claim } from './types';
 import { songs, WIN_PATTERNS } from './data';
+import { TRACK_CYCLE_MS } from './timing';
 
 export const GAME_DOC_ID = 'current';
 const gameDocRef = doc(db, 'games', GAME_DOC_ID);
@@ -19,6 +20,8 @@ export function subscribeToGameState(callback: (state: GameState | null) => void
         history: Array.isArray(data.history) ? data.history : [],
         visualizerAudioActive: data.visualizerAudioActive === true,
         updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+        trackStartedAt: typeof data.trackStartedAt === 'number' ? data.trackStartedAt : null,
+        nextTrackAt: typeof data.nextTrackAt === 'number' ? data.nextTrackAt : null,
       });
     } else {
       callback(null);
@@ -57,7 +60,9 @@ export async function startNewGame() {
     nowPlaying: null,
     history: [],
     visualizerAudioActive: false,
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
+    trackStartedAt: null,
+    nextTrackAt: null
   });
   
   return sessionId;
@@ -75,7 +80,9 @@ export async function resetGame() {
       nowPlaying: null,
       history: [],
       visualizerAudioActive: false,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      trackStartedAt: null,
+      nextTrackAt: null
     });
 
     // Clear claims subcollection
@@ -90,10 +97,13 @@ export async function resetGame() {
 
 export async function setNowPlaying(songKey: string, history: string[]) {
   try {
+  const trackStartedAt = Date.now();
   await updateDoc(gameDocRef, {
     nowPlaying: songKey,
     history: history,
-    updatedAt: Date.now()
+    updatedAt: trackStartedAt,
+    trackStartedAt,
+    nextTrackAt: trackStartedAt + TRACK_CYCLE_MS
   });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'games/current');
