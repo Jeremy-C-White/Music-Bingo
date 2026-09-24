@@ -6,7 +6,7 @@ import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
 import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame, PartyPopper, Sparkles } from 'lucide-react';
-import { getTrackTiming, INTER_TRACK_DELAY_SECONDS } from '../lib/timing';
+import { getAutoStartTiming, getTrackTiming, INTER_TRACK_DELAY_SECONDS } from '../lib/timing';
 
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -46,8 +46,13 @@ export default function Visualizer() {
     remainingMs: 0,
   });
   const trackTiming = getTrackTiming(gameState, clockNow);
+  const autoStartTiming = getAutoStartTiming(gameState, clockNow);
   const nextTrackRemaining = trackTiming.remainingSeconds;
-  const dropCountdown = Math.min(INTER_TRACK_DELAY_SECONDS, nextTrackRemaining);
+  const autoStartRemaining = autoStartTiming.remainingSeconds;
+  const isAutoStartCountdown = !gameState?.nowPlaying && autoStartRemaining > 0;
+  const dropCountdown = isAutoStartCountdown
+    ? autoStartRemaining
+    : Math.min(INTER_TRACK_DELAY_SECONDS, nextTrackRemaining);
 
   useEffect(() => {
     const unlockAudio = () => {
@@ -428,11 +433,11 @@ export default function Visualizer() {
 
   useEffect(() => {
     setClockNow(Date.now());
-    if (!gameState?.started || !gameState.nowPlaying) return;
+    if (!gameState?.started || (!gameState.nowPlaying && typeof gameState.autoStartAt !== 'number')) return;
 
     const interval = window.setInterval(() => setClockNow(Date.now()), 250);
     return () => clearInterval(interval);
-  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt]);
+  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt]);
 
   const syncSongProgress = (audio: HTMLAudioElement, animate: boolean) => {
     if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
@@ -805,14 +810,14 @@ export default function Visualizer() {
               </div>
             )}
 
-            {/* A full-screen five-count gives the room a clear beat between songs. */}
-            {trackTiming.isInterTrackDelay && dropCountdown > 0 && (
+            {/* A full-screen five-count launches Track 1 and separates later songs. */}
+            {(isAutoStartCountdown || trackTiming.isInterTrackDelay) && dropCountdown > 0 && (
               <div className="absolute inset-0 z-[90] pointer-events-none flex items-center justify-center overflow-hidden bg-[#030612]/94 backdrop-blur-xl">
                 <div className="absolute left-1/2 top-1/2 w-[135vmax] h-[135vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .72) 0deg 2deg, transparent 2deg 11deg, rgba(${theme.cr}, .48) 11deg 13deg, transparent 13deg 24deg)`, animation: 'mbTrackBurst 5s cubic-bezier(.16,1,.3,1) forwards' }} />
                 <div className="absolute w-[48vmin] h-[48vmin] rounded-full border-[3px] opacity-80" style={{ borderColor: theme.c, boxShadow: `0 0 110px 32px rgba(${theme.ar}, .52), inset 0 0 90px rgba(${theme.br}, .45)`, animation: 'mbRingPulse 1s ease-in-out infinite' }} />
                 <div className="relative z-10 flex flex-col items-center text-center px-6">
                   <div className="text-[clamp(1rem,2.4vw,2rem)] font-black tracking-[0.34em] uppercase text-[#ffd76a] drop-shadow-[0_0_24px_#ffd76a] mb-3 sm:mb-5">
-                    Next Track Drops In
+                    {isAutoStartCountdown ? 'Track 1 Drops In' : 'Next Track Drops In'}
                   </div>
                   <div
                     key={dropCountdown}

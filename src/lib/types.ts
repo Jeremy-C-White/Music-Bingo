@@ -8,6 +8,7 @@ export interface GameState {
   trackStartedAt?: number | null;
   nextTrackAt?: number | null;
   trackEndedAt?: number | null;
+  autoStartAt?: number | null;
 }
 
 export interface Claim {

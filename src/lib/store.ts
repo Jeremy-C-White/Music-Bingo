@@ -23,6 +23,7 @@ export function subscribeToGameState(callback: (state: GameState | null) => void
         trackStartedAt: typeof data.trackStartedAt === 'number' ? data.trackStartedAt : null,
         nextTrackAt: typeof data.nextTrackAt === 'number' ? data.nextTrackAt : null,
         trackEndedAt: typeof data.trackEndedAt === 'number' ? data.trackEndedAt : null,
+        autoStartAt: typeof data.autoStartAt === 'number' ? data.autoStartAt : null,
       });
     } else {
       callback(null);
@@ -64,7 +65,8 @@ export async function startNewGame() {
     updatedAt: Date.now(),
     trackStartedAt: null,
     nextTrackAt: null,
-    trackEndedAt: null
+    trackEndedAt: null,
+    autoStartAt: null
   });
   
   return sessionId;
@@ -85,7 +87,8 @@ export async function resetGame() {
       updatedAt: Date.now(),
       trackStartedAt: null,
       nextTrackAt: null,
-      trackEndedAt: null
+      trackEndedAt: null,
+      autoStartAt: null
     });
 
     // Clear claims subcollection
@@ -107,8 +110,50 @@ export async function setNowPlaying(songKey: string, history: string[]) {
     updatedAt: trackStartedAt,
     trackStartedAt,
     nextTrackAt: trackStartedAt + TRACK_CYCLE_MS,
-    trackEndedAt: null
+    trackEndedAt: null,
+    autoStartAt: null
   });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
+    throw err;
+  }
+}
+
+export async function scheduleAutoCallerStart() {
+  try {
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(gameDocRef);
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.data() as Partial<GameState>;
+      if (data.started !== true || data.nowPlaying || typeof data.autoStartAt === 'number') return;
+
+      const now = Date.now();
+      transaction.update(gameDocRef, {
+        autoStartAt: now + INTER_TRACK_DELAY_MS,
+        updatedAt: now,
+      });
+    });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
+    throw err;
+  }
+}
+
+export async function cancelAutoCallerStart() {
+  try {
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(gameDocRef);
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.data() as Partial<GameState>;
+      if (data.nowPlaying || typeof data.autoStartAt !== 'number') return;
+
+      transaction.update(gameDocRef, {
+        autoStartAt: null,
+        updatedAt: Date.now(),
+      });
+    });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'games/current');
     throw err;

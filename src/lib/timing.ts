@@ -16,6 +16,25 @@ export type TrackTiming = {
   isInterTrackDelay: boolean;
 };
 
+export type AutoStartTiming = {
+  remainingMs: number;
+  remainingSeconds: number;
+  isActive: boolean;
+};
+
+export function getAutoStartTiming(gameState: GameState | null, now = Date.now()): AutoStartTiming {
+  if (!gameState?.started || gameState.nowPlaying || typeof gameState.autoStartAt !== 'number') {
+    return { remainingMs: 0, remainingSeconds: 0, isActive: false };
+  }
+
+  const remainingMs = Math.min(INTER_TRACK_DELAY_MS, Math.max(0, gameState.autoStartAt - now));
+  return {
+    remainingMs,
+    remainingSeconds: Math.ceil(remainingMs / 1000),
+    isActive: remainingMs > 0,
+  };
+}
+
 export function getTrackTiming(gameState: GameState | null, now = Date.now()): TrackTiming {
   if (!gameState?.started || !gameState.nowPlaying) {
     return { remainingMs: 0, remainingSeconds: 0, progress: 0, isComplete: false, isInterTrackDelay: false };

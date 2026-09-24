@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, markTrackEnded, dismissClaim, subscribeToPlayerCount } from '../lib/store';
+import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, markTrackEnded, scheduleAutoCallerStart, cancelAutoCallerStart, dismissClaim, subscribeToPlayerCount } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
 import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Maximize2, Minimize2, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play, Volume2, VolumeX, Keyboard } from 'lucide-react';
 import { playCallSound } from '../lib/soundEffects';
-import { getTrackTiming } from '../lib/timing';
+import { getAutoStartTiming, getTrackTiming } from '../lib/timing';
 
 type HostCue = {
   kicker: string;
@@ -147,6 +147,7 @@ export default function Caller() {
   
   const [callInFlight, setCallInFlight] = useState(false);
   const callInFlightRef = useRef(false);
+  const autoStartInFlightRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const sessionIdRef = useRef<string | null>(null);
   
@@ -230,21 +231,33 @@ export default function Caller() {
   // Keep every visible countdown tied to the same persisted track window.
   useEffect(() => {
     setClockNow(Date.now());
-    if (!gameState?.started || !gameState.nowPlaying) return;
+    if (!gameState?.started || (!gameState.nowPlaying && typeof gameState.autoStartAt !== 'number')) return;
 
     const timer = window.setInterval(() => setClockNow(Date.now()), 250);
     return () => clearInterval(timer);
-  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt]);
+  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt]);
 
   // Auto-Caller advances exactly when the shared track countdown reaches zero.
-  // If it is enabled before Track 1, the first track begins immediately.
+  // Before Track 1, it first schedules a shared five-second stage countdown.
   useEffect(() => {
     if (!autoCallerActive || !gameState?.started || pool.length === 0 || callInFlight) return;
 
-    const delay = gameState.nowPlaying ? getTrackTiming(gameState, Date.now()).remainingMs : 0;
+    if (!gameState.nowPlaying && typeof gameState.autoStartAt !== 'number') {
+      if (!autoStartInFlightRef.current) {
+        autoStartInFlightRef.current = true;
+        void scheduleAutoCallerStart()
+          .catch(() => setAutoCallerActive(false))
+          .finally(() => { autoStartInFlightRef.current = false; });
+      }
+      return;
+    }
+
+    const delay = gameState.nowPlaying
+      ? getTrackTiming(gameState, Date.now()).remainingMs
+      : getAutoStartTiming(gameState, Date.now()).remainingMs;
     const timer = window.setTimeout(() => void handleCallNext(), delay);
     return () => clearTimeout(timer);
-  }, [autoCallerActive, gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, pool.length, callInFlight]);
+  }, [autoCallerActive, gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt, pool.length, callInFlight]);
  
   // Audio Playback Sync
   useEffect(() => {
@@ -315,14 +328,39 @@ export default function Caller() {
     } catch (e) {
       console.error('Could not call next track:', e);
       setAutoCallerActive(false);
+      if (!gameState.nowPlaying && typeof gameState.autoStartAt === 'number') {
+        try {
+          await cancelAutoCallerStart();
+        } catch (cancelError) {
+          console.error('Could not clear the failed Track 1 countdown:', cancelError);
+        }
+      }
     } finally {
       callInFlightRef.current = false;
       setCallInFlight(false);
     }
   };
+
+  const handleToggleAutoCaller = async () => {
+    if (autoCallerActive) {
+      setAutoCallerActive(false);
+      if (!gameState?.nowPlaying && typeof gameState?.autoStartAt === 'number') {
+        try {
+          await cancelAutoCallerStart();
+        } catch (e) {
+          console.error('Could not cancel the Auto-Caller countdown:', e);
+        }
+      }
+      return;
+    }
+
+    setAutoCallerActive(true);
+  };
  
   const validWinnersCount = claims.filter(c => c.status === 'valid').length;
   const trackTiming = getTrackTiming(gameState, clockNow);
+  const autoStartTiming = getAutoStartTiming(gameState, clockNow);
+  const autoStartRemaining = autoStartTiming.remainingSeconds;
   const pregameCues = getPregameCues(activePlayers);
   const currentPregameStep = Math.min(teleprompterStep, pregameCues.length - 1);
   const activeHostCue = gameState?.started
@@ -556,11 +594,13 @@ export default function Caller() {
                           ? trackTiming.isInterTrackDelay
                             ? `Drops 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}`
                             : 'Listening'
-                          : 'Starting...'}
+                          : autoStartRemaining > 0
+                            ? `Track 1 0:${String(autoStartRemaining).padStart(2, '0')}`
+                            : 'Starting...'}
                       </span>
                     )}
                     <button 
-                      onClick={() => setAutoCallerActive(!autoCallerActive)}
+                      onClick={handleToggleAutoCaller}
                       className={`text-xs font-black uppercase tracking-widest transition-colors cursor-pointer ${autoCallerActive ? 'text-[#ff4fd8] hover:text-[#ff4fd8]/80' : 'text-white/50 hover:text-white'}`}
                     >
                       {autoCallerActive ? 'PAUSE' : 'ENABLE'}
