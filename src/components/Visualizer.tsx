@@ -1,18 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import confetti from 'canvas-confetti';
 import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subscribeToReactions, Reaction } from '../lib/store';
 import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
-import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame } from 'lucide-react';
+import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame, PartyPopper, Sparkles } from 'lucide-react';
 
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [previewData, setPreviewData] = useState<{previewUrl: string; artworkUrl: string} | null>(null);
   const [totalClaims, setTotalClaims] = useState(0);
+  const [winnerCount, setWinnerCount] = useState(0);
+  const [latestWinnerName, setLatestWinnerName] = useState('');
   const [reactions, setReactions] = useState<Reaction[]>([]);
-  const [encouragement, setEncouragement] = useState<{ kicker: string, title: string, sub: string, isClaim?: boolean } | null>(null);
+  const [encouragement, setEncouragement] = useState<{ kicker: string, title: string, sub: string, isClaim?: boolean, isWinner?: boolean } | null>(null);
   const lastClaimsCountRef = useRef(0);
+  const lastWinnerCountRef = useRef(0);
   const lastShownTrackRef = useRef(0);
   const encouragementTimerRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -76,7 +80,11 @@ export default function Visualizer() {
     
     const unsubClaims = subscribeToClaims((claims) => {
       if (gameState?.sessionId) {
-        setTotalClaims(claims.filter(c => c.sessionId === gameState?.sessionId).length);
+        const sessionClaims = claims.filter(c => c.sessionId === gameState.sessionId);
+        const winners = sessionClaims.filter(c => c.status === 'valid');
+        setTotalClaims(sessionClaims.length);
+        setWinnerCount(winners.length);
+        setLatestWinnerName(winners.length ? winners[winners.length - 1].playerName : '');
       }
     });
 
@@ -91,8 +99,16 @@ export default function Visualizer() {
     };
   }, [gameState?.sessionId]);
 
+  useEffect(() => {
+    lastClaimsCountRef.current = 0;
+    lastWinnerCountRef.current = 0;
+    setTotalClaims(0);
+    setWinnerCount(0);
+    setLatestWinnerName('');
+  }, [gameState?.sessionId]);
+
   const triggerEncouragement = (
-    data: { kicker: string; title: string; sub: string; isClaim?: boolean } | null,
+    data: { kicker: string; title: string; sub: string; isClaim?: boolean; isWinner?: boolean } | null,
     durationMs = 6000
   ) => {
     if (encouragementTimerRef.current) {
@@ -120,7 +136,21 @@ export default function Visualizer() {
     const trackNumber = (gameState.history?.length || 0) + 1;
     const setNumber = Math.floor((trackNumber - 1) / 5) + 1;
 
-    // 1. Bingo Claim event
+    // 1. Verified winner event
+    if (winnerCount > 0 && winnerCount > lastWinnerCountRef.current) {
+      lastWinnerCountRef.current = winnerCount;
+      lastClaimsCountRef.current = Math.max(lastClaimsCountRef.current, totalClaims);
+      triggerEncouragement({
+        isClaim: true,
+        isWinner: true,
+        kicker: '🏆 Official Bingo',
+        title: 'WE HAVE A WINNER!',
+        sub: `${latestWinnerName || 'A player'} just completed a verified line. Make some noise!`
+      }, 7500);
+      return;
+    }
+
+    // 2. Bingo Claim event
     if (totalClaims > 0 && totalClaims > lastClaimsCountRef.current) {
       lastClaimsCountRef.current = totalClaims;
       triggerEncouragement({
@@ -132,7 +162,7 @@ export default function Visualizer() {
       return;
     }
 
-    // 2. Track / Theme transition event
+    // 3. Track / Theme transition event
     if (lastShownTrackRef.current !== trackNumber) {
       lastShownTrackRef.current = trackNumber;
       setTrackBurstKey(trackNumber);
@@ -155,7 +185,7 @@ export default function Visualizer() {
         }, 6000);
       }
     }
-  }, [gameState?.nowPlaying, gameState?.history?.length, totalClaims]);
+  }, [gameState?.nowPlaying, gameState?.history?.length, totalClaims, winnerCount, latestWinnerName]);
 
   // Audio setup
   useEffect(() => {
@@ -409,6 +439,31 @@ export default function Visualizer() {
   ];
 
   const theme = themes[themeIndex] || themes[0];
+  const sceneNames = ['Neon Dancefloor', 'Laser Club', 'Confetti Rush', 'Electric Aurora', 'Starburst Finale'];
+  const sceneName = sceneNames[sceneIndex] || sceneNames[0];
+
+  useEffect(() => {
+    if (!encouragement?.isClaim || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const colors = [theme.a, theme.b, theme.c, '#ffffff'];
+    const timers: number[] = [];
+    const fireSideCannons = () => {
+      confetti({ particleCount: encouragement.isWinner ? 110 : 60, angle: 58, spread: 72, startVelocity: 58, origin: { x: 0.08, y: 0.72 }, colors });
+      confetti({ particleCount: encouragement.isWinner ? 110 : 60, angle: 122, spread: 72, startVelocity: 58, origin: { x: 0.92, y: 0.72 }, colors });
+    };
+
+    fireSideCannons();
+    if (encouragement.isWinner) {
+      confetti({ particleCount: 180, spread: 118, startVelocity: 52, scalar: 1.15, origin: { x: 0.5, y: 0.42 }, colors });
+      timers.push(window.setTimeout(fireSideCannons, 900));
+      timers.push(window.setTimeout(() => {
+        confetti({ particleCount: 120, spread: 140, startVelocity: 42, scalar: 1.05, origin: { x: 0.5, y: 0.28 }, colors });
+      }, 1800));
+    }
+
+    return () => timers.forEach(timer => window.clearTimeout(timer));
+  }, [encouragement?.isClaim, encouragement?.isWinner, encouragement?.title, themeIndex]);
+
   const sceneParticles = Array.from({ length: 30 }, (_, i) => ({
     left: 4 + ((i * 29) % 92),
     top: 8 + ((i * 41) % 82),
@@ -464,6 +519,12 @@ export default function Visualizer() {
         @keyframes mbTrackBurst { 0% { opacity: .95; transform: scale(.18); } 45% { opacity: .52; } 100% { opacity: 0; transform: scale(2.4); } }
         @keyframes mbVisualizerSweep { 0% { transform: translateX(-120%) skewX(-16deg); } 100% { transform: translateX(520%) skewX(-16deg); } }
         @keyframes mbPanelShimmer { 0%,100% { opacity: .16; transform: translateX(-8%); } 50% { opacity: .34; transform: translateX(8%); } }
+        @keyframes mbFloorRush { from { background-position: 0 0, 0 0; } to { background-position: 0 96px, 96px 0; } }
+        @keyframes mbBulbChase { 0%,100% { opacity: .3; transform: scale(.82); } 45% { opacity: 1; transform: scale(1.22); } }
+        @keyframes mbDiscoFloat { 0%,100% { transform: translate(-50%, -5px) rotate(-4deg); } 50% { transform: translate(-50%, 8px) rotate(5deg); } }
+        @keyframes mbDiscoSpin { to { background-position: 72px 36px; transform: rotate(360deg); } }
+        @keyframes mbDropStamp { 0% { opacity: 0; transform: scale(.35) rotate(-9deg); filter: blur(12px); } 22% { opacity: .95; transform: scale(1.08) rotate(2deg); filter: blur(0); } 68% { opacity: .8; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.28); } }
+        @keyframes mbReactionHalo { 0%,100% { transform: scale(.7); opacity: .15; } 50% { transform: scale(1.2); opacity: .55; } }
 
         .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
         .mb-spotlight { transform-origin: 50% 0%; mix-blend-mode: screen; filter: blur(18px); opacity: var(--bass-light, .55); }
@@ -475,6 +536,12 @@ export default function Visualizer() {
         .mb-ring-pulse { animation: mbRingPulse 2.8s ease-in-out infinite; }
         .mb-reflect-sweep { animation: mbReflectSweep 5.2s ease-in-out infinite; }
         .mb-visualizer-sweep { animation: mbVisualizerSweep 4.7s linear infinite; }
+        .mb-dance-floor { animation: mbFloorRush 5s linear infinite; }
+        .mb-rig-bulb { animation: mbBulbChase 1.8s ease-in-out infinite; }
+        .mb-disco-shell { animation: mbDiscoFloat 4.2s ease-in-out infinite; }
+        .mb-disco-ball { animation: mbDiscoSpin 15s linear infinite; }
+        .mb-drop-stamp { animation: mbDropStamp 1.55s cubic-bezier(.16,1,.3,1) forwards; }
+        .mb-reaction-halo { animation: mbReactionHalo 1.4s ease-in-out infinite; }
 
         @media (prefers-reduced-motion: reduce) {
           .music-bingo-stage *, .music-bingo-stage *::before, .music-bingo-stage *::after {
@@ -505,13 +572,50 @@ export default function Visualizer() {
         <div className="mb-spotlight mb-spotlight-four absolute -top-[24%] right-[35%] w-[10vw] min-w-[90px] h-[150vh]" style={{ background: `linear-gradient(to bottom, rgba(${theme.ar}, .26), transparent 72%)` }} />
       </div>
 
+      {/* Venue light rig and a low, receding dance floor add depth without competing with the content. */}
+      <div className="fixed inset-x-[7%] top-0 z-[4] pointer-events-none h-10 flex items-start justify-around border-t-2 border-white/10">
+        {Array.from({ length: 9 }).map((_, i) => {
+          const color = i % 3 === 0 ? theme.a : i % 3 === 1 ? theme.b : theme.c;
+          return (
+            <span
+              key={i}
+              className="mb-rig-bulb mt-1.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full"
+              style={{ background: color, boxShadow: `0 0 18px 5px ${color}`, animationDelay: `${i * 0.14}s` }}
+            />
+          );
+        })}
+      </div>
+      <div
+        className="mb-dance-floor fixed -left-[12%] -right-[12%] -bottom-[52%] z-[3] h-[82%] opacity-25 pointer-events-none"
+        style={{
+          transform: 'perspective(700px) rotateX(67deg)',
+          transformOrigin: 'bottom center',
+          backgroundImage: `repeating-linear-gradient(0deg, rgba(${theme.ar}, .34) 0 2px, transparent 2px 96px), repeating-linear-gradient(90deg, rgba(${theme.br}, .30) 0 2px, transparent 2px 96px)`,
+          maskImage: 'linear-gradient(to top, black 15%, transparent 88%)',
+        }}
+      />
+
       {!gameState?.started && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-transparent overflow-hidden">
           
           <div className="w-full max-w-[900px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10 mt-10">
+            <div className="mb-disco-shell absolute top-[4%] sm:top-[2%] left-1/2 -translate-x-1/2 z-30 flex flex-col items-center pointer-events-none">
+              <div className="h-14 sm:h-20 w-px bg-gradient-to-b from-white/10 to-white/60" />
+              <div
+                className="mb-disco-ball relative w-20 h-20 sm:w-28 sm:h-28 rounded-full border border-white/60 shadow-[0_0_60px_rgba(255,255,255,0.35),0_0_110px_rgba(255,79,216,0.3)] overflow-hidden"
+                style={{
+                  backgroundColor: '#bdefff',
+                  backgroundImage: 'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.98) 0 4%, transparent 18%), linear-gradient(135deg, rgba(255,255,255,0.82) 25%, rgba(51,216,255,0.5) 25% 50%, rgba(255,79,216,0.42) 50% 75%, rgba(255,215,106,0.7) 75%)',
+                  backgroundSize: '100% 100%, 18px 18px',
+                }}
+              >
+                <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent_0_10px,rgba(4,5,13,0.5)_10px_12px)] mix-blend-multiply" />
+                <Sparkles className="absolute left-2 top-2 w-6 h-6 text-white drop-shadow-[0_0_10px_white]" />
+              </div>
+            </div>
             
             {/* Integrated Logo Section */}
-            <div className="relative flex flex-col items-center justify-center w-full mb-12 animate-[logoFloat_4s_ease-in-out_infinite]">
+            <div className="relative flex flex-col items-center justify-center w-full mb-12 mt-16 sm:mt-20 animate-[logoFloat_4s_ease-in-out_infinite]">
               
               {/* Spinning Vinyl Background Element */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] md:w-[400px] md:h-[400px] rounded-full bg-gradient-to-br from-[#1a0826]/80 to-[#050814]/80 border-[2px] border-white/10 shadow-[0_0_80px_rgba(255,79,216,0.3)] z-0 overflow-hidden animate-[spin_8s_linear_infinite] backdrop-blur-md opacity-60">
@@ -658,8 +762,12 @@ export default function Visualizer() {
 
             {/* A brief bloom announces each new track without adding more text. */}
             {trackBurstKey > 0 && (
-              <div key={trackBurstKey} className="absolute inset-0 z-[5] pointer-events-none flex items-center justify-center overflow-hidden">
+              <div key={trackBurstKey} className="absolute inset-0 z-[35] pointer-events-none flex items-center justify-center overflow-hidden">
+                <div className="absolute left-1/2 top-1/2 w-[125vmax] h-[125vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-35" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .6) 0deg 1.5deg, transparent 1.5deg 10deg, rgba(${theme.cr}, .38) 10deg 11.5deg, transparent 11.5deg 22deg)`, animation: 'mbTrackBurst 1.35s cubic-bezier(.16,1,.3,1) forwards' }} />
                 <div className="w-[36vmin] h-[36vmin] rounded-full border-[3px]" style={{ borderColor: theme.c, boxShadow: `0 0 80px 26px rgba(${theme.ar}, .48), inset 0 0 70px rgba(${theme.br}, .42)`, animation: 'mbTrackBurst 1.35s cubic-bezier(.16,1,.3,1) forwards' }} />
+                <div className="mb-drop-stamp absolute text-[clamp(3rem,11vw,9rem)] font-black italic tracking-[-0.08em] text-white" style={{ textShadow: `0 0 18px ${theme.a}, 0 0 48px ${theme.b}, 0 0 90px ${theme.c}` }}>
+                  DROP!
+                </div>
               </div>
             )}
 
@@ -686,11 +794,16 @@ export default function Visualizer() {
                   Live Stage
                 </div>
 
+                <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--scene-a)]/10 border border-[var(--scene-a)]/25 text-[10px] lg:text-xs font-black tracking-[0.16em] uppercase text-[var(--scene-a)] shadow-[0_0_20px_rgba(var(--scene-a-rgb),0.12)]">
+                  <Sparkles className="w-4 h-4" />
+                  {sceneName}
+                </div>
+
                 {totalClaims > 0 && (
                   <div className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border border-[var(--scene-c)]/45 bg-black/55 backdrop-blur-md shadow-[0_0_24px_var(--scene-c)]">
                     <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-[var(--scene-c)]" />
                     <div className="leading-none text-left">
-                      <span className="block text-[8px] sm:text-[9px] font-black tracking-widest text-[var(--scene-c)] uppercase">Bingos</span>
+                      <span className="block text-[8px] sm:text-[9px] font-black tracking-widest text-[var(--scene-c)] uppercase">Claims</span>
                       <strong className="block text-lg sm:text-2xl font-black text-[var(--scene-c)] tabular-nums mt-0.5">{String(totalClaims).padStart(2, '0')}</strong>
                     </div>
                   </div>
@@ -901,19 +1014,26 @@ export default function Visualizer() {
           {/* Opaque dark overlay with strong backdrop blur so background text/album art never leaks through */}
           <div className="absolute inset-0 bg-[#030612]/92 backdrop-blur-2xl transition-all"></div>
           
-          <div className={`relative min-w-[min(680px,92vw)] p-8 sm:p-12 md:p-16 rounded-[36px] border-2 ${encouragement.isClaim ? 'border-[#ffd76a] bg-[#0c0f24] shadow-[0_0_150px_rgba(255,215,106,0.6)]' : 'border-[var(--scene-a)] bg-[#0c0f24] shadow-[0_0_150px_rgba(255,79,216,0.6)]'} overflow-hidden`}>
+          <div className={`relative min-w-[min(680px,92vw)] p-8 sm:p-12 md:p-16 rounded-[36px] border-2 ${encouragement.isWinner ? 'border-white bg-[#0c0f24] shadow-[0_0_90px_rgba(255,255,255,0.45),0_0_180px_rgba(255,79,216,0.7)]' : encouragement.isClaim ? 'border-[#ffd76a] bg-[#0c0f24] shadow-[0_0_150px_rgba(255,215,106,0.6)]' : 'border-[var(--scene-a)] bg-[#0c0f24] shadow-[0_0_150px_rgba(255,79,216,0.6)]'} overflow-hidden`}>
             {/* Ambient inner glow */}
-            <div className={`absolute inset-0 ${encouragement.isClaim ? 'bg-gradient-to-br from-[#ffd76a]/20 via-transparent to-[#4ade80]/15' : 'bg-gradient-to-br from-[var(--scene-a)]/20 via-transparent to-[var(--scene-b)]/20'}`}></div>
+            <div className={`absolute inset-0 ${encouragement.isWinner ? 'bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.22),transparent_32%),conic-gradient(from_45deg,rgba(255,215,106,0.18),rgba(255,79,216,0.22),rgba(51,216,255,0.2),rgba(255,215,106,0.18))]' : encouragement.isClaim ? 'bg-gradient-to-br from-[#ffd76a]/20 via-transparent to-[#4ade80]/15' : 'bg-gradient-to-br from-[var(--scene-a)]/20 via-transparent to-[var(--scene-b)]/20'}`}></div>
             
             {/* Rotating subtle lighting */}
             <div className="absolute inset-[-60%] animate-[spin_6s_linear_infinite] opacity-40 pointer-events-none" style={{ background: 'conic-gradient(from 90deg, transparent, rgba(var(--scene-a-rgb),0.25), transparent, rgba(var(--scene-c-rgb),0.2), transparent)'}}></div>
             
             <div className="relative z-10 text-center">
+              {encouragement.isWinner && (
+                <div className="flex items-center justify-center gap-4 mb-4 text-[#ffd76a]">
+                  <PartyPopper className="w-10 h-10 sm:w-14 sm:h-14 -rotate-12 drop-shadow-[0_0_18px_#ffd76a]" />
+                  <Trophy className="w-14 h-14 sm:w-20 sm:h-20 text-white drop-shadow-[0_0_24px_#ff4fd8] animate-[gentlePulse_1.2s_ease-in-out_infinite]" />
+                  <PartyPopper className="w-10 h-10 sm:w-14 sm:h-14 rotate-12 drop-shadow-[0_0_18px_#33d8ff]" />
+                </div>
+              )}
               <div className={`text-xs sm:text-sm md:text-base font-extrabold tracking-[0.35em] uppercase mb-2 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${encouragement.isClaim ? 'text-[#ffd76a]' : 'text-[var(--scene-a)]'}`}>
                 {encouragement.kicker}
               </div>
               <h2 className="my-3 sm:my-4 text-4xl sm:text-6xl md:text-8xl xl:text-9xl leading-[0.95] tracking-tight font-black text-white drop-shadow-[0_8px_30px_rgba(0,0,0,0.95)]">
-                <span className="text-transparent bg-clip-text" style={{ backgroundImage: encouragement.isClaim ? 'linear-gradient(100deg, #ffffff, #ffd76a, #4ade80)' : 'linear-gradient(100deg, #ffffff, var(--scene-c), var(--scene-b))' }}>
+                <span className="text-transparent bg-clip-text" style={{ backgroundImage: encouragement.isWinner ? 'linear-gradient(100deg, #ffffff, #ffd76a, #ff4fd8, #33d8ff, #ffffff)' : encouragement.isClaim ? 'linear-gradient(100deg, #ffffff, #ffd76a, #4ade80)' : 'linear-gradient(100deg, #ffffff, var(--scene-c), var(--scene-b))' }}>
                   {encouragement.title}
                 </span>
               </h2>
@@ -968,7 +1088,10 @@ export default function Visualizer() {
                     transform: `scale(${scale})`
                   } as React.CSSProperties}
                 >
-                  <div className="text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)] mb-2">{reaction.emoji}</div>
+                  <div className="relative mb-2">
+                    <span className="mb-reaction-halo absolute inset-[-22%] rounded-full bg-white/30 blur-xl" />
+                    <div className="relative text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)]">{reaction.emoji}</div>
+                  </div>
                   <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
                     {reaction.playerName}
                   </div>
