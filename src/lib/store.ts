@@ -11,7 +11,15 @@ const claimsCollection = collection(db, 'games', GAME_DOC_ID, 'claims');
 export function subscribeToGameState(callback: (state: GameState | null) => void) {
   return onSnapshot(gameDocRef, (docSnap) => {
     if (docSnap.exists()) {
-      callback(docSnap.data() as GameState);
+      const data = docSnap.data() as Partial<GameState>;
+      callback({
+        sessionId: typeof data.sessionId === 'string' ? data.sessionId : '',
+        started: data.started === true,
+        nowPlaying: typeof data.nowPlaying === 'string' ? data.nowPlaying : null,
+        history: Array.isArray(data.history) ? data.history : [],
+        visualizerAudioActive: data.visualizerAudioActive === true,
+        updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+      });
     } else {
       callback(null);
     }
