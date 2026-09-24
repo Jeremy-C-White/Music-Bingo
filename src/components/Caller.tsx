@@ -546,14 +546,16 @@ export default function Caller() {
                       <Clock className="w-4 h-4" />
                       <span>Auto-Caller</span>
                     </div>
-                    <p className="mt-1 text-[9px] normal-case tracking-normal text-white/35">Uses the same countdown as the stage display</p>
+                    <p className="mt-1 text-[9px] normal-case tracking-normal text-white/35">Advances after the song and the five-count</p>
                   </div>
  
                   <div className="flex items-center gap-3 min-w-0">
                     {autoCallerActive && (
                       <span className="font-mono text-white font-bold text-xs sm:text-sm border-r border-white/10 pr-3 sm:pr-4 whitespace-nowrap">
                         {gameState.nowPlaying
-                          ? `${trackTiming.isInterTrackDelay ? 'Breather' : 'Next'} 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}`
+                          ? trackTiming.isInterTrackDelay
+                            ? `Drops 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}`
+                            : 'Listening'
                           : 'Starting...'}
                       </span>
                     )}
@@ -800,8 +802,8 @@ export default function Caller() {
                     {trackTiming.isComplete
                       ? 'READY FOR NEXT'
                       : trackTiming.isInterTrackDelay
-                        ? `${trackTiming.remainingSeconds}s room breather`
-                        : `${trackTiming.remainingSeconds}s to next track`}
+                        ? `Next track drops in ${trackTiming.remainingSeconds}s`
+                        : 'SONG PLAYING'}
                   </span>
                 )}
               </div>

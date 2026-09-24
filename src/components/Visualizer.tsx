@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import confetti from 'canvas-confetti';
 import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subscribeToReactions, markTrackEnded, Reaction } from '../lib/store';
@@ -6,7 +6,7 @@ import { GameState } from '../lib/types';
 import { splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
 import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame, PartyPopper, Sparkles } from 'lucide-react';
-import { getTrackTiming } from '../lib/timing';
+import { getTrackTiming, INTER_TRACK_DELAY_SECONDS } from '../lib/timing';
 
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -20,6 +20,9 @@ export default function Visualizer() {
   const lastWinnerCountRef = useRef(0);
   const lastShownTrackRef = useRef(0);
   const encouragementTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentTrackRef = useRef<string | null>(null);
+  const playingTrackRef = useRef<string | null>(null);
+  const audioAnimationRunRef = useRef(0);
   
   const [themeIndex, setThemeIndex] = useState(0);
   const [sceneIndex, setSceneIndex] = useState(0);
@@ -36,16 +39,15 @@ export default function Visualizer() {
   
   const [clockNow, setClockNow] = useState(Date.now());
   const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [songRemaining, setSongRemaining] = useState(0);
+  const [songProgressAnimation, setSongProgressAnimation] = useState({
+    key: 'idle',
+    initialProgress: 0,
+    remainingMs: 0,
+  });
   const trackTiming = getTrackTiming(gameState, clockNow);
-  const remaining = trackTiming.remainingSeconds;
-  const progressAnimation = useMemo(() => {
-    const timing = getTrackTiming(gameState, Date.now());
-    return {
-      key: `${gameState?.sessionId ?? 'idle'}-${gameState?.nowPlaying ?? 'none'}-${gameState?.nextTrackAt ?? 0}`,
-      initialProgress: timing.progress,
-      remainingMs: timing.remainingMs,
-    };
-  }, [gameState?.sessionId, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt]);
+  const nextTrackRemaining = trackTiming.remainingSeconds;
+  const dropCountdown = Math.min(INTER_TRACK_DELAY_SECONDS, nextTrackRemaining);
 
   useEffect(() => {
     const unlockAudio = () => {
@@ -74,16 +76,32 @@ export default function Visualizer() {
     const unsub = subscribeToGameState((state) => {
       setGameState(state);
       if (state) {
+        const trackChanged = state.nowPlaying !== currentTrackRef.current;
+        currentTrackRef.current = state.nowPlaying;
         const trackNumber = (state.history?.length || 0) + (state.nowPlaying ? 1 : 0);
         const setNumber = Math.max(0, Math.floor((trackNumber - 1) / 5));
         setThemeIndex(setNumber % 5);
         setSceneIndex(Math.max(0, trackNumber - 1) % 5);
         
-        if (state.nowPlaying) {
+        if (state.nowPlaying && trackChanged) {
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+          }
+          setSongRemaining(0);
+          setSongProgressAnimation({
+            key: `loading-${state.sessionId}-${state.nowPlaying}`,
+            initialProgress: 0,
+            remainingMs: 0,
+          });
           const { title, artist } = splitSong(state.nowPlaying);
-          lookupPreview(title, artist).then(data => setPreviewData(data));
-        } else {
+          const requestedTrack = state.nowPlaying;
+          lookupPreview(title, artist).then(data => {
+            if (currentTrackRef.current === requestedTrack) setPreviewData(data);
+          });
+        } else if (!state.nowPlaying && trackChanged) {
           setPreviewData(null);
+          setSongRemaining(0);
         }
       }
     });
@@ -211,6 +229,7 @@ export default function Visualizer() {
 
     const targetUrl = previewData?.previewUrl || "https://whije02.github.io/song/Nimbus.mp3";
     const isFallback = !previewData?.previewUrl;
+    playingTrackRef.current = currentTrackRef.current;
 
     if (audio.src !== targetUrl) {
       audio.src = targetUrl;
@@ -415,6 +434,20 @@ export default function Visualizer() {
     return () => clearInterval(interval);
   }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt]);
 
+  const syncSongProgress = (audio: HTMLAudioElement, animate: boolean) => {
+    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+
+    const currentTime = Math.min(audio.duration, Math.max(0, audio.currentTime));
+    const remainingMs = Math.max(0, (audio.duration - currentTime) * 1000);
+    setSongRemaining(Math.ceil(remainingMs / 1000));
+    audioAnimationRunRef.current += 1;
+    setSongProgressAnimation({
+      key: `${gameState?.sessionId ?? 'session'}-${gameState?.nowPlaying ?? 'track'}-${audioAnimationRunRef.current}`,
+      initialProgress: currentTime / audio.duration,
+      remainingMs: animate ? remainingMs : 0,
+    });
+  };
+
   const themes = [
     { a: '#33d8ff', b: '#ff4fd8', c: '#ffd76a', ar: '51,216,255', br: '255,79,216', cr: '255,215,106' },
     { a: '#7cf7d4', b: '#5aa7ff', c: '#d8ff6a', ar: '124,247,212', br: '90,167,255', cr: '216,255,106' },
@@ -525,6 +558,7 @@ export default function Visualizer() {
         @keyframes mbReactionHalo { 0%,100% { transform: scale(.7); opacity: .15; } 50% { transform: scale(1.2); opacity: .55; } }
         @keyframes mbCountdownBar { to { transform: scaleX(1); } }
         @keyframes mbCountdownRing { to { stroke-dashoffset: 0; } }
+        @keyframes mbNextDropCount { 0% { opacity: 0; transform: scale(.3) rotate(-6deg); filter: blur(10px); } 20% { opacity: 1; transform: scale(1.08) rotate(1deg); filter: blur(0); } 72% { opacity: 1; transform: scale(1); } 100% { opacity: .35; transform: scale(1.18); } }
 
         .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
         .mb-spotlight { transform-origin: 50% 0%; mix-blend-mode: screen; filter: blur(18px); opacity: var(--bass-light, .55); }
@@ -771,6 +805,33 @@ export default function Visualizer() {
               </div>
             )}
 
+            {/* A full-screen five-count gives the room a clear beat between songs. */}
+            {trackTiming.isInterTrackDelay && dropCountdown > 0 && (
+              <div className="absolute inset-0 z-[90] pointer-events-none flex items-center justify-center overflow-hidden bg-[#030612]/94 backdrop-blur-xl">
+                <div className="absolute left-1/2 top-1/2 w-[135vmax] h-[135vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .72) 0deg 2deg, transparent 2deg 11deg, rgba(${theme.cr}, .48) 11deg 13deg, transparent 13deg 24deg)`, animation: 'mbTrackBurst 5s cubic-bezier(.16,1,.3,1) forwards' }} />
+                <div className="absolute w-[48vmin] h-[48vmin] rounded-full border-[3px] opacity-80" style={{ borderColor: theme.c, boxShadow: `0 0 110px 32px rgba(${theme.ar}, .52), inset 0 0 90px rgba(${theme.br}, .45)`, animation: 'mbRingPulse 1s ease-in-out infinite' }} />
+                <div className="relative z-10 flex flex-col items-center text-center px-6">
+                  <div className="text-[clamp(1rem,2.4vw,2rem)] font-black tracking-[0.34em] uppercase text-[#ffd76a] drop-shadow-[0_0_24px_#ffd76a] mb-3 sm:mb-5">
+                    Next Track Drops In
+                  </div>
+                  <div
+                    key={dropCountdown}
+                    aria-live="assertive"
+                    className="text-[clamp(8rem,32vw,24rem)] font-black leading-[0.72] text-white"
+                    style={{
+                      animation: 'mbNextDropCount .95s cubic-bezier(.16,1,.3,1) forwards',
+                      textShadow: `0 0 24px ${theme.a}, 0 0 70px ${theme.b}, 0 0 130px ${theme.c}`,
+                    }}
+                  >
+                    {dropCountdown}
+                  </div>
+                  <div className="mt-6 text-[clamp(.75rem,1.5vw,1.1rem)] font-bold tracking-[0.24em] uppercase text-white/65">
+                    Scan your board • Get ready
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Organized stage header */}
             <header className="relative z-30 flex-none flex items-center justify-between gap-3 sm:gap-5 pb-3 sm:pb-4 border-b border-white/10">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0 select-none">
@@ -884,12 +945,12 @@ export default function Visualizer() {
                   <svg className="absolute inset-0 w-full h-full -rotate-90 drop-shadow-[0_0_34px_rgba(var(--scene-a-rgb),0.42)]" viewBox="0 0 400 400">
                     <circle cx="200" cy="200" r="188" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="11" />
                     <circle
-                      key={`ring-${progressAnimation.key}`}
+                      key={`ring-${songProgressAnimation.key}`}
                       cx="200" cy="200" r="188" fill="none" stroke="var(--scene-c)" strokeWidth="11" strokeLinecap="round"
-                      strokeDasharray="1181" strokeDashoffset={1181 * (1 - progressAnimation.initialProgress)}
+                      strokeDasharray="1181" strokeDashoffset={1181 * (1 - songProgressAnimation.initialProgress)}
                       style={{
                         filter: `drop-shadow(0 0 10px ${theme.c})`,
-                        animation: progressAnimation.remainingMs > 0 ? `mbCountdownRing ${progressAnimation.remainingMs}ms linear forwards` : undefined,
+                        animation: songProgressAnimation.remainingMs > 0 ? `mbCountdownRing ${songProgressAnimation.remainingMs}ms linear forwards` : undefined,
                       }}
                     />
                   </svg>
@@ -977,7 +1038,7 @@ export default function Visualizer() {
             <div className="relative z-20 flex-none rounded-2xl lg:rounded-3xl border border-white/10 bg-black/25 px-3 sm:px-5 pt-2 sm:pt-3 pb-3 sm:pb-4">
               <div className="relative w-full h-[clamp(64px,12vh,132px)] mb-2 sm:mb-3 overflow-hidden">
                 <div className="mb-visualizer-sweep absolute inset-y-0 left-0 z-20 w-1/4 bg-gradient-to-r from-transparent via-white/20 to-transparent blur-md pointer-events-none" />
-                <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1 sm:gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`absolute inset-0 flex items-end justify-center w-full px-1 gap-1 sm:gap-1.5 transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || songRemaining <= 0 ? 'opacity-100' : 'opacity-0'}`}>
                   {Array.from({ length: 32 }).map((_, i) => (
                     <div
                       key={i}
@@ -990,7 +1051,7 @@ export default function Visualizer() {
                   ref={canvasRef}
                   width="1000"
                   height="200"
-                  className={`absolute inset-0 w-full h-full transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || remaining <= 0 ? 'opacity-0' : 'opacity-55'}`}
+                  className={`absolute inset-0 w-full h-full transition-opacity ${['bars', 'bars', 'dots', 'ribbon', 'bars'][themeIndex] === 'bars' || !previewData?.previewUrl || songRemaining <= 0 ? 'opacity-0' : 'opacity-55'}`}
                 ></canvas>
               </div>
 
@@ -998,22 +1059,22 @@ export default function Visualizer() {
                 <div className="flex-1 min-w-0">
                   <div className="w-full h-1.5 sm:h-2 rounded-full bg-white/10 overflow-hidden">
                     <div
-                      key={`bar-${progressAnimation.key}`}
+                      key={`bar-${songProgressAnimation.key}`}
                       className="h-full w-full bg-gradient-to-r from-[var(--scene-a)] via-[var(--scene-b)] to-[var(--scene-c)] shadow-[0_0_20px_var(--scene-a)]"
                       style={{
                         transformOrigin: 'left center',
-                        transform: `scaleX(${progressAnimation.initialProgress})`,
-                        animation: progressAnimation.remainingMs > 0 ? `mbCountdownBar ${progressAnimation.remainingMs}ms linear forwards` : undefined,
+                        transform: `scaleX(${songProgressAnimation.initialProgress})`,
+                        animation: songProgressAnimation.remainingMs > 0 ? `mbCountdownBar ${songProgressAnimation.remainingMs}ms linear forwards` : undefined,
                         willChange: 'transform',
                       }}
                     />
                   </div>
                   <div className={`mt-2 text-[9px] sm:text-[10px] lg:text-xs font-black tracking-[0.22em] uppercase ${trackTiming.isInterTrackDelay ? 'text-[#ffd76a]' : 'text-white/40'}`}>
-                    {trackTiming.isInterTrackDelay ? 'Next Track In' : 'Track Countdown'}
+                    {trackTiming.isInterTrackDelay ? 'Song Complete' : songRemaining > 0 ? 'Song Time Remaining' : 'Loading Track'}
                   </div>
                 </div>
                 <div aria-live="polite" className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${trackTiming.isInterTrackDelay ? 'text-[#ffd76a] drop-shadow-[0_0_40px_#ffd76a] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
-                  0:{String(remaining).padStart(2, '0')}
+                  0:{String(songRemaining).padStart(2, '0')}
                 </div>
               </div>
             </div>
@@ -1120,8 +1181,38 @@ export default function Visualizer() {
 
       <audio 
         ref={audioRef} 
-        preload="auto" 
+        preload="auto"
+        onLoadedMetadata={event => {
+          if (playingTrackRef.current === currentTrackRef.current) syncSongProgress(event.currentTarget, false);
+        }}
+        onPlaying={event => {
+          if (playingTrackRef.current === currentTrackRef.current) syncSongProgress(event.currentTarget, true);
+        }}
+        onTimeUpdate={event => {
+          const audio = event.currentTarget;
+          if (playingTrackRef.current === currentTrackRef.current && Number.isFinite(audio.duration) && audio.duration > 0) {
+            setSongRemaining(Math.max(0, Math.ceil(audio.duration - audio.currentTime)));
+          }
+        }}
+        onPause={event => {
+          if (!event.currentTarget.ended && playingTrackRef.current === currentTrackRef.current) {
+            syncSongProgress(event.currentTarget, false);
+          }
+        }}
+        onSeeked={event => {
+          if (playingTrackRef.current === currentTrackRef.current) {
+            syncSongProgress(event.currentTarget, !event.currentTarget.paused);
+          }
+        }}
         onEnded={() => {
+          if (playingTrackRef.current !== currentTrackRef.current) return;
+          setSongRemaining(0);
+          audioAnimationRunRef.current += 1;
+          setSongProgressAnimation({
+            key: `ended-${gameState?.sessionId ?? 'session'}-${audioAnimationRunRef.current}`,
+            initialProgress: 1,
+            remainingMs: 0,
+          });
           if (gameState?.nowPlaying) void markTrackEnded(gameState.nowPlaying);
         }}
         onError={() => {
