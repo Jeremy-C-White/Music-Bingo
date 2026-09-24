@@ -3,11 +3,29 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { HashRouter, Routes, Route, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Sparkles, Radio, Tv, Gamepad2, Music, Volume2, ShieldCheck, Trophy, Flame } from 'lucide-react';
 import Board from './components/Board';
 import Caller from './components/Caller';
 import Visualizer from './components/Visualizer';
+
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Music Bingo Home',
+  '/board': 'Music Bingo Board',
+  '/caller': 'Music Bingo Console',
+  '/visualizer': 'Music Bingo Visualizer',
+};
+
+function PageTitle() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    document.title = PAGE_TITLES[pathname] ?? 'Music Bingo';
+  }, [pathname]);
+
+  return null;
+}
 
 function Home() {
   return (
@@ -119,6 +137,7 @@ function Home() {
 export default function App() {
   return (
     <HashRouter>
+      <PageTitle />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/board" element={<Board />} />
