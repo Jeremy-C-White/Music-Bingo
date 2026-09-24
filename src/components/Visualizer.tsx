@@ -523,7 +523,7 @@ export default function Visualizer() {
         @keyframes mbBulbChase { 0%,100% { opacity: .3; transform: scale(.82); } 45% { opacity: 1; transform: scale(1.22); } }
         @keyframes mbDiscoFloat { 0%,100% { transform: translate(-50%, -5px) rotate(-4deg); } 50% { transform: translate(-50%, 8px) rotate(5deg); } }
         @keyframes mbDiscoSpin { to { background-position: 72px 36px; transform: rotate(360deg); } }
-        @keyframes mbDropStamp { 0% { opacity: 0; transform: scale(.35) rotate(-9deg); filter: blur(12px); } 22% { opacity: .95; transform: scale(1.08) rotate(2deg); filter: blur(0); } 68% { opacity: .8; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.28); } }
+        @keyframes mbTrackStamp { 0% { opacity: 0; transform: scale(.35) rotate(-7deg); filter: blur(12px); } 16% { opacity: 1; transform: scale(1.06) rotate(1deg); filter: blur(0); } 76% { opacity: 1; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.2); } }
         @keyframes mbReactionHalo { 0%,100% { transform: scale(.7); opacity: .15; } 50% { transform: scale(1.2); opacity: .55; } }
 
         .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
@@ -540,7 +540,7 @@ export default function Visualizer() {
         .mb-rig-bulb { animation: mbBulbChase 1.8s ease-in-out infinite; }
         .mb-disco-shell { animation: mbDiscoFloat 4.2s ease-in-out infinite; }
         .mb-disco-ball { animation: mbDiscoSpin 15s linear infinite; }
-        .mb-drop-stamp { animation: mbDropStamp 1.55s cubic-bezier(.16,1,.3,1) forwards; }
+        .mb-track-stamp { animation: mbTrackStamp 2.6s cubic-bezier(.16,1,.3,1) forwards; }
         .mb-reaction-halo { animation: mbReactionHalo 1.4s ease-in-out infinite; }
 
         @media (prefers-reduced-motion: reduce) {
@@ -760,13 +760,13 @@ export default function Visualizer() {
               <div className="absolute -inset-[20%] opacity-20" style={{ background: `linear-gradient(115deg, transparent 36%, rgba(${theme.c}, .30) 49%, transparent 62%)`, animation: 'mbPanelShimmer 9s ease-in-out infinite' }} />
             </div>
 
-            {/* A brief bloom announces each new track without adding more text. */}
+            {/* A clear, room-readable track-number splash announces each new song. */}
             {trackBurstKey > 0 && (
               <div key={trackBurstKey} className="absolute inset-0 z-[35] pointer-events-none flex items-center justify-center overflow-hidden">
-                <div className="absolute left-1/2 top-1/2 w-[125vmax] h-[125vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-35" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .6) 0deg 1.5deg, transparent 1.5deg 10deg, rgba(${theme.cr}, .38) 10deg 11.5deg, transparent 11.5deg 22deg)`, animation: 'mbTrackBurst 1.35s cubic-bezier(.16,1,.3,1) forwards' }} />
-                <div className="w-[36vmin] h-[36vmin] rounded-full border-[3px]" style={{ borderColor: theme.c, boxShadow: `0 0 80px 26px rgba(${theme.ar}, .48), inset 0 0 70px rgba(${theme.br}, .42)`, animation: 'mbTrackBurst 1.35s cubic-bezier(.16,1,.3,1) forwards' }} />
-                <div className="mb-drop-stamp absolute text-[clamp(3rem,11vw,9rem)] font-black italic tracking-[-0.08em] text-white" style={{ textShadow: `0 0 18px ${theme.a}, 0 0 48px ${theme.b}, 0 0 90px ${theme.c}` }}>
-                  DROP!
+                <div className="absolute left-1/2 top-1/2 w-[125vmax] h-[125vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-35" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .6) 0deg 1.5deg, transparent 1.5deg 10deg, rgba(${theme.cr}, .38) 10deg 11.5deg, transparent 11.5deg 22deg)`, animation: 'mbTrackBurst 2.35s cubic-bezier(.16,1,.3,1) forwards' }} />
+                <div className="w-[36vmin] h-[36vmin] rounded-full border-[3px]" style={{ borderColor: theme.c, boxShadow: `0 0 80px 26px rgba(${theme.ar}, .48), inset 0 0 70px rgba(${theme.br}, .42)`, animation: 'mbTrackBurst 2.35s cubic-bezier(.16,1,.3,1) forwards' }} />
+                <div className="mb-track-stamp absolute text-[clamp(2.8rem,10vw,8.5rem)] font-black tracking-[-0.06em] text-white whitespace-nowrap" style={{ textShadow: `0 0 18px ${theme.a}, 0 0 48px ${theme.b}, 0 0 90px ${theme.c}` }}>
+                  TRACK {trackBurstKey}
                 </div>
               </div>
             )}

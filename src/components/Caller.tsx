@@ -102,6 +102,40 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
   const line = STANDARD_DJ_LINES[Math.abs(variation) % STANDARD_DJ_LINES.length];
   return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: line({ current: currentTrackNumber }), hostNote: currentTrackNumber >= 12 ? 'Optional: read the Song Trivia card. Confirm the preview has ended and no claim is waiting before advancing.' : 'Wait for the preview to finish, scan the claim queue, and make sure the Auto-Caller pace still matches the room.' };
 }
+
+function getHostGameRead(gameState: GameState, claims: Claim[], poolLength: number, activePlayers: number): string {
+  const tracksHeard = gameState.history.length + (gameState.nowPlaying ? 1 : 0);
+  if (tracksHeard === 0) {
+    return 'The round has not started yet. Suggested callout: “Every card starts even, and the first song could help anyone.”';
+  }
+
+  const totalTracks = Math.max(1, tracksHeard + poolLength);
+  const calledShare = Math.min(1, tracksHeard / totalTracks);
+  const estimatedLineChancePerCard = 1 - (Math.pow(1 - Math.pow(calledShare, 4), 4) * Math.pow(1 - Math.pow(calledShare, 5), 8));
+  const estimatedRoomChance = 1 - Math.pow(1 - estimatedLineChancePerCard, Math.max(1, activePlayers));
+  const activeCardText = activePlayers > 0
+    ? `${activePlayers} active card${activePlayers === 1 ? '' : 's'}`
+    : 'the active cards';
+
+  const sessionClaims = claims
+    .filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId)
+    .sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+  const latestClaim = sessionClaims[sessionClaims.length - 1];
+  const openRoundPrefix = latestClaim && latestClaim.status !== 'valid'
+    ? 'A claim was checked without confirming a winner, so everyone remains in the game. '
+    : '';
+
+  if (estimatedRoomChance < 0.12) {
+    return `${openRoundPrefix}Early round with ${activeCardText}: the board patterns are still wide open. Suggested callout: “Plenty of music ahead—every card is live.”`;
+  }
+  if (estimatedRoomChance < 0.35) {
+    return `${openRoundPrefix}The first promising patterns may be forming across ${activeCardText}, but there is no clear favorite. Suggested callout: “The boards are taking shape, and this is still anyone’s game.”`;
+  }
+  if (estimatedRoomChance < 0.68) {
+    return `${openRoundPrefix}The round is heating up and some cards may be within a few helpful tracks. Suggested callout: “Every song matters now—and this is still anyone’s game.”`;
+  }
+  return `${openRoundPrefix}This is a high-energy stretch: one well-placed song could complete a line on any active card. Suggested callout: “Stay with it—one track can change everything.”`;
+}
  
 export default function Caller() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -272,6 +306,9 @@ export default function Caller() {
   const activeHostCue = gameState?.started
     ? getLiveHostCue(gameState, claims, pool.length, cueVariation)
     : pregameCues[currentPregameStep];
+  const privateGameRead = gameState?.started
+    ? getHostGameRead(gameState, claims, pool.length, activePlayers)
+    : null;
   const currentTrack = gameState?.nowPlaying ? splitSong(gameState.nowPlaying) : null;
   const currentTrackNumber = gameState?.nowPlaying ? gameState.history.length + 1 : 0;
   const teleprompterTextClass = scriptFontSize === 'normal'
@@ -423,10 +460,18 @@ export default function Caller() {
                 “{activeHostCue.script}”
               </p>
               {activeHostCue.hostNote && (
-                <p className="mt-2.5 mb-0 text-xs sm:text-sm leading-relaxed text-white/60 font-medium border-l-2 border-[#ff4fd8]/45 pl-3">
-                  <span className="font-black uppercase tracking-wider text-[#ff4fd8]">Off-Mic Host Note:</span>{' '}
-                  {activeHostCue.hostNote}
-                </p>
+                <div className="mt-2.5 border-l-2 border-[#ff4fd8]/45 pl-3">
+                  <p className="mb-0 text-xs sm:text-sm leading-relaxed text-white/60 font-medium">
+                    <span className="font-black uppercase tracking-wider text-[#ff4fd8]">Off-Mic Host Note:</span>{' '}
+                    {activeHostCue.hostNote}
+                  </p>
+                  {privateGameRead && (
+                    <p className="mt-2 mb-0 text-xs sm:text-sm leading-relaxed text-[#33d8ff]/85 font-semibold">
+                      <span className="inline-flex items-center gap-1 font-black uppercase tracking-wider text-[#33d8ff]"><Sparkles className="w-3.5 h-3.5" /> Smart Game Read:</span>{' '}
+                      {privateGameRead}
+                    </p>
+                  )}
+                </div>
               )}
               {gameState?.nowPlaying && (
                 <div className="mt-3 rounded-xl border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] px-3 py-2 text-[11px] sm:text-xs leading-relaxed text-white/72">
@@ -754,6 +799,16 @@ export default function Caller() {
                     <p className="text-base sm:text-lg md:text-2xl text-white/72 font-semibold leading-relaxed m-0 text-balance">
                       {activeHostCue.hostNote}
                     </p>
+                    {privateGameRead && (
+                      <div className="mt-4 rounded-2xl border border-[#33d8ff]/25 bg-[#33d8ff]/[0.08] p-4 md:p-5">
+                        <div className="flex items-center gap-2 text-[10px] md:text-xs font-black uppercase tracking-[0.22em] text-[#33d8ff] mb-2">
+                          <Sparkles className="w-4 h-4" /> Smart Game Read
+                        </div>
+                        <p className="text-sm sm:text-base md:text-xl text-white/80 font-semibold leading-relaxed m-0 text-balance">
+                          {privateGameRead}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
