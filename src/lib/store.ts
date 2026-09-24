@@ -24,6 +24,7 @@ export function subscribeToGameState(callback: (state: GameState | null) => void
         nextTrackAt: typeof data.nextTrackAt === 'number' ? data.nextTrackAt : null,
         trackEndedAt: typeof data.trackEndedAt === 'number' ? data.trackEndedAt : null,
         autoStartAt: typeof data.autoStartAt === 'number' ? data.autoStartAt : null,
+        autoCallerEnabled: data.autoCallerEnabled === true,
       });
     } else {
       callback(null);
@@ -66,7 +67,8 @@ export async function startNewGame() {
     trackStartedAt: null,
     nextTrackAt: null,
     trackEndedAt: null,
-    autoStartAt: null
+    autoStartAt: null,
+    autoCallerEnabled: false
   });
   
   return sessionId;
@@ -88,7 +90,8 @@ export async function resetGame() {
       trackStartedAt: null,
       nextTrackAt: null,
       trackEndedAt: null,
-      autoStartAt: null
+      autoStartAt: null,
+      autoCallerEnabled: false
     });
 
     // Clear claims subcollection
@@ -126,11 +129,37 @@ export async function scheduleAutoCallerStart() {
       if (!snapshot.exists()) return;
 
       const data = snapshot.data() as Partial<GameState>;
-      if (data.started !== true || data.nowPlaying || typeof data.autoStartAt === 'number') return;
+      if (data.started !== true || data.autoCallerEnabled !== true || data.nowPlaying || typeof data.autoStartAt === 'number') return;
 
       const now = Date.now();
       transaction.update(gameDocRef, {
         autoStartAt: now + INTER_TRACK_DELAY_MS,
+        updatedAt: now,
+      });
+    });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, 'games/current');
+    throw err;
+  }
+}
+
+export async function setAutoCallerEnabled(enabled: boolean) {
+  try {
+    await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(gameDocRef);
+      if (!snapshot.exists()) return;
+
+      const data = snapshot.data() as Partial<GameState>;
+      const now = Date.now();
+      const resumeFinishedTrack = enabled
+        && Boolean(data.nowPlaying)
+        && typeof data.trackEndedAt === 'number';
+
+      transaction.update(gameDocRef, {
+        autoCallerEnabled: enabled,
+        ...(enabled
+          ? (resumeFinishedTrack ? { nextTrackAt: now + INTER_TRACK_DELAY_MS } : {})
+          : { autoStartAt: null, nextTrackAt: null }),
         updatedAt: now,
       });
     });
@@ -172,7 +201,7 @@ export async function markTrackEnded(songKey: string) {
       const trackEndedAt = Date.now();
       transaction.update(gameDocRef, {
         trackEndedAt,
-        nextTrackAt: trackEndedAt + INTER_TRACK_DELAY_MS,
+        nextTrackAt: data.autoCallerEnabled === true ? trackEndedAt + INTER_TRACK_DELAY_MS : null,
         updatedAt: trackEndedAt,
       });
     });

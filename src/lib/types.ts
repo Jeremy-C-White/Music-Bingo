@@ -9,6 +9,7 @@ export interface GameState {
   nextTrackAt?: number | null;
   trackEndedAt?: number | null;
   autoStartAt?: number | null;
+  autoCallerEnabled?: boolean;
 }
 
 export interface Claim {

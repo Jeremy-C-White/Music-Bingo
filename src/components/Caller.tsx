@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, markTrackEnded, scheduleAutoCallerStart, cancelAutoCallerStart, dismissClaim, subscribeToPlayerCount } from '../lib/store';
+import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, markTrackEnded, scheduleAutoCallerStart, setAutoCallerEnabled, dismissClaim, subscribeToPlayerCount } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
@@ -189,11 +189,11 @@ export default function Caller() {
       setIsAudioLocked(state?.visualizerAudioActive || false);
 
       if (state?.sessionId && sessionIdRef.current && state.sessionId !== sessionIdRef.current) {
-        setAutoCallerActive(false);
         setAudioProgress(0);
         setClockNow(Date.now());
       }
       sessionIdRef.current = state?.sessionId ?? null;
+      setAutoCallerActive(state?.autoCallerEnabled === true);
       
       if (state) {
         const calledSet = new Set(state.history);
@@ -246,7 +246,10 @@ export default function Caller() {
       if (!autoStartInFlightRef.current) {
         autoStartInFlightRef.current = true;
         void scheduleAutoCallerStart()
-          .catch(() => setAutoCallerActive(false))
+          .catch(() => {
+            setAutoCallerActive(false);
+            void setAutoCallerEnabled(false).catch(error => console.error('Could not disable Auto-Caller:', error));
+          })
           .finally(() => { autoStartInFlightRef.current = false; });
       }
       return;
@@ -257,13 +260,14 @@ export default function Caller() {
       : getAutoStartTiming(gameState, Date.now()).remainingMs;
     const timer = window.setTimeout(() => void handleCallNext(), delay);
     return () => clearTimeout(timer);
-  }, [autoCallerActive, gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt, pool.length, callInFlight]);
+  }, [autoCallerActive, gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt, gameState?.autoCallerEnabled, pool.length, callInFlight]);
 
   // A completed deck should stop Auto-Caller and return the host to a clear
   // end-of-round state instead of leaving controls looking mysteriously stuck.
   useEffect(() => {
     if (gameState?.started && pool.length === 0 && autoCallerActive) {
       setAutoCallerActive(false);
+      void setAutoCallerEnabled(false).catch(error => console.error('Could not stop Auto-Caller:', error));
     }
   }, [gameState?.started, pool.length, autoCallerActive]);
  
@@ -336,12 +340,10 @@ export default function Caller() {
     } catch (e) {
       console.error('Could not call next track:', e);
       setAutoCallerActive(false);
-      if (!gameState.nowPlaying && typeof gameState.autoStartAt === 'number') {
-        try {
-          await cancelAutoCallerStart();
-        } catch (cancelError) {
-          console.error('Could not clear the failed Track 1 countdown:', cancelError);
-        }
+      try {
+        await setAutoCallerEnabled(false);
+      } catch (disableError) {
+        console.error('Could not disable Auto-Caller after the failed track change:', disableError);
       }
     } finally {
       callInFlightRef.current = false;
@@ -352,17 +354,22 @@ export default function Caller() {
   const handleToggleAutoCaller = async () => {
     if (autoCallerActive) {
       setAutoCallerActive(false);
-      if (!gameState?.nowPlaying && typeof gameState?.autoStartAt === 'number') {
-        try {
-          await cancelAutoCallerStart();
-        } catch (e) {
-          console.error('Could not cancel the Auto-Caller countdown:', e);
-        }
+      try {
+        await setAutoCallerEnabled(false);
+      } catch (e) {
+        console.error('Could not pause Auto-Caller:', e);
+        setAutoCallerActive(true);
       }
       return;
     }
 
-    setAutoCallerActive(true);
+    try {
+      await setAutoCallerEnabled(true);
+      setAutoCallerActive(true);
+    } catch (e) {
+      console.error('Could not enable Auto-Caller:', e);
+      setAutoCallerActive(false);
+    }
   };
  
   const validWinnersCount = claims.filter(c => c.status === 'valid').length;

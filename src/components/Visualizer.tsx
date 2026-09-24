@@ -47,9 +47,11 @@ export default function Visualizer() {
   });
   const trackTiming = getTrackTiming(gameState, clockNow);
   const autoStartTiming = getAutoStartTiming(gameState, clockNow);
+  const autoCallerEnabled = gameState?.autoCallerEnabled === true;
   const nextTrackRemaining = trackTiming.remainingSeconds;
   const autoStartRemaining = autoStartTiming.remainingSeconds;
-  const isAutoStartCountdown = !gameState?.nowPlaying && autoStartRemaining > 0;
+  const isAutoStartCountdown = autoCallerEnabled && !gameState?.nowPlaying && autoStartRemaining > 0;
+  const songHasEnded = typeof gameState?.trackEndedAt === 'number';
   const dropCountdown = isAutoStartCountdown
     ? autoStartRemaining
     : Math.min(INTER_TRACK_DELAY_SECONDS, nextTrackRemaining);
@@ -437,7 +439,7 @@ export default function Visualizer() {
 
     const interval = window.setInterval(() => setClockNow(Date.now()), 250);
     return () => clearInterval(interval);
-  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt]);
+  }, [gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt, gameState?.autoCallerEnabled]);
 
   const syncSongProgress = (audio: HTMLAudioElement, animate: boolean) => {
     if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
@@ -811,7 +813,7 @@ export default function Visualizer() {
             )}
 
             {/* A full-screen five-count launches Track 1 and separates later songs. */}
-            {(isAutoStartCountdown || trackTiming.isInterTrackDelay) && dropCountdown > 0 && (
+            {autoCallerEnabled && (isAutoStartCountdown || trackTiming.isInterTrackDelay) && dropCountdown > 0 && (
               <div className="absolute inset-0 z-[90] pointer-events-none flex items-center justify-center overflow-hidden bg-[#030612]/94 backdrop-blur-xl">
                 <div className="absolute left-1/2 top-1/2 w-[135vmax] h-[135vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .72) 0deg 2deg, transparent 2deg 11deg, rgba(${theme.cr}, .48) 11deg 13deg, transparent 13deg 24deg)`, animation: 'mbTrackBurst 5s cubic-bezier(.16,1,.3,1) forwards' }} />
                 <div className="absolute w-[48vmin] h-[48vmin] rounded-full border-[3px] opacity-80" style={{ borderColor: theme.c, boxShadow: `0 0 110px 32px rgba(${theme.ar}, .52), inset 0 0 90px rgba(${theme.br}, .45)`, animation: 'mbRingPulse 1s ease-in-out infinite' }} />
@@ -1074,11 +1076,11 @@ export default function Visualizer() {
                       }}
                     />
                   </div>
-                  <div className={`mt-2 text-[9px] sm:text-[10px] lg:text-xs font-black tracking-[0.22em] uppercase ${trackTiming.isInterTrackDelay ? 'text-[#ffd76a]' : 'text-white/40'}`}>
-                    {trackTiming.isInterTrackDelay ? 'Song Complete' : songRemaining > 0 ? 'Song Time Remaining' : 'Loading Track'}
+                  <div className={`mt-2 text-[9px] sm:text-[10px] lg:text-xs font-black tracking-[0.22em] uppercase ${songHasEnded ? 'text-[#ffd76a]' : 'text-white/40'}`}>
+                    {songHasEnded ? 'Song Complete' : songRemaining > 0 ? 'Song Time Remaining' : 'Loading Track'}
                   </div>
                 </div>
-                <div aria-live="polite" className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${trackTiming.isInterTrackDelay ? 'text-[#ffd76a] drop-shadow-[0_0_40px_#ffd76a] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
+                <div aria-live="polite" className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${songHasEnded ? 'text-[#ffd76a] drop-shadow-[0_0_40px_#ffd76a] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
                   0:{String(songRemaining).padStart(2, '0')}
                 </div>
               </div>

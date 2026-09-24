@@ -23,7 +23,7 @@ export type AutoStartTiming = {
 };
 
 export function getAutoStartTiming(gameState: GameState | null, now = Date.now()): AutoStartTiming {
-  if (!gameState?.started || gameState.nowPlaying || typeof gameState.autoStartAt !== 'number') {
+  if (!gameState?.started || gameState.autoCallerEnabled !== true || gameState.nowPlaying || typeof gameState.autoStartAt !== 'number') {
     return { remainingMs: 0, remainingSeconds: 0, isActive: false };
   }
 
@@ -40,6 +40,12 @@ export function getTrackTiming(gameState: GameState | null, now = Date.now()): T
     return { remainingMs: 0, remainingSeconds: 0, progress: 0, isComplete: false, isInterTrackDelay: false };
   }
 
+  // A finished song only becomes a five-second countdown when Auto-Caller has
+  // scheduled a next-track deadline. In manual mode it should simply stay done.
+  if (typeof gameState.trackEndedAt === 'number' && typeof gameState.nextTrackAt !== 'number') {
+    return { remainingMs: 0, remainingSeconds: 0, progress: 1, isComplete: true, isInterTrackDelay: false };
+  }
+
   const startedAt = gameState.trackStartedAt
     ?? (gameState.nextTrackAt ? gameState.nextTrackAt - TRACK_CYCLE_MS : gameState.updatedAt);
   const endsAt = gameState.nextTrackAt ?? startedAt + TRACK_CYCLE_MS;
@@ -52,6 +58,8 @@ export function getTrackTiming(gameState: GameState | null, now = Date.now()): T
     remainingSeconds: Math.ceil(remainingMs / 1000),
     progress: Math.min(1, elapsed / duration),
     isComplete: now >= endsAt,
-    isInterTrackDelay: typeof gameState.trackEndedAt === 'number' && now < endsAt,
+    isInterTrackDelay: typeof gameState.trackEndedAt === 'number'
+      && typeof gameState.nextTrackAt === 'number'
+      && now < endsAt,
   };
 }
