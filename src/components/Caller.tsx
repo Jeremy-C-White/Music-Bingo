@@ -10,7 +10,7 @@ type HostCue = {
   kicker: string;
   title: string;
   script: string;
-  followUp?: string;
+  hostNote?: string;
 };
 
 // NOTE: On-mic DJ lines intentionally never reveal the song title or artist.
@@ -33,39 +33,39 @@ function getPregameCues(activePlayers: number): HostCue[] {
     {
       kicker: 'Opening • Welcome the Room',
       title: 'Welcome to Music Bingo',
-      script: `What is up, everybody! Welcome to Music Bingo, where your playlist knowledge meets a little bit of luck. ${roomStatus}`,
-      followUp: 'Tonight, you do not need to sing on key, know every artist, or have perfect dance moves. You just need to listen, find the songs on your card, and be ready to make some noise.'
+      script: `What is up, everybody! Welcome to Music Bingo, where your playlist knowledge meets a little bit of luck. ${roomStatus} Tonight, you do not need to sing on key, know every artist, or have perfect dance moves. You just need to listen, find the songs on your card, and be ready to make some noise.`,
+      hostNote: 'Wait until most players are checked in. Confirm that the stage screen is visible and run a quick room-audio check before moving to the rules.'
     },
     {
       kicker: 'Rules • Listen and Identify',
       title: 'How Each Track Works',
-      script: 'I will play a short clip from one song at a time. Listen closely for the melody, the chorus, or any clue that helps you recognize it — I will not be naming the track, that part is on your ears!',
-      followUp: 'You can enjoy the music, but keep one eye on your card because the clips keep moving and every track could be the square you need.'
+      script: 'I will play a short clip from one song at a time. Listen closely for the melody, the chorus, or any clue that helps you recognize it — I will not be naming the track, that part is on your ears! Keep one eye on your card because the clips keep moving, and every track could be the square you need.',
+      hostNote: 'Do not say the title or artist. Let each preview play long enough to be recognizable, then leave a few seconds for players to scan and mark their cards.'
     },
     {
       kicker: 'Rules • Mark the Card',
       title: 'Find It and Tap It',
-      script: 'If you recognize the song and it appears anywhere on your five-by-five card, tap that tile to mark it. Your center FREE space is already marked and ready to help you.',
-      followUp: 'Only mark songs that have actually played. You can tap a tile again to unmark it if you make a mistake.'
+      script: 'If you recognize the song and it appears anywhere on your five-by-five card, tap that tile to mark it. Your center FREE space is already marked and ready to help you. Only mark songs that have actually played, and tap a tile again if you need to correct a mistake.',
+      hostNote: 'Point out the center FREE space on a sample card if anyone looks unsure. Give players a moment to test tapping and unmarking before continuing.'
     },
     {
       kicker: 'Rules • Call Bingo',
       title: 'How to Win',
-      script: 'Complete five marked tiles in one horizontal, vertical, or diagonal line. The moment your line is complete, hit the CALL BINGO button on your board.',
-      followUp: 'Your card comes straight to the host desk for verification, so do not wait, do not whisper it, and definitely do not let somebody else beat you to the button.'
+      script: 'Complete five marked tiles in one horizontal, vertical, or diagonal line. The moment your line is complete, hit the CALL BINGO button on your board. Your card comes straight to the host desk for verification, so do not wait, do not whisper it, and definitely do not let somebody else beat you to the button.',
+      hostNote: 'When a claim arrives, pause before advancing another track. Check the claim status and announce a winner only after the app marks the claim as valid.'
     },
     {
       kicker: 'Final Check • Build the Energy',
       title: 'Ready to Start the Show',
-      script: 'Use the reaction button during the game to send some energy to the big screen. Fire, dancing, rock hands, whatever matches the moment, let us see it.',
-      followUp: 'Cards ready? Volume up? Competitive spirit activated? Then let us start Music Bingo!'
+      script: 'Use the reaction button during the game to send some energy to the big screen. Fire, dancing, rock hands, whatever matches the moment, let us see it. Cards ready? Volume up? Competitive spirit activated? Then let us start Music Bingo!',
+      hostNote: 'Final checklist: confirm the player count has settled, stage sound is enabled, and only one screen is playing audio so the room does not hear an echo.'
     }
   ];
 }
 
 function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength: number, variation: number): HostCue {
   if (!gameState?.started) {
-    return { kicker: 'Lobby Open', title: 'Welcome the Players', script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.', followUp: 'Open the full teleprompter for the complete introduction and rules before starting the round.' };
+    return { kicker: 'Lobby Open', title: 'Welcome the Players', script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.', hostNote: 'Use the full teleprompter once the room has settled. Keep the game in the lobby until the player count and sound check are complete.' };
   }
 
   const sessionClaims = claims.filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId);
@@ -73,34 +73,34 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
   const latestWinner = validClaims.slice().sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0];
 
   if (latestWinner) {
-    return { kicker: 'Winner Moment • Pause the Music', title: 'We Have an Official Bingo', script: `Hold everything! We have a verified bingo from ${latestWinner.playerName}. That card is official, that line is complete, and we have our winner!`, followUp: 'Everybody light up the reactions and make some noise for our Music Bingo champion. Host note: pause the round and celebrate before resetting.' };
+    return { kicker: 'Winner Moment • Pause the Music', title: 'We Have an Official Bingo', script: `Hold everything! We have a verified bingo from ${latestWinner.playerName}. That card is official, that line is complete, and we have our winner! Everybody light up the reactions and make some noise for our Music Bingo champion!`, hostNote: 'Pause Auto-Caller and the music. Handle any prize or house rules, then use End & Reset only when the room is ready; resetting clears the current claims.' };
   }
 
   if (!gameState.nowPlaying) {
-    return { kicker: 'Game Live • First Track Ready', title: 'Kick Off the Music', script: 'The room is ready, the cards are live, and the only thing missing is the music. Let us drop the very first track and get this game moving.', followUp: 'Remind players to mark a square only when they recognize a song that appears on their own card.' };
+    return { kicker: 'Game Live • First Track Ready', title: 'Kick Off the Music', script: 'The room is ready, the cards are live, and the only thing missing is the music. Remember, mark a square only when you recognize a song that appears on your own card. Let us drop the very first track and get this game moving!', hostNote: 'Check that the Visualizer has sound and the Caller is not also playing audio. Once the room confirms they can hear, play the first song.' };
   }
 
   const currentTrackNumber = gameState.history.length + 1;
   const setNumber = Math.floor((currentTrackNumber - 1) / 5) + 1;
 
   if (currentTrackNumber === 1) {
-    return { kicker: 'Opening Drop • Track 01', title: 'The Game Is Officially Live', script: 'That is our very first track of the night officially in the mix. Find it, mark it, and get comfortable, because we are rolling right into track number two.', followUp: 'If the crowd looks totally stumped, throw them a bone by reading the trivia fact below before hitting the next track.' };
+    return { kicker: 'Opening Drop • Track 01', title: 'The Game Is Officially Live', script: 'That is our very first track of the night officially in the mix. Find it, mark it, and get comfortable, because we are rolling right into track number two.', hostNote: 'Let the preview finish and allow a short marking pause. If the room looks confused, read the Song Trivia card without revealing the title or artist.' };
   }
 
   if (poolLength <= 5) {
-    return { kicker: 'Final Stretch • Pressure Is Up', title: 'Every Track Matters Now', script: `We are deep in the final stretch, finishing up Track ${currentTrackNumber}. We only have a few songs left in the vault, which means somebody is dangerously close. Let's spin the next one.`, followUp: 'Check those near-bingo squares carefully. If five are connected, hit CALL BINGO immediately.' };
+    return { kicker: 'Final Stretch • Pressure Is Up', title: 'Every Track Matters Now', script: `We are deep in the final stretch, finishing up Track ${currentTrackNumber}. We only have a few songs left in the vault, which means somebody is dangerously close. Check those near-bingo squares carefully, and if five are connected, hit CALL BINGO immediately. Let's spin the next one.`, hostNote: 'Slow the pace slightly and watch the claim queue closely. If a claim arrives, pause before calling another track.' };
   }
 
   if (currentTrackNumber > 1 && currentTrackNumber % 5 === 1) {
-    return { kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`, title: 'Fresh Set, Fresh Chances', script: `We are officially ${currentTrackNumber - 1} tracks deep into the game! Reset your focus, check your whole board, and let's kick off this next block of music.`, followUp: 'Read the bonus trivia below if you want to drop a fun fact before the next beat drops.' };
+    return { kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`, title: 'Fresh Set, Fresh Chances', script: `We are officially ${currentTrackNumber - 1} tracks deep into the game! Reset your focus, check your whole board, and let's kick off this next block of music.`, hostNote: 'Use this transition to check the room volume and player energy. Read the Song Trivia card or take a short pause if the room needs a breather.' };
   }
 
   if (currentTrackNumber % 5 === 0) {
-    return { kicker: `Milestone • ${currentTrackNumber} Tracks Reached`, title: 'Board Check', script: `That brings us to Track ${currentTrackNumber}. Take a quick second to look across your full card, because a winning line can sneak up on you. Let's see what's queued up next.`, followUp: 'Check rows, columns, and both diagonals. If you see five connected marks, call it now.' };
+    return { kicker: `Milestone • ${currentTrackNumber} Tracks Reached`, title: 'Board Check', script: `That brings us to Track ${currentTrackNumber}. Take a quick second to look across your full card. Check every row, every column, and both diagonals, because a winning line can sneak up on you. If you see five connected marks, call it now!`, hostNote: 'Hold for a few seconds so players can check their cards. Scan the claim queue before advancing to the next track.' };
   }
 
   const line = STANDARD_DJ_LINES[Math.abs(variation) % STANDARD_DJ_LINES.length];
-  return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: line({ current: currentTrackNumber }), followUp: currentTrackNumber >= 12 ? 'Read the song trivia below to reward the room before you click to the next track.' : 'Stay patient, keep the board clean, and remember that the center FREE space is already working for you.' };
+  return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: line({ current: currentTrackNumber }), hostNote: currentTrackNumber >= 12 ? 'Optional: read the Song Trivia card. Confirm the preview has ended and no claim is waiting before advancing.' : 'Wait for the preview to finish, scan the claim queue, and make sure the Auto-Caller pace still matches the room.' };
 }
  
 export default function Caller() {
@@ -422,9 +422,10 @@ export default function Caller() {
               }`}>
                 “{activeHostCue.script}”
               </p>
-              {activeHostCue.followUp && (
+              {activeHostCue.hostNote && (
                 <p className="mt-2.5 mb-0 text-xs sm:text-sm leading-relaxed text-white/60 font-medium border-l-2 border-[#ff4fd8]/45 pl-3">
-                  Host Note: {activeHostCue.followUp}
+                  <span className="font-black uppercase tracking-wider text-[#ff4fd8]">Off-Mic Host Note:</span>{' '}
+                  {activeHostCue.hostNote}
                 </p>
               )}
               {gameState?.nowPlaying && (
@@ -747,11 +748,11 @@ export default function Caller() {
                 <p className={`relative text-white font-bold leading-[1.35] m-0 text-balance ${teleprompterTextClass}`}>
                   “{activeHostCue.script}”
                 </p>
-                {activeHostCue.followUp && (
+                {activeHostCue.hostNote && (
                   <div className="relative mt-5 pt-5 border-t border-white/15">
-                    <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.24em] text-[#ff4fd8] mb-2">Host Note:</div>
+                    <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.24em] text-[#ff4fd8] mb-2">Off-Mic Host Note</div>
                     <p className="text-base sm:text-lg md:text-2xl text-white/72 font-semibold leading-relaxed m-0 text-balance">
-                      {activeHostCue.followUp}
+                      {activeHostCue.hostNote}
                     </p>
                   </div>
                 )}
