@@ -258,6 +258,14 @@ export default function Caller() {
     const timer = window.setTimeout(() => void handleCallNext(), delay);
     return () => clearTimeout(timer);
   }, [autoCallerActive, gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt, pool.length, callInFlight]);
+
+  // A completed deck should stop Auto-Caller and return the host to a clear
+  // end-of-round state instead of leaving controls looking mysteriously stuck.
+  useEffect(() => {
+    if (gameState?.started && pool.length === 0 && autoCallerActive) {
+      setAutoCallerActive(false);
+    }
+  }, [gameState?.started, pool.length, autoCallerActive]);
  
   // Audio Playback Sync
   useEffect(() => {
@@ -358,6 +366,7 @@ export default function Caller() {
   };
  
   const validWinnersCount = claims.filter(c => c.status === 'valid').length;
+  const tracksExhausted = gameState?.started === true && pool.length === 0;
   const trackTiming = getTrackTiming(gameState, clockNow);
   const autoStartTiming = getAutoStartTiming(gameState, clockNow);
   const autoStartRemaining = autoStartTiming.remainingSeconds;
@@ -568,9 +577,24 @@ export default function Caller() {
                   className={`w-full py-4 rounded-2xl text-sm md:text-base font-black tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99] ${pool.length > 0 && !callInFlight ? 'bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white shadow-[0_0_26px_rgba(51,216,255,0.36)] hover:brightness-110' : 'bg-black/60 border border-white/10 text-white/50 shadow-inner'}`}
                   onClick={handleCallNext}
                   disabled={callInFlight || pool.length === 0}
+                  aria-describedby={tracksExhausted ? 'tracks-exhausted-help' : undefined}
                 >
-                  <Disc className="w-5 h-5" /> {gameState.history.length === 0 && !gameState.nowPlaying ? 'Play First Song' : 'Call Next Track'}
+                  <Disc className="w-5 h-5" />
+                  {callInFlight
+                    ? 'Loading Next Track...'
+                    : tracksExhausted
+                      ? 'All Tracks Played'
+                      : gameState.history.length === 0 && !gameState.nowPlaying
+                        ? 'Play First Song'
+                        : 'Call Next Track'}
                 </button>
+
+                {tracksExhausted && (
+                  <div id="tracks-exhausted-help" className="rounded-xl border border-[#ffd76a]/30 bg-[#ffd76a]/10 px-3 py-2.5 text-[10px] sm:text-xs leading-relaxed text-[#ffe49a] font-semibold flex items-start gap-2">
+                    <RefreshCw className="w-4 h-4 flex-none mt-0.5" />
+                    <span>The full song deck is complete. Use <strong>End Round &amp; Reset</strong> to refill it for a new game.</span>
+                  </div>
+                )}
                 
                 {/* Spacebar Hint */}
                 <div className="flex justify-center text-[10px] text-white/40 font-bold uppercase tracking-widest">
@@ -601,9 +625,10 @@ export default function Caller() {
                     )}
                     <button 
                       onClick={handleToggleAutoCaller}
-                      className={`text-xs font-black uppercase tracking-widest transition-colors cursor-pointer ${autoCallerActive ? 'text-[#ff4fd8] hover:text-[#ff4fd8]/80' : 'text-white/50 hover:text-white'}`}
+                      disabled={tracksExhausted}
+                      className={`text-xs font-black uppercase tracking-widest transition-colors ${tracksExhausted ? 'text-white/25 cursor-not-allowed' : autoCallerActive ? 'text-[#ff4fd8] hover:text-[#ff4fd8]/80 cursor-pointer' : 'text-white/50 hover:text-white cursor-pointer'}`}
                     >
-                      {autoCallerActive ? 'PAUSE' : 'ENABLE'}
+                      {tracksExhausted ? 'COMPLETE' : autoCallerActive ? 'PAUSE' : 'ENABLE'}
                     </button>
                   </div>
                 </div>
