@@ -559,11 +559,6 @@ export default function Visualizer() {
         @keyframes mbPanelShimmer { 0%,100% { opacity: .16; transform: translateX(-8%); } 50% { opacity: .34; transform: translateX(8%); } }
         @keyframes mbFloorRush { from { background-position: 0 0, 0 0; } to { background-position: 0 96px, 96px 0; } }
         @keyframes mbBulbChase { 0%,100% { opacity: .3; transform: scale(.82); } 45% { opacity: 1; transform: scale(1.22); } }
-        @keyframes mbLightCrownFloat { 0%,100% { transform: translateY(-4px) scale(.98); } 50% { transform: translateY(7px) scale(1.03); } }
-        @keyframes mbLightOrbit { to { transform: rotate(360deg); } }
-        @keyframes mbLightOrbitReverse { to { transform: rotate(-360deg); } }
-        @keyframes mbLightCorePulse { 0%,100% { opacity: .78; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.08); } }
-        @keyframes mbLightRayPulse { 0%,100% { opacity: .16; } 50% { opacity: .65; } }
         @keyframes mbTrackStamp { 0% { opacity: 0; transform: scale(.35) rotate(-7deg); filter: blur(12px); } 16% { opacity: 1; transform: scale(1.06) rotate(1deg); filter: blur(0); } 76% { opacity: 1; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(1.2); } }
         @keyframes mbReactionHalo { 0%,100% { transform: scale(.7); opacity: .15; } 50% { transform: scale(1.2); opacity: .55; } }
         @keyframes mbCountdownBar { to { transform: scaleX(1); } }
@@ -582,11 +577,6 @@ export default function Visualizer() {
         .mb-visualizer-sweep { animation: mbVisualizerSweep 4.7s linear infinite; }
         .mb-dance-floor { animation: mbFloorRush 5s linear infinite; }
         .mb-rig-bulb { animation: mbBulbChase 1.8s ease-in-out infinite; }
-        .mb-light-crown { animation: mbLightCrownFloat 4.2s ease-in-out infinite; }
-        .mb-light-orbit { animation: mbLightOrbit 13s linear infinite; }
-        .mb-light-orbit-reverse { animation: mbLightOrbitReverse 9s linear infinite; }
-        .mb-light-core { animation: mbLightCorePulse 2.3s ease-in-out infinite; }
-        .mb-light-ray { animation: mbLightRayPulse 2.8s ease-in-out infinite; transform-origin: center top; }
         .mb-track-stamp { animation: mbTrackStamp 2.6s cubic-bezier(.16,1,.3,1) forwards; }
         .mb-reaction-halo { animation: mbReactionHalo 1.4s ease-in-out infinite; }
 
@@ -646,33 +636,6 @@ export default function Visualizer() {
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 text-center bg-transparent overflow-hidden">
           
           <div className="w-full max-w-[900px] flex flex-col items-center animate-[fadeIn_0.6s_ease-out] z-10 mt-10">
-            <div className="absolute top-[4%] sm:top-[2%] left-1/2 -translate-x-1/2 z-30 w-36 h-28 sm:w-48 sm:h-36 pointer-events-none">
-              <div className="mb-light-crown relative w-full h-full flex items-center justify-center">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="mb-light-ray absolute left-1/2 top-1/2 w-[2px] h-[52%] rounded-full bg-gradient-to-b from-[#ffd76a]/70 via-[#ff4fd8]/30 to-transparent"
-                    style={{
-                      transform: `rotate(${i * 40}deg) translateY(-48%)`,
-                      animationDelay: `${i * -0.21}s`,
-                    }}
-                  />
-                ))}
-                <div className="mb-light-orbit absolute inset-[11%] rounded-full border border-[#33d8ff]/55 shadow-[0_0_24px_rgba(51,216,255,0.28)]">
-                  <span className="absolute left-[8%] top-[9%] w-2.5 h-2.5 rounded-full bg-[#ffd76a] shadow-[0_0_16px_5px_rgba(255,215,106,0.65)]" />
-                  <span className="absolute right-[3%] bottom-[22%] w-2 h-2 rounded-full bg-[#ff4fd8] shadow-[0_0_16px_5px_rgba(255,79,216,0.62)]" />
-                </div>
-                <div className="mb-light-orbit-reverse absolute inset-[24%] rotate-45 rounded-[42%] border border-[#ff4fd8]/55 shadow-[0_0_22px_rgba(255,79,216,0.25)]">
-                  <span className="absolute right-[7%] top-[2%] w-2 h-2 rounded-full bg-white shadow-[0_0_16px_6px_rgba(255,255,255,0.65)]" />
-                </div>
-                <div className="absolute left-1/2 top-1/2 w-[150%] h-px -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-transparent via-[#33d8ff]/75 to-transparent shadow-[0_0_18px_4px_rgba(51,216,255,0.35)]" />
-                <div className="absolute left-1/2 top-1/2 w-px h-[125%] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-b from-transparent via-[#ff4fd8]/55 to-transparent shadow-[0_0_16px_3px_rgba(255,79,216,0.28)]" />
-                <div className="mb-light-core relative w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[radial-gradient(circle,white_0_8%,#ffd76a_16%,#ff4fd8_46%,rgba(51,216,255,0.22)_68%,transparent_72%)] shadow-[0_0_24px_#ffd76a,0_0_58px_#ff4fd8,0_0_90px_rgba(51,216,255,0.55)] flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 sm:w-7 sm:h-7 text-white drop-shadow-[0_0_12px_white]" />
-                </div>
-              </div>
-            </div>
-            
             {/* Integrated Logo Section */}
             <div className="relative flex flex-col items-center justify-center w-full mb-12 mt-16 sm:mt-20 animate-[logoFloat_4s_ease-in-out_infinite]">
               
