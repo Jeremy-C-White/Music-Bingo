@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, markTrackEnded, scheduleAutoCallerStart, setAutoCallerEnabled, dismissClaim, subscribeToPlayerCount } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
 import { songs, shuffle, splitSong, getSongFact, songTeasers } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
-import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Maximize2, Minimize2, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play, Volume2, VolumeX, Keyboard } from 'lucide-react';
+import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play, Volume2, VolumeX, Keyboard } from 'lucide-react';
 import { playCallSound } from '../lib/soundEffects';
 import { getAutoStartTiming, getTrackTiming } from '../lib/timing';
 
@@ -93,43 +93,49 @@ function getPregameCues(activePlayers: number): HostCue[] {
     ? `${activePlayers} player${activePlayers === 1 ? '' : 's'} are already checked in, and we are about to turn this room into a music party.`
     : 'As everyone finishes joining, get your bingo card open and make sure you can hear the shared music.';
 
-  return [
+  const cues: HostCue[] = [
     {
       kicker: 'Opening • Welcome the Room',
       title: 'Welcome to Music Bingo',
       script: `What is up, everybody! Welcome to Music Bingo, where your playlist knowledge meets a little bit of luck. ${roomStatus} Tonight, you do not need to sing on key, know every artist, or have perfect dance moves. You just need to listen, find the songs on your card, and be ready to make some noise.`,
-      hostNote: 'Wait until most players are checked in. Confirm that the stage screen is visible and run a quick room-audio check before moving to the rules.'
+      hostNote: 'Read this aloud, then click Next Cue (or press →). The next three cues explain how to play, so read every cue before you press Start Game. Before you begin: most players checked in, the stage screen visible, and the room can hear the music.'
     },
     {
       kicker: 'Rules • Listen and Identify',
       title: 'How Each Track Works',
       script: 'I will play a short clip from one song at a time. Listen closely for the melody, the chorus, or any clue that helps you recognize it — I will not be naming the track, that part is on your ears! Keep one eye on your card because the clips keep moving, and every track could be the square you need.',
-      hostNote: 'Do not say the title or artist. Let each preview play long enough to be recognizable, then leave a few seconds for players to scan and mark their cards.'
+      hostNote: 'How to play, part 1: listening. Read it, then click Next Cue. During the game, never say a song title or artist out loud.'
     },
     {
       kicker: 'Rules • Mark the Card',
       title: 'Find It and Tap It',
       script: 'If you recognize the song and it appears anywhere on your five-by-five card, tap that tile to mark it. Your center FREE space is already marked and ready to help you. Only mark songs that have actually played, and tap a tile again if you need to correct a mistake.',
-      hostNote: 'Point out the center FREE space on a sample card if anyone looks unsure. Give players a moment to test tapping and unmarking before continuing.'
+      hostNote: 'How to play, part 2: marking the card. Read it, then click Next Cue. If anyone looks unsure, point out the FREE center square and let them try tapping and untapping a tile.'
     },
     {
       kicker: 'Rules • Call Bingo',
       title: 'How to Win',
       script: 'Complete five marked tiles in one horizontal, vertical, or diagonal line. The moment your line is complete, hit the CALL BINGO button on your board. Your card comes straight to the host desk for verification, so do not wait, do not whisper it, and definitely do not let somebody else beat you to the button.',
-      hostNote: 'When a claim arrives, pause before advancing another track. Check the claim status and announce a winner only after the app marks the claim as valid.'
+      hostNote: 'How to play, part 3: winning. Read it, then click Next Cue. During the game, when a Bingo claim comes in, pause and only announce a winner once the claim shows Valid.'
     },
     {
       kicker: 'Final Check • Build the Energy',
       title: 'Ready to Start the Show',
       script: 'Use the reaction button during the game to send some energy to the big screen. Fire, dancing, rock hands, whatever matches the moment, let us see it. Cards ready? Volume up? Competitive spirit activated? Then let us start Music Bingo!',
-      hostNote: 'Final checklist: confirm the player count has settled, stage sound is enabled, and only one screen is playing audio so the room does not hear an echo.'
+      hostNote: 'Last cue. Read it, then press Start Game. Quick check first: the player count has settled, stage sound is on, and only one screen is playing audio so there is no echo.'
     }
   ];
+
+  // Tell the host where they are in the intro so they click through all of it.
+  return cues.map((cue, index) => ({
+    ...cue,
+    hostNote: `Step ${index + 1} of ${cues.length}: ${cue.hostNote}`,
+  }));
 }
 
 function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength: number, variation: number): HostCue {
   if (!gameState?.started) {
-    return { kicker: 'Lobby Open', title: 'Welcome the Players', script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.', hostNote: 'Use the full teleprompter once the room has settled. Keep the game in the lobby until the player count and sound check are complete.' };
+    return { kicker: 'Lobby Open', title: 'Welcome the Players', script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.', hostNote: 'Step through the intro cues below before pressing Start Game; they explain how to play.' };
   }
 
   const sessionClaims = claims.filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId);
@@ -233,6 +239,45 @@ function getHostGameRead(gameState: GameState, claims: Claim[], poolLength: numb
   };
 }
  
+/**
+ * Shrinks text inside a fixed-height box until it fits without scrolling, up to
+ * `maxPx`. The box only has a fixed height on laptop/desktop screens; on phones
+ * it grows with the text, so the preferred size is always used there.
+ */
+function useFitText(maxPx: number, minPx: number, contentKey: string) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState(maxPx);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const text = textRef.current;
+    if (!box || !text) return;
+
+    const fits = () => box.scrollHeight <= box.clientHeight + 1;
+    const fit = () => {
+      text.style.fontSize = `${maxPx}px`;
+      if (fits()) { setSize(maxPx); return; }
+      let low = minPx;
+      let high = maxPx;
+      while (high - low > 0.5) {
+        const mid = (low + high) / 2;
+        text.style.fontSize = `${mid}px`;
+        if (fits()) low = mid; else high = mid;
+      }
+      text.style.fontSize = `${low}px`;
+      setSize(low);
+    };
+
+    fit();
+    const observer = new ResizeObserver(() => fit());
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [maxPx, minPx, contentKey]);
+
+  return { boxRef, textRef, size };
+}
+
 export default function Caller() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
@@ -254,11 +299,21 @@ export default function Caller() {
   
   const [showPreviewModal, setShowPreviewModal] = useState<Claim | null>(null);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [showTeleprompter, setShowTeleprompter] = useState(false);
   const [scriptFontSize, setScriptFontSize] = useState<'normal' | 'large' | 'xl'>('large');
   const [teleprompterStep, setTeleprompterStep] = useState(0);
   const [cueVariation, setCueVariation] = useState(0);
   
+  const canRefreshLineRef = useRef(false);
+
+  // Script sizes scale with the window height so big screens get big text.
+  const [viewportHeight, setViewportHeight] = useState(() => (typeof window === 'undefined' ? 800 : window.innerHeight));
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window === 'undefined' ? 1280 : window.innerWidth));
+  useEffect(() => {
+    const onResize = () => { setViewportHeight(window.innerHeight); setViewportWidth(window.innerWidth); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Auto-Caller Mode state
   const [autoCallerActive, setAutoCallerActive] = useState(false);
   const [clockNow, setClockNow] = useState(Date.now());
@@ -267,16 +322,31 @@ export default function Caller() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if typing in an input, or if modals are open
-      if (e.code === 'Space' && e.target === document.body && !showResetModal && !showPreviewModal) {
+      if (showResetModal || showPreviewModal || e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      // Never hijack typing (e.g. the volume slider or a text box).
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+      if (e.code === 'Space') {
+        // Space on a focused button should just press that button.
+        if (tag === 'BUTTON') return;
         e.preventDefault();
         if (gameState?.started && pool.length > 0 && !callInFlight) {
           handleCallNext();
         }
+      } else if (!gameState?.started && e.key === 'ArrowRight') {
+        e.preventDefault();
+        setTeleprompterStep(prev => Math.min(prev + 1, 4));
+      } else if (!gameState?.started && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setTeleprompterStep(prev => Math.max(0, prev - 1));
+      } else if (canRefreshLineRef.current && (e.key === 'n' || e.key === 'N')) {
+        setCueVariation(prev => prev + 1);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState?.started, pool.length, callInFlight, showResetModal, showPreviewModal]);
+  }, [gameState?.started, gameState?.nowPlaying, pool.length, callInFlight, showResetModal, showPreviewModal]);
 
   useEffect(() => {
     const unsubState = subscribeToGameState((state) => {
@@ -414,7 +484,6 @@ export default function Caller() {
   const confirmResetGame = async () => {
     setShowResetModal(false);
     setAutoCallerActive(false);
-    setShowTeleprompter(false);
     setTeleprompterStep(0);
     setCueVariation(0);
     setAudioProgress(0);
@@ -509,10 +578,30 @@ export default function Caller() {
     : null;
   const currentTrack = gameState?.nowPlaying ? splitSong(gameState.nowPlaying) : null;
   const currentTrackNumber = gameState?.nowPlaying ? gameState.history.length + 1 : 0;
-  const teleprompterTextClass = scriptFontSize === 'normal'
-    ? 'text-lg sm:text-xl md:text-2xl' : scriptFontSize === 'large'
-      ? 'text-xl sm:text-2xl md:text-4xl' : 'text-2xl sm:text-3xl md:text-5xl';
  
+  // Only the rotating DJ lines have alternatives; the milestone and winner cues are fixed.
+  const canRefreshLine = Boolean(gameState?.nowPlaying) && (activeHostCue.title === 'DJ Talk Track' || activeHostCue.title === 'Every Track Matters Now');
+
+  canRefreshLineRef.current = canRefreshLine;
+
+  const deckStatus = !gameState?.started
+    ? 'Lobby open'
+    : !gameState.nowPlaying
+      ? (autoCallerActive && autoStartRemaining > 0 ? `Track 1 in ${autoStartRemaining}s` : 'Ready for the first song')
+      : trackTiming.isInterTrackDelay
+        ? `Next track in ${trackTiming.remainingSeconds}s`
+        : trackIsLive ? 'Song playing' : 'Song complete · ready for next';
+
+  // The size buttons set the preferred (largest) script size; the text then
+  // shrinks just enough to fit the teleprompter box without scrolling.
+  const scriptSizeRatio = scriptFontSize === 'normal' ? 0.03 : scriptFontSize === 'large' ? 0.042 : 0.055;
+  const scriptMaxPx = Math.round(Math.max(scriptFontSize === 'normal' ? 20 : scriptFontSize === 'large' ? 26 : 32, Math.min(viewportHeight, viewportWidth * 1.25) * scriptSizeRatio));
+  const notesMaxPx = Math.round(Math.max(15, Math.min(22, viewportHeight * 0.019)));
+  const scriptContentKey = `${activeHostCue.script}|${smartGameRead?.onMic ?? ''}`;
+  const notesContentKey = `${activeHostCue.hostNote ?? ''}|${smartGameRead?.note ?? ''}|${gameState?.nowPlaying ?? ''}`;
+  const { boxRef: scriptBoxRef, textRef: scriptTextRef, size: scriptFitSize } = useFitText(scriptMaxPx, 14, scriptContentKey);
+  const { boxRef: notesBoxRef, textRef: notesTextRef, size: notesFitSize } = useFitText(notesMaxPx, 11, notesContentKey);
+
   return (
     <div className="host-shell min-h-screen bg-gradient-to-br from-[#0a0b1e] via-[#15102e] to-[#0a1326] text-[#f7f8ff] font-sans p-3 sm:p-4 xl:p-5 relative overflow-x-hidden selection:bg-[#ff4fd8] selection:text-white">
       <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_18%_22%,rgba(255,79,216,0.16)_0%,transparent_28%),radial-gradient(ellipse_at_82%_20%,rgba(51,216,255,0.16)_0%,transparent_30%),radial-gradient(ellipse_at_50%_85%,rgba(139,92,246,0.16)_0%,transparent_34%),linear-gradient(135deg,#0b1020,#170f2e_55%,#09121f)] opacity-100 transition-all duration-1000 pointer-events-none"></div>
@@ -568,15 +657,14 @@ export default function Caller() {
           </div>
         </div>
  
-        {/* Main Stage */}
-        <div className="host-stage min-w-0 min-h-[520px] lg:min-h-0 bg-[#131728]/82 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl px-4 py-5 sm:p-6 xl:p-7 flex flex-col items-center justify-center lg:overflow-y-auto custom-scrollbar relative text-center">
-          
-          {/* Spinning Turntable Deck & Audio Progress Ring */}
-          <div className="host-record-wrap relative mb-5 sm:mb-6 flex items-center justify-center">
-            
-            {/* Critical Fix: Hidden Audio Element */}
-            <audio 
-              ref={audioRef} 
+        {/* Main Stage: compact "now playing" deck on top, teleprompter fills the rest */}
+        <div className="host-stage min-w-0 flex flex-col gap-3 xl:gap-4 lg:min-h-0">
+
+          {/* Now Playing deck */}
+          <div className="host-deck flex-none bg-[#131728]/82 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-3 sm:p-4 flex flex-col md:flex-row items-center gap-4 md:gap-5">
+            {/* Hidden audio element for when this console provides the sound */}
+            <audio
+              ref={audioRef}
               onTimeUpdate={(e) => {
                 const { currentTime, duration } = e.currentTarget;
                 if (duration) setAudioProgress((currentTime / duration) * 100);
@@ -585,231 +673,219 @@ export default function Caller() {
                 setAudioProgress(100);
                 if (gameState?.nowPlaying) void markTrackEnded(gameState.nowPlaying);
               }}
-              className="hidden" 
+              className="hidden"
             />
 
-            {/* Glowing Audio Progress Ring */}
-            <svg 
-              className="absolute pointer-events-none w-[clamp(166px,26vh,270px)] h-[clamp(166px,26vh,270px)] -rotate-90 drop-shadow-[0_0_10px_rgba(51,216,255,0.6)] z-10" 
-              viewBox="0 0 100 100"
-            >
-              <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
-              {displayProgress > 0 && (
-                <circle 
-                  cx="50" cy="50" r="48" fill="none" stroke="#33d8ff" strokeWidth="2"
-                  strokeDasharray={`${(displayProgress / 100) * 301.59} 301.59`}
-                  strokeLinecap="round"
-                  className="transition-all duration-200 ease-linear"
-                />
-              )}
-            </svg>
+            {/* Spinning record + progress ring */}
+            <div className="host-record-wrap relative flex-none flex items-center justify-center">
+              <svg className="host-ring absolute pointer-events-none -rotate-90 drop-shadow-[0_0_8px_rgba(51,216,255,0.55)] z-10" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2.5" />
+                {displayProgress > 0 && (
+                  <circle
+                    cx="50" cy="50" r="48" fill="none" stroke="#33d8ff" strokeWidth="2.5"
+                    strokeDasharray={`${(displayProgress / 100) * 301.59} 301.59`}
+                    strokeLinecap="round"
+                    className="transition-all duration-200 ease-linear"
+                  />
+                )}
+              </svg>
+              <div className={`host-record relative z-20 rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_30px_rgba(255,79,216,0.24)] border-[3px] border-white/10 p-1.5 flex items-center justify-center ${trackIsLive ? 'is-spinning' : ''}`}>
+                <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
+                  {!previewData?.artworkUrl && <Disc className="w-1/2 h-1/2 text-white/20" />}
+                  <div className="absolute w-[22%] h-[22%] rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_12px_#ff4fd8]"></div>
+                </div>
+              </div>
+            </div>
 
-            <div className={`host-record relative z-20 w-[clamp(150px,24vh,250px)] h-[clamp(150px,24vh,250px)] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_36px_rgba(255,79,216,0.26)] border-[3px] border-white/10 p-2 flex items-center justify-center ${trackIsLive ? 'is-spinning' : ''}`}>
-              <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
-                {!previewData?.artworkUrl && <Disc className="w-16 h-16 text-white/20" />}
-                <div className="absolute w-9 h-9 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
-              </div>
-            </div>
-            
-            {gameState?.nowPlaying && (
-              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black text-[10px] uppercase tracking-widest shadow-[0_0_20px_#ff4fd8] flex items-center gap-2 z-30">
-                <Sparkles className="w-3 h-3" /> Live
-              </div>
-            )}
-          </div>
- 
-          {/* Caller-only track readout */}
-          <h2 className="host-track-title font-black text-[clamp(1.65rem,3.6vw,3.35rem)] mb-1.5 tracking-tighter uppercase max-w-[96%] sm:max-w-[88%] leading-[0.98] text-balance">
-            {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).title : (gameState?.started ? 'Game is Live!' : 'Lobby Open')}
-          </h2>
-          <div className="host-track-artist text-[clamp(0.78rem,1.2vw,1.15rem)] text-white/68 font-semibold mb-4 tracking-[0.16em] uppercase text-balance px-2">
-            {gameState?.nowPlaying ? splitSong(gameState.nowPlaying).artist : (gameState?.started ? "Click 'Play First Song' to begin" : 'Waiting to start the game')}
-          </div>
- 
-          {/* Dynamic Host Mic Script */}
-          <div className="host-script-card w-full max-w-[700px] mb-4 p-4 sm:p-5 bg-black/55 border border-[#33d8ff]/28 rounded-2xl text-left relative overflow-hidden shadow-xl backdrop-blur-md">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.10),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.08),transparent_32%)]" />
-            <div className="relative flex flex-wrap items-center justify-between mb-3 border-b border-white/10 pb-2.5 gap-2">
-              <div className="flex items-center gap-2 text-[#33d8ff] font-bold text-[11px] sm:text-xs uppercase tracking-widest">
-                <Mic2 className="w-4 h-4 text-[#33d8ff]" />
-                <span>{activeHostCue.kicker}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] font-bold">
-                  <button onClick={() => setScriptFontSize('normal')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Standard text size">A</button>
-                  <button onClick={() => setScriptFontSize('large')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Large text size">A+</button>
-                  <button onClick={() => setScriptFontSize('xl')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Extra Large text size">A++</button>
-                </div>
-                {!gameState?.started ? (
-                  <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5">
-                    <button
-                      onClick={() => setTeleprompterStep(prev => Math.max(0, prev - 1))}
-                      disabled={currentPregameStep === 0}
-                      className="p-1.5 rounded-md text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
-                      title="Previous cue"
-                      aria-label="Previous cue"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="px-1 text-[10px] font-black tabular-nums text-white/55">{currentPregameStep + 1}/{pregameCues.length}</span>
-                    {currentPregameStep < pregameCues.length - 1 ? (
-                      <button
-                        onClick={() => setTeleprompterStep(prev => Math.min(pregameCues.length - 1, prev + 1))}
-                        className="p-1.5 rounded-md text-[#33d8ff] hover:bg-[#33d8ff]/10 cursor-pointer"
-                        title="Next cue"
-                        aria-label="Next cue"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    ) : (
-                      <button onClick={handleStartGame} className="px-2 py-1 rounded-md bg-[#ff4fd8] text-white text-[10px] font-black uppercase tracking-wider hover:brightness-110 cursor-pointer">Start</button>
-                    )}
-                  </div>
-                ) : gameState.nowPlaying ? (
-                  <button onClick={() => setCueVariation(prev => prev + 1)} className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/75 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider" title="Show another DJ line">
-                    <RefreshCw className="w-3.5 h-3.5" /> New DJ Line
-                  </button>
-                ) : (
-                  <button onClick={handleCallNext} disabled={callInFlight || pool.length === 0} className="px-2.5 py-1.5 rounded-lg bg-[#33d8ff] text-black text-[10px] font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
-                    <Disc className="w-3.5 h-3.5" /> Play First
-                  </button>
-                )}
-                <button onClick={() => setShowTeleprompter(true)} className="px-2.5 py-1.5 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" title="Open Fullscreen Host Teleprompter">
-                  <Maximize2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Teleprompter</span>
-                </button>
-              </div>
-            </div>
-            <div className="relative host-script-copy max-h-[320px] overflow-y-auto custom-scrollbar pr-1 grid grid-cols-1 md:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] gap-3 items-start">
-              <section className="rounded-xl border border-[#33d8ff]/25 bg-[#33d8ff]/[0.06] p-3" aria-labelledby="compact-read-on-mic">
-                <div id="compact-read-on-mic" className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#33d8ff] mb-2">
-                  <span className="inline-flex items-center gap-1.5"><MessageSquareQuote className="w-3.5 h-3.5" /> Read on Mic</span>
-                  <span className="text-[#ffd76a] tracking-[0.16em]">{activeHostCue.title}</span>
-                </div>
-                <p className={`text-white/95 leading-relaxed m-0 transition-all ${
-                  scriptFontSize === 'normal' ? 'text-sm md:text-base font-medium' :
-                  scriptFontSize === 'large' ? 'text-base md:text-lg xl:text-xl font-semibold' : 'text-lg md:text-xl xl:text-2xl font-bold'
-                }`}>
-                  “{activeHostCue.script}”
-                </p>
-                {smartGameRead && (
-                  <div className="mt-3 pt-3 border-t border-[#33d8ff]/20">
-                    <p className="m-0 text-sm sm:text-base leading-relaxed text-[#b9f4ff] font-bold">
-                      “{smartGameRead.onMic}”
-                    </p>
-                  </div>
-                )}
+            {/* Track readout (host only) */}
+            <div className="min-w-0 flex-1 text-center md:text-left">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1.5">
                 {gameState?.nowPlaying && (
-                  <div className="mt-3 rounded-lg border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] px-3 py-2 text-[11px] sm:text-xs leading-relaxed text-white/75">
-                    <span className="font-black uppercase tracking-wider text-[#ffd76a]">Optional trivia:</span>{' '}
-                    {getSongFact(gameState.nowPlaying)}
-                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3" /> Track {String(currentTrackNumber).padStart(2, '0')}
+                  </span>
                 )}
-              </section>
-
-              <section className="rounded-xl border border-[#ff4fd8]/25 bg-[#ff4fd8]/[0.05] p-3" aria-labelledby="compact-host-notes">
-                <div id="compact-host-notes" className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ff4fd8] mb-2">Notes</div>
-                {activeHostCue.hostNote && (
-                  <p className="m-0 text-xs sm:text-sm leading-relaxed text-white/68 font-medium">
-                    {activeHostCue.hostNote}
-                  </p>
-                )}
-                {smartGameRead && (
-                  <p className="mt-2 mb-0 pt-2 border-t border-white/10 text-xs sm:text-sm leading-relaxed text-white/60 font-medium">
-                    {smartGameRead.note}
-                  </p>
-                )}
-              </section>
+                <span className={`px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${trackIsLive ? 'border-[#4ade80]/40 bg-[#4ade80]/10 text-[#4ade80]' : 'border-white/15 bg-white/5 text-white/60'}`}>
+                  {deckStatus}
+                </span>
+              </div>
+              <h2 className="host-track-title font-black uppercase tracking-tighter leading-[1.02] text-balance line-clamp-2 m-0">
+                {currentTrack ? currentTrack.title : (gameState?.started ? 'Game Is Live!' : 'Lobby Open')}
+              </h2>
+              <div className="mt-1 text-xs sm:text-sm text-white/65 font-semibold tracking-[0.16em] uppercase line-clamp-2">
+                {currentTrack ? currentTrack.artist : (gameState?.started ? 'Play the first song when the room is ready' : 'Read the intro, then start')}
+              </div>
             </div>
-          </div>
- 
-          {/* Action Controls & Auto-Caller Switch */}
-          <div className="host-actions w-full max-w-[560px] flex flex-col gap-3">
-            {!gameState?.started ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+            {/* Controls */}
+            <div className="host-controls w-full md:w-[clamp(250px,26vw,330px)] flex-none flex flex-col gap-2">
+              {!gameState?.started ? (
                 <button
-                  className="w-full py-4 rounded-2xl bg-black/35 hover:bg-[#33d8ff]/15 border border-[#33d8ff]/35 text-[#7fe8ff] text-sm font-black tracking-widest uppercase transition-all cursor-pointer flex items-center justify-center gap-2 shadow-inner"
-                  onClick={() => { setTeleprompterStep(0); setShowTeleprompter(true); }}
-                >
-                  <Mic2 className="w-5 h-5" /> Open DJ Intro
-                </button>
-                <button 
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-sm md:text-base font-black tracking-widest uppercase hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_26px_rgba(255,79,216,0.36)]"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-sm font-black tracking-widest uppercase hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(255,79,216,0.34)]"
                   onClick={handleStartGame}
                 >
                   <Play className="w-5 h-5 fill-current" /> Start Game
                 </button>
-              </div>
-            ) : (
-              <>
-                <button 
-                  className={`w-full py-4 rounded-2xl text-sm md:text-base font-black tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99] ${pool.length > 0 && !callInFlight ? 'bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white shadow-[0_0_26px_rgba(51,216,255,0.36)] hover:brightness-110' : 'bg-black/60 border border-white/10 text-white/50 shadow-inner'}`}
-                  onClick={handleCallNext}
-                  disabled={callInFlight || pool.length === 0}
-                  aria-describedby={tracksExhausted ? 'tracks-exhausted-help' : undefined}
-                >
-                  <Disc className="w-5 h-5" />
-                  {callInFlight
-                    ? 'Loading Next Track...'
-                    : tracksExhausted
-                      ? 'All Tracks Played'
-                      : gameState.history.length === 0 && !gameState.nowPlaying
-                        ? 'Play First Song'
-                        : 'Call Next Track'}
-                </button>
-
-                {tracksExhausted && (
-                  <div id="tracks-exhausted-help" className="rounded-xl border border-[#ffd76a]/30 bg-[#ffd76a]/10 px-3 py-2.5 text-[10px] sm:text-xs leading-relaxed text-[#ffe49a] font-semibold flex items-start gap-2">
-                    <RefreshCw className="w-4 h-4 flex-none mt-0.5" />
-                    <span>The full song deck is complete. Use <strong>End Round &amp; Reset</strong> to refill it for a new game.</span>
-                  </div>
-                )}
-                
-                {/* Spacebar Hint */}
-                <div className="flex justify-center text-[10px] text-white/40 font-bold uppercase tracking-widest">
-                  <Keyboard className="w-3.5 h-3.5 mr-1" /> Press [Space] to call next
-                </div>
- 
-                {/* Auto Caller Mode Toggle */}
-                <div className="flex items-center justify-between px-4 py-3 bg-black/35 border border-white/10 rounded-2xl text-xs shadow-inner">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-[#ffd76a] font-bold uppercase tracking-widest">
-                      <Clock className="w-4 h-4" />
-                      <span>Auto-Caller</span>
-                    </div>
-                    <p className="mt-1 text-[9px] normal-case tracking-normal text-white/35">Advances after the song and the five-count</p>
-                  </div>
- 
-                  <div className="flex items-center gap-3 min-w-0">
+              ) : (
+                <>
+                  <button
+                    className={`w-full py-3.5 rounded-2xl text-sm font-black tracking-widest uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2.5 active:scale-[0.99] ${pool.length > 0 && !callInFlight ? 'bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white shadow-[0_0_24px_rgba(51,216,255,0.34)] hover:brightness-110' : 'bg-black/60 border border-white/10 text-white/50 shadow-inner'}`}
+                    onClick={handleCallNext}
+                    disabled={callInFlight || pool.length === 0}
+                    title="Shortcut: Space"
+                  >
+                    <Disc className="w-5 h-5" />
+                    {callInFlight
+                      ? 'Loading…'
+                      : tracksExhausted
+                        ? 'All Tracks Played'
+                        : gameState.history.length === 0 && !gameState.nowPlaying
+                          ? 'Play First Song'
+                          : 'Call Next Track'}
+                  </button>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2 bg-black/35 border border-white/10 rounded-xl text-[11px] shadow-inner">
+                    <span className="flex items-center gap-1.5 text-[#ffd76a] font-black uppercase tracking-widest"><Clock className="w-3.5 h-3.5" /> Auto-Caller</span>
                     {autoCallerActive && (
-                      <span className="font-mono text-white font-bold text-xs sm:text-sm border-r border-white/10 pr-3 sm:pr-4 whitespace-nowrap">
+                      <span className="font-mono text-white/85 font-bold whitespace-nowrap">
                         {gameState.nowPlaying
-                          ? trackTiming.isInterTrackDelay
-                            ? `Drops 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}`
-                            : 'Listening'
-                          : autoStartRemaining > 0
-                            ? `Track 1 0:${String(autoStartRemaining).padStart(2, '0')}`
-                            : 'Starting...'}
+                          ? trackTiming.isInterTrackDelay ? `Drops 0:${String(trackTiming.remainingSeconds).padStart(2, '0')}` : 'Listening'
+                          : autoStartRemaining > 0 ? `Track 1 0:${String(autoStartRemaining).padStart(2, '0')}` : 'Starting…'}
                       </span>
                     )}
-                    <button 
+                    <button
                       onClick={handleToggleAutoCaller}
                       disabled={tracksExhausted}
-                      className={`text-xs font-black uppercase tracking-widest transition-colors ${tracksExhausted ? 'text-white/25 cursor-not-allowed' : autoCallerActive ? 'text-[#ff4fd8] hover:text-[#ff4fd8]/80 cursor-pointer' : 'text-white/50 hover:text-white cursor-pointer'}`}
+                      className={`px-2.5 py-1 rounded-lg font-black uppercase tracking-widest transition-colors ${tracksExhausted ? 'text-white/25 cursor-not-allowed' : autoCallerActive ? 'bg-[#ff4fd8]/15 text-[#ff4fd8] hover:bg-[#ff4fd8]/25 cursor-pointer' : 'bg-white/10 text-white/75 hover:text-white cursor-pointer'}`}
                     >
-                      {tracksExhausted ? 'COMPLETE' : autoCallerActive ? 'PAUSE' : 'ENABLE'}
+                      {tracksExhausted ? 'Complete' : autoCallerActive ? 'Pause' : 'Enable'}
                     </button>
                   </div>
-                </div>
-              </>
-            )}
+                  {tracksExhausted && (
+                    <div className="rounded-xl border border-[#ffd76a]/30 bg-[#ffd76a]/10 px-3 py-2 text-[11px] leading-snug text-[#ffe49a] font-semibold">
+                      Deck complete. Use <strong>End Round &amp; Reset</strong> for a new game.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Teleprompter (always on the page, no pop-up) */}
+          <section className="host-prompter flex-1 min-h-[420px] lg:min-h-0 bg-[#131728]/82 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-3 sm:p-4 flex flex-col gap-3" aria-label="Host teleprompter">
+            {/* Toolbar */}
+            <div className="flex-none flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0 flex items-center gap-2">
+                <Mic2 className="w-4 h-4 flex-none text-[#33d8ff]" />
+                <span className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-[#33d8ff] truncate">{activeHostCue.kicker}</span>
+                <span className="hidden sm:inline text-[11px] font-black uppercase tracking-[0.16em] text-[#ffd76a] truncate">· {activeHostCue.title}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 text-[11px] font-bold" role="group" aria-label="Script text size">
+                  {(['normal', 'large', 'xl'] as const).map((size, index) => (
+                    <button key={size} onClick={() => setScriptFontSize(size)} className={`px-2 py-1 rounded cursor-pointer ${scriptFontSize === size ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title={['Smaller script text', 'Large script text', 'Largest script text'][index]}>
+                      {['A', 'A+', 'A++'][index]}
+                    </button>
+                  ))}
+                </div>
+                {canRefreshLine && (
+                  <button onClick={() => setCueVariation(prev => prev + 1)} className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/80 hover:text-white cursor-pointer flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider" title="Shortcut: N">
+                    <RefreshCw className="w-3.5 h-3.5" /> New Line
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Script + notes */}
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(220px,30%)] gap-3">
+              <div ref={scriptBoxRef} className="host-fit-box relative min-h-0 rounded-xl border-2 border-[#33d8ff]/35 bg-black/55 p-4 sm:p-5 shadow-[0_0_40px_rgba(51,216,255,0.10)]">
+                {gameState?.nowPlaying && (
+                  <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl overflow-hidden bg-white/5">
+                    <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear" style={{ width: `${displayProgress}%` }} />
+                  </div>
+                )}
+                <div ref={scriptTextRef} style={{ fontSize: `${scriptFitSize}px` }}>
+                  <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-[#33d8ff] mb-[0.45em]">
+                    <MessageSquareQuote className="w-3.5 h-3.5" /> Read on Mic
+                  </div>
+                  <p className="m-0 text-white font-bold leading-[1.32] text-pretty">“{activeHostCue.script}”</p>
+                  {smartGameRead && (
+                    <p className="mt-[0.6em] mb-0 pt-[0.55em] border-t border-[#33d8ff]/20 text-[0.78em] leading-[1.35] text-[#b9f4ff] font-bold">“{smartGameRead.onMic}”</p>
+                  )}
+                </div>
+              </div>
+
+              <aside ref={notesBoxRef} className="host-fit-box min-h-0 rounded-xl border border-[#ff4fd8]/25 bg-[#ff4fd8]/[0.05] p-3 sm:p-4">
+                <div ref={notesTextRef} style={{ fontSize: `${notesFitSize}px` }} className="flex flex-col gap-[0.7em]">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#ff4fd8] mb-[0.35em]">Notes</div>
+                    {activeHostCue.hostNote && <p className="m-0 leading-[1.45] text-white/75 font-medium">{activeHostCue.hostNote}</p>}
+                    {smartGameRead && <p className="mt-[0.5em] mb-0 leading-[1.45] text-white/60 font-medium">{smartGameRead.note}</p>}
+                  </div>
+                  {gameState?.nowPlaying && (
+                    <div className="rounded-lg border border-[#ffd76a]/25 bg-[#ffd76a]/[0.07] p-[0.6em] leading-[1.45] text-white/80">
+                      <span className="font-black uppercase tracking-wider text-[#ffd76a]">Optional trivia:</span>{' '}
+                      {getSongFact(gameState.nowPlaying)}
+                    </div>
+                  )}
+                </div>
+              </aside>
+            </div>
+
+            {/* Intro navigation (before the game starts) */}
+            {!gameState?.started && (
+              <div className="flex-none flex flex-wrap items-center justify-between gap-2 pt-1">
+                <button
+                  onClick={() => setTeleprompterStep(prev => Math.max(0, prev - 1))}
+                  disabled={currentPregameStep === 0}
+                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-black uppercase tracking-wider cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  title="Shortcut: ←"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Previous
+                </button>
+                <div className="flex items-center gap-2" aria-label="Intro progress">
+                  {pregameCues.map((cue, index) => (
+                    <button
+                      key={cue.title}
+                      onClick={() => setTeleprompterStep(index)}
+                      className={`h-2.5 rounded-full transition-all cursor-pointer ${index === currentPregameStep ? 'w-8 bg-gradient-to-r from-[#ff4fd8] to-[#33d8ff]' : index < currentPregameStep ? 'w-2.5 bg-white/40' : 'w-2.5 bg-white/15 hover:bg-white/30'}`}
+                      title={`Cue ${index + 1}: ${cue.title}`}
+                      aria-label={`Cue ${index + 1}: ${cue.title}`}
+                      aria-current={index === currentPregameStep ? 'step' : undefined}
+                    />
+                  ))}
+                  <span className="ml-1 text-[11px] font-black tabular-nums text-white/55 uppercase tracking-widest">{currentPregameStep + 1} / {pregameCues.length}</span>
+                </div>
+                {currentPregameStep < pregameCues.length - 1 ? (
+                  <button
+                    onClick={() => setTeleprompterStep(prev => Math.min(pregameCues.length - 1, prev + 1))}
+                    className="px-4 py-2.5 rounded-xl bg-[#33d8ff] text-black text-xs font-black uppercase tracking-wider hover:brightness-110 cursor-pointer flex items-center gap-1.5"
+                    title="Shortcut: →"
+                  >
+                    Next Cue <ChevronRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartGame}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white text-xs font-black uppercase tracking-wider hover:brightness-110 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Play className="w-4 h-4 fill-current" /> Start Game
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="flex-none hidden lg:flex items-center justify-center gap-4 text-[10px] text-white/35 font-bold uppercase tracking-widest">
+              <span className="flex items-center gap-1"><Keyboard className="w-3.5 h-3.5" /> Space: call next</span>
+              {!gameState?.started ? <span>← → : intro cues</span> : <span>N: new DJ line</span>}
+            </div>
+          </section>
         </div>
- 
+
         {/* Right Panel */}
         <div className="host-sidebar min-w-0 min-h-[520px] lg:min-h-0 bg-[#131728]/82 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 xl:p-5 flex flex-col gap-4 overflow-hidden">
           
           {/* Claims List */}
-          <div className="host-claims flex flex-col min-h-[220px] lg:min-h-0 lg:basis-[48%] lg:max-h-[48%] flex-none">
+          <div className="host-claims flex flex-col flex-none min-h-0 max-h-[45%]">
             <h2 className="flex items-center gap-2 m-0 mb-3 font-black text-xs uppercase tracking-widest text-[#33d8ff]">
               <Trophy className="w-4 h-4" /> Bingo Claims <span className="bg-[#33d8ff]/20 text-[#33d8ff] border border-[#33d8ff]/40 px-2 py-0.5 text-[10px] rounded-full">{claims.length}</span>
             </h2>
@@ -980,186 +1056,6 @@ export default function Caller() {
         </div>
       )}
  
-      {/* Fullscreen Dynamic Host Teleprompter Modal */}
-      {showTeleprompter && gameState && (
-        <div className="fixed inset-0 bg-[#070914]/96 backdrop-blur-2xl z-[600] flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto animate-[fadeIn_0.2s_ease-out]">
-          <div className="max-w-5xl mx-auto w-full min-h-full flex flex-col">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/20 mb-5">
-              <div className="flex items-center gap-3 text-[#33d8ff] min-w-0">
-                <div className="p-2.5 rounded-2xl border border-[#33d8ff]/30 bg-[#33d8ff]/10 shadow-[0_0_24px_rgba(51,216,255,0.15)]">
-                  <Mic2 className="w-6 h-6 md:w-7 md:h-7 text-[#33d8ff]" />
-                </div>
-                <div className="min-w-0">
-                  <span className="block font-black text-base md:text-xl uppercase tracking-widest text-white truncate">
-                    Host DJ Teleprompter
-                  </span>
-                  <span className="block mt-1 text-[10px] md:text-xs font-bold uppercase tracking-[0.24em] text-white/45">
-                    {!gameState.started ? `Opening cue ${currentPregameStep + 1} of ${pregameCues.length}` : currentTrack ? `Live • Track ${String(currentTrackNumber).padStart(2, '0')}` : 'Game live • First track ready'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center bg-white/10 rounded-xl p-0.5 border border-white/10 text-xs font-bold">
-                  <button onClick={() => setScriptFontSize('normal')} className={`px-2.5 py-1.5 rounded-lg ${scriptFontSize === 'normal' ? 'bg-[#33d8ff] text-black' : 'text-white/70 hover:text-white'}`}>A</button>
-                  <button onClick={() => setScriptFontSize('large')} className={`px-2.5 py-1.5 rounded-lg ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black' : 'text-white/70 hover:text-white'}`}>A+</button>
-                  <button onClick={() => setScriptFontSize('xl')} className={`px-2.5 py-1.5 rounded-lg ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black' : 'text-white/70 hover:text-white'}`}>A++</button>
-                </div>
-                <button
-                  onClick={() => setShowTeleprompter(false)}
-                  className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold cursor-pointer flex items-center gap-2 text-xs uppercase tracking-wider transition-colors"
-                >
-                  <Minimize2 className="w-5 h-5" /> <span className="hidden sm:inline">Close</span>
-                </button>
-              </div>
-            </div>
-
-            {!gameState.started && (
-              <div className="mb-5 grid grid-cols-5 gap-2" aria-label="Introduction progress">
-                {pregameCues.map((cue, index) => (
-                  <button
-                    key={cue.title}
-                    onClick={() => setTeleprompterStep(index)}
-                    className={`h-2 rounded-full transition-all cursor-pointer ${index === currentPregameStep ? 'bg-gradient-to-r from-[#ff4fd8] to-[#33d8ff] shadow-[0_0_14px_rgba(51,216,255,0.4)]' : index < currentPregameStep ? 'bg-white/35' : 'bg-white/10 hover:bg-white/20'}`}
-                    title={`Cue ${index + 1}: ${cue.title}`}
-                    aria-label={`Open cue ${index + 1}: ${cue.title}`}
-                  />
-                ))}
-              </div>
-            )}
- 
-            <div className="flex-1 flex flex-col justify-center py-3 md:py-6">
-              <div className="text-xs md:text-sm font-black uppercase tracking-[0.3em] text-[#ff4fd8] mb-2 flex justify-between items-center">
-                <span>{activeHostCue.kicker}</span>
-                {gameState.nowPlaying && (
-                  <span className="text-white/40 tracking-widest font-mono bg-white/10 px-2 py-1 rounded-md">
-                    {trackTiming.isComplete
-                      ? 'READY FOR NEXT'
-                      : trackTiming.isInterTrackDelay
-                        ? `Next track drops in ${trackTiming.remainingSeconds}s`
-                        : 'SONG PLAYING'}
-                  </span>
-                )}
-              </div>
-
-              <h2 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-5 md:mb-7 text-balance">
-                {activeHostCue.title}
-              </h2>
- 
-              <div className="grid gap-4">
-                <section className="relative p-5 sm:p-7 md:p-9 bg-black/70 border-2 border-[#33d8ff]/45 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.16)] overflow-hidden" aria-labelledby="fullscreen-read-on-mic">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(51,216,255,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(139,92,246,0.10),transparent_35%)]" />
-
-                  {/* Teleprompter audio progress bar */}
-                  {gameState.nowPlaying && (
-                    <div className="absolute top-0 left-0 w-full h-1.5 bg-white/5">
-                      <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear shadow-[0_0_10px_#33d8ff]" style={{ width: `${displayProgress}%` }} />
-                    </div>
-                  )}
-
-                  <div id="fullscreen-read-on-mic" className="relative text-xs md:text-sm font-black uppercase tracking-widest text-[#33d8ff] mb-4 flex items-center gap-2">
-                    <MessageSquareQuote className="w-5 h-5" />
-                    Read on Mic
-                  </div>
-                  <p className={`relative text-white font-bold leading-[1.35] m-0 text-balance ${teleprompterTextClass}`}>
-                    “{activeHostCue.script}”
-                  </p>
-                  {smartGameRead && (
-                    <div className="relative mt-5 pt-5 border-t border-[#33d8ff]/20">
-                      <p className="text-lg sm:text-xl md:text-3xl text-[#b9f4ff] font-bold leading-relaxed m-0 text-balance">
-                        “{smartGameRead.onMic}”
-                      </p>
-                    </div>
-                  )}
-                  {gameState.nowPlaying && (
-                    <div className="relative mt-5 rounded-2xl border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] p-4 text-sm md:text-base leading-relaxed text-white/75">
-                      <span className="font-black uppercase tracking-wider text-[#ffd76a]">Optional trivia:</span>{' '}
-                      {getSongFact(gameState.nowPlaying)}
-                    </div>
-                  )}
-                </section>
-
-                <section className="relative p-5 sm:p-6 md:p-7 bg-[#ff4fd8]/[0.06] border border-[#ff4fd8]/30 rounded-3xl overflow-hidden" aria-labelledby="fullscreen-host-notes">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.10),transparent_42%)]" />
-                  <div id="fullscreen-host-notes" className="relative text-xs md:text-sm font-black uppercase tracking-widest text-[#ff4fd8] mb-3">Notes</div>
-                  {activeHostCue.hostNote && (
-                    <p className="relative text-base sm:text-lg md:text-2xl text-white/75 font-semibold leading-relaxed m-0 text-balance">
-                      {activeHostCue.hostNote}
-                    </p>
-                  )}
-                  {smartGameRead && (
-                    <p className="relative mt-4 mb-0 pt-4 border-t border-white/10 text-sm sm:text-base md:text-lg text-white/60 font-medium leading-relaxed text-balance">
-                      {smartGameRead.note}
-                    </p>
-                  )}
-                </section>
-              </div>
-            </div>
- 
-            <div className="pt-5 mt-4 border-t border-white/20 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-              {!gameState.started ? (
-                <>
-                  <button
-                    onClick={() => setTeleprompterStep(prev => Math.max(0, prev - 1))}
-                    disabled={currentPregameStep === 0}
-                    className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white font-black uppercase tracking-wider transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <ChevronLeft className="w-4 h-4" /> Previous Cue
-                  </button>
-                  <span className="text-center text-xs text-white/45 font-bold uppercase tracking-[0.22em]">
-                    Cue {currentPregameStep + 1} of {pregameCues.length}
-                  </span>
-                  {currentPregameStep < pregameCues.length - 1 ? (
-                    <button
-                      onClick={() => setTeleprompterStep(prev => Math.min(pregameCues.length - 1, prev + 1))}
-                      className="px-5 py-3 rounded-xl bg-[#33d8ff] text-black font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      Next Cue <ChevronRight className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleStartGame}
-                      className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#ff4fd8] to-[#8b5cf6] text-white font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(255,79,216,0.3)]"
-                    >
-                      <Play className="w-4 h-4 fill-current" /> Start Game
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="text-xs md:text-sm text-white/50 font-bold uppercase tracking-widest text-center sm:text-left">
-                    {currentTrack ? 'Use a fresh line whenever you want more variety.' : 'The players are ready for the opening track.'}
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    {currentTrack ? (
-                      <button
-                        onClick={() => setCueVariation(prev => prev + 1)}
-                        className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2"
-                      >
-                        <RefreshCw className="w-4 h-4" /> New DJ Line
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleCallNext}
-                        disabled={callInFlight || pool.length === 0}
-                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#33d8ff] to-[#8b5cf6] text-white font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <Disc className="w-4 h-4" /> Play First Song
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => setShowTeleprompter(false)}
-                      className="px-6 py-3 rounded-xl bg-[#33d8ff] text-black font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer"
-                    >
-                      Done Reading
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
- 
       <style>{`
         .host-shell {
           min-height: 100dvh;
@@ -1192,35 +1088,28 @@ export default function Caller() {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
 
+        .host-record { width: clamp(96px, 13vh, 132px); height: clamp(96px, 13vh, 132px); }
+        .host-ring { width: calc(clamp(96px, 13vh, 132px) + 14px); height: calc(clamp(96px, 13vh, 132px) + 14px); }
+        .host-track-title { font-size: clamp(1.35rem, 2.4vw, 2.3rem); }
+        .host-fit-box { overflow-y: auto; }
+
+        /* Laptop and desktop: the whole console fits the window, nothing scrolls
+           except the claims and history lists. */
         @media (min-width: 1024px) {
           .host-shell { height: 100dvh; min-height: 0; overflow: hidden; }
           .host-layout { height: 100%; min-height: 0; }
           .host-stage, .host-sidebar { height: 100%; min-height: 0; }
         }
 
-        @media (min-width: 1024px) and (max-height: 850px) {
-          .host-header { padding-top: 0.7rem; padding-bottom: 0.7rem; }
-          .host-stage { padding: 1rem 1.25rem; }
-          .host-record-wrap { margin-bottom: 0.9rem; }
-          .host-record { width: clamp(132px, 21vh, 190px); height: clamp(132px, 21vh, 190px); }
-          .host-track-title { font-size: clamp(1.45rem, 3vw, 2.55rem); margin-bottom: 0.2rem; }
-          .host-track-artist { margin-bottom: 0.75rem; }
-          .host-script-card { padding: 0.85rem; margin-bottom: 0.8rem; }
-          .host-script-copy { max-height: 130px; }
-          .host-actions { gap: 0.65rem; }
-          .host-actions > button { padding-top: 0.8rem; padding-bottom: 0.8rem; }
-          .host-sidebar { padding: 0.9rem; gap: 0.85rem; }
-          .host-claims { flex-basis: 47%; max-height: 47%; }
-        }
-
-        @media (min-width: 1024px) and (max-height: 720px) {
-          .host-record-wrap { margin-bottom: 0.65rem; }
-          .host-record { width: clamp(110px, 18vh, 145px); height: clamp(110px, 18vh, 145px); }
-          .host-track-title { font-size: clamp(1.3rem, 2.7vw, 2.15rem); }
-          .host-track-artist { font-size: 0.72rem; margin-bottom: 0.55rem; }
-          .host-script-card { margin-bottom: 0.55rem; }
-          .host-script-copy { max-height: 92px; }
-          .host-sidebar { padding: 0.75rem; gap: 0.7rem; }
+        @media (min-width: 1024px) and (max-height: 820px) {
+          .host-header { padding-top: 0.55rem; padding-bottom: 0.55rem; }
+          .host-deck { padding: 0.65rem 0.9rem; }
+          .host-record { width: 84px; height: 84px; }
+          .host-ring { width: 98px; height: 98px; }
+          .host-track-title { font-size: clamp(1.2rem, 2vw, 1.8rem); }
+          .host-controls > button { padding-top: 0.7rem; padding-bottom: 0.7rem; }
+          .host-prompter { padding: 0.75rem; gap: 0.6rem; }
+          .host-sidebar { padding: 0.8rem; gap: 0.75rem; }
         }
       `}</style>
     </div>
