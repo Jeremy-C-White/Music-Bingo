@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import confetti from 'canvas-confetti';
 import { subscribeToGameState, subscribeToClaims, setVisualizerAudioActive, subscribeToReactions, markTrackEnded, Reaction } from '../lib/store';
 import { GameState } from '../lib/types';
-import { splitSong, getSongFact } from '../lib/data';
+import { splitSong, getSongFact, getSongTeaser } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
 import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame, PartyPopper, Sparkles } from 'lucide-react';
 import { getAutoStartTiming, getTrackTiming, INTER_TRACK_DELAY_SECONDS } from '../lib/timing';
@@ -1031,7 +1031,7 @@ export default function Visualizer() {
                 </div>
 
                 <h2 className="text-[clamp(2rem,4.6vw,4rem)] font-black leading-[0.98] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
-                  {gameState.nowPlaying ? `Mystery Track #${gameState.history.length + 1}` : 'Ready?'}
+                  {gameState.nowPlaying ? getSongTeaser(gameState.nowPlaying, gameState.history.length + 1) : 'Ready?'}
                 </h2>
 
                 <div

@@ -19,6 +19,72 @@ export const songs = [
   "Shape of You - Ed Sheeran", "Despacito - Luis Fonsi", "Toxic - Britney Spears", "In the Air Tonight - Phil Collins"
 ];
 
+// Short, spoiler-safe stage headlines. These hint at an era or musical style
+// without showing the title, artist, or a recognizable lyric.
+export const songTeasers: Record<string, string> = {
+  "Bohemian Rhapsody - Queen": "A '70s Rock-Opera Epic",
+  "Don't Stop Believin' - Journey": "An '80s Arena-Rock Singalong",
+  "Sweet Caroline - Neil Diamond": "A Feel-Good Stadium Singalong",
+  "Hotel California - Eagles": "A '70s Desert-Rock Classic",
+  "Go Your Own Way - Fleetwood Mac": "A Fiery '70s Breakup Anthem",
+  "Livin' on a Prayer - Bon Jovi": "An '80s Working-Class Rock Anthem",
+  "I Will Always Love You - Whitney Houston": "A Towering '90s Power Ballad",
+  "Billie Jean - Michael Jackson": "An '80s Bassline Pop Mystery",
+  "Dancing Queen - ABBA": "A Glittering '70s Disco Favorite",
+  "September - Earth, Wind & Fire": "A Horn-Powered '70s Dancefloor Jam",
+  "I Will Survive - Gloria Gaynor": "A Defiant Disco Comeback Anthem",
+  "My Girl - The Temptations": "A Warm '60s Soul Serenade",
+  "Superstition - Stevie Wonder": "A Funky '70s Clavinet Groove",
+  "Girls Just Want to Have Fun - Cyndi Lauper": "An '80s Pop Celebration of Freedom",
+  "Take on Me - a-ha": "An '80s Synth-Pop Smash",
+  "Like a Prayer - Madonna": "A Dramatic '80s Gospel-Pop Classic",
+  "Purple Rain - Prince": "An Epic '80s Guitar Power Ballad",
+  "Africa - Toto": "An '80s Pop-Rock Adventure",
+  "Smells Like Teen Spirit - Nirvana": "A '90s Grunge Explosion",
+  "Wannabe - Spice Girls": "A '90s Friendship-Pop Phenomenon",
+  "...Baby One More Time - Britney Spears": "A Late-'90s Teen-Pop Breakthrough",
+  "I Want It That Way - Backstreet Boys": "A Late-'90s Vocal-Group Singalong",
+  "Lose Yourself - Eminem": "A 2000s Hip-Hop Motivation Anthem",
+  "No Scrubs - TLC": "A Sleek '90s R&B Brush-Off",
+  "Say My Name - Destiny's Child": "A Late-'90s R&B Harmony Classic",
+  "Hey Ya! - OutKast": "A 2000s Funk-Pop Party Starter",
+  "Crazy in Love - Beyoncé": "A Brass-Blasting 2000s R&B Hit",
+  "Yeah! - Usher": "A Crunk-Era Club Floor-Filler",
+  "Hips Don't Lie - Shakira": "A 2000s Latin-Pop Dance Burner",
+  "Umbrella - Rihanna": "A 2000s Pop-R&B Mega-Anthem",
+  "Rolling in the Deep - Adele": "A 2010s Soul-Pop Vocal Powerhouse",
+  "Uptown Funk - Mark Ronson feat. Bruno Mars": "A Retro-Brass Dancefloor Jam",
+  "Shake It Off - Taylor Swift": "A Bouncy 2010s Pop Pep Talk",
+  "Blinding Lights - The Weeknd": "A Neon-Soaked Synthwave Smash",
+  "Old Town Road - Lil Nas X": "A Genre-Busting Country-Rap Hit",
+  "Jolene - Dolly Parton": "A '70s Country Plea with a Pulse",
+  "Take Me Home, Country Roads - John Denver": "A '70s Mountain-State Singalong",
+  "Wagon Wheel - Darius Rucker": "A Roots-Rock Campfire Favorite",
+  "Before He Cheats - Carrie Underwood": "A 2000s Country Revenge Song",
+  "Need You Now - Lady A": "Late-2000s Country Heartbreak Duet",
+  "Friends in Low Places - Garth Brooks": "A Rowdy '90s Country Barroom Anthem",
+  "Man! I Feel Like a Woman! - Shania Twain": "A Late-'90s Country-Pop Confidence Boost",
+  "Sweet Child O' Mine - Guns N' Roses": "An '80s Hard-Rock Guitar Showcase",
+  "Every Breath You Take - The Police": "A Moody '80s New-Wave Slow Burn",
+  "Eye of the Tiger - Survivor": "An '80s Training-Montage Rock Anthem",
+  "I Love Rock 'n Roll - Joan Jett & the Blackhearts": "An '80s Stomp-and-Clap Jukebox Classic",
+  "Jump - Van Halen": "An '80s Synth-Charged Arena Anthem",
+  "Love Shack - The B-52's": "A Quirky '80s Dance-Party Favorite",
+  "Footloose - Kenny Loggins": "An '80s Movie-Soundtrack Dance Blast",
+  "Respect - Aretha Franklin": "A '60s Soul Demand for Dignity",
+  "Ain't No Mountain High Enough - Marvin Gaye & Tammi Terrell": "A Joyful '60s Motown Duet",
+  "Killing Me Softly - Fugees": "A Smooth '90s Hip-Hop Soul Cover",
+  "Since U Been Gone - Kelly Clarkson": "A 2000s Pop-Rock Breakup Release",
+  "Shape of You - Ed Sheeran": "A 2010s Tropical-Pop Groove",
+  "Despacito - Luis Fonsi": "A Spanish-Language Global Smash",
+  "Toxic - Britney Spears": "A 2000s Electro-Pop Rush",
+  "In the Air Tonight - Phil Collins": "An '80s Slow-Build Drum-Pop Classic",
+};
+
+export function getSongTeaser(song: string, trackNumber: number): string {
+  return songTeasers[song] || `Mystery Track #${trackNumber}`;
+}
+
 export const songFacts: Record<string, string> = {
   "Bohemian Rhapsody - Queen": "Radio execs told the band this 6-minute epic would never get airplay. To prove them wrong, a DJ friend leaked it by playing it 14 times in one weekend. The lead singer also used the exact same piano Paul McCartney played on 'Hey Jude'.",
   "Hotel California - Eagles": "A famous lyric in this track is a secret nod to rival band Steely Dan, who had previously name-dropped this group in one of their own songs, sparking a friendly, competitive feud.",
