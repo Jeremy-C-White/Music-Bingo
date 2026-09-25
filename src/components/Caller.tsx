@@ -179,7 +179,7 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
   }
 
   if (currentTrackNumber % 5 === 0) {
-    return { kicker: `Milestone • ${currentTrackNumber} Tracks Reached`, title: 'Board Check', script: `That brings us to Track ${currentTrackNumber}. Take a quick second to look across your full card. Check every row, every column, and both diagonals, because a winning line can sneak up on you. If you see five connected marks, call it now!`, hostNote: 'Hold for a few seconds so players can check their cards. Scan the claim queue before advancing to the next track.' };
+    return { kicker: `Milestone • ${currentTrackNumber} Tracks Reached`, title: 'Board Check', script: `And that's Track ${currentTrackNumber} in the books! Time for a board check. Take a quick second to look across your whole card: every row, every column, and both diagonals, because a winning line can sneak up on you. If you've got five in a row, call it now!`, hostNote: 'Hold for a few seconds so players can check their cards. Scan the claim queue before advancing to the next track.' };
   }
 
   return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: pickDjLine(STANDARD_DJ_LINES, gameState.sessionId, lineStep, lineContext), hostNote: currentTrackNumber >= 12 ? 'Optional: read the Song Trivia card. Confirm the preview has ended and no claim is waiting before advancing.' : 'Wait for the preview to finish, scan the claim queue, and make sure the Auto-Caller pace still matches the room.' };
@@ -584,6 +584,50 @@ export default function Caller() {
 
   canRefreshLineRef.current = canRefreshLine;
 
+  // Off-mic notes for the live game follow what's actually happening right now:
+  // whether Auto-Caller is on, whether the clip is still playing, and any claims.
+  const liveHostNote = (() => {
+    if (!gameState?.started) return null;
+    const sessionClaims = claims.filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId);
+    const hasWinner = sessionClaims.some(claim => claim.status === 'valid');
+    if (hasWinner) {
+      return `${autoCallerActive ? 'Pause Auto-Caller first. ' : ''}Celebrate the winner and handle any prizes. When the room is ready for a new game, use End Round & Reset (it clears the claims).`;
+    }
+
+    if (!gameState.nowPlaying) {
+      if (autoCallerActive) {
+        return autoStartRemaining > 0
+          ? `Auto-Caller is on: Track 1 starts in ${autoStartRemaining}s. Read the line on the left before it drops.`
+          : 'Auto-Caller is on and will start Track 1 after a short countdown. Read the line on the left first.';
+      }
+      return 'Read the line on the left, then press Play First Song (or Space). Once it starts, check that the room can hear the stage screen.';
+    }
+
+    const notes: string[] = [];
+    if (trackIsLive) {
+      notes.push(autoCallerActive
+        ? 'The clip is playing. Auto-Caller starts the next track about 5 seconds after it ends, so have the line on the left ready as it finishes.'
+        : 'The clip is playing, so let everyone listen. When it ends, read the line on the left, then press Call Next Track (or Space).');
+      notes.push('Save the trivia until the clip ends; it can give the song away.');
+    } else if (autoCallerActive && trackTiming.isInterTrackDelay) {
+      notes.push(`Next track starts in ${trackTiming.remainingSeconds}s. Read the line on the left now, or press Pause on Auto-Caller if you need more time.`);
+    } else {
+      notes.push('The clip has ended. Read the line on the left, give everyone a few seconds to mark their cards, then press Call Next Track (or Space).');
+      notes.push('The trivia below is safe to share now if you want to fill a moment.');
+    }
+
+    if (currentTrackNumber % 5 === 0) notes.push('Board check: give everyone a few extra seconds to look over every row, column and diagonal.');
+    if (pool.length > 0 && pool.length <= 5) notes.push(`Only ${pool.length} song${pool.length === 1 ? '' : 's'} left in the deck, so somebody should be close.`);
+
+    const trackStartedAt = gameState.trackStartedAt ?? 0;
+    const missedThisTrack = sessionClaims.filter(claim => claim.status !== 'valid' && Number(claim.timestamp) >= trackStartedAt).length;
+    if (missedThisTrack > 0) {
+      notes.push(`${missedThisTrack === 1 ? 'A Bingo claim' : `${missedThisTrack} Bingo claims`} came in this track but ${missedThisTrack === 1 ? "wasn't a win" : "weren't wins"} (see Bingo Claims). Let ${missedThisTrack === 1 ? 'that player' : 'them'} know to keep playing.`);
+    }
+    return notes.join(' ');
+  })();
+  const displayedHostNote = liveHostNote ?? activeHostCue.hostNote;
+
   const deckStatus = !gameState?.started
     ? 'Lobby open'
     : !gameState.nowPlaying
@@ -598,7 +642,7 @@ export default function Caller() {
   const scriptMaxPx = Math.round(Math.max(scriptFontSize === 'normal' ? 20 : scriptFontSize === 'large' ? 26 : 32, Math.min(viewportHeight, viewportWidth * 1.25) * scriptSizeRatio));
   const notesMaxPx = Math.round(Math.max(15, Math.min(22, viewportHeight * 0.019)));
   const scriptContentKey = `${activeHostCue.script}|${smartGameRead?.onMic ?? ''}`;
-  const notesContentKey = `${activeHostCue.hostNote ?? ''}|${smartGameRead?.note ?? ''}|${gameState?.nowPlaying ?? ''}`;
+  const notesContentKey = `${displayedHostNote ?? ''}|${smartGameRead?.note ?? ''}|${gameState?.nowPlaying ?? ''}`;
   const { boxRef: scriptBoxRef, textRef: scriptTextRef, size: scriptFitSize } = useFitText(scriptMaxPx, 14, scriptContentKey);
   const { boxRef: notesBoxRef, textRef: notesTextRef, size: notesFitSize } = useFitText(notesMaxPx, 11, notesContentKey);
 
@@ -818,7 +862,7 @@ export default function Caller() {
                 <div ref={notesTextRef} style={{ fontSize: `${notesFitSize}px` }} className="flex flex-col gap-[0.7em]">
                   <div>
                     <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#ff4fd8] mb-[0.35em]">Notes</div>
-                    {activeHostCue.hostNote && <p className="m-0 leading-[1.45] text-white/75 font-medium">{activeHostCue.hostNote}</p>}
+                    {displayedHostNote && <p className="m-0 leading-[1.45] text-white/75 font-medium">{displayedHostNote}</p>}
                     {smartGameRead && <p className="mt-[0.5em] mb-0 leading-[1.45] text-white/60 font-medium">{smartGameRead.note}</p>}
                   </div>
                   {gameState?.nowPlaying && (
