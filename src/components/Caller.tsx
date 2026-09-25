@@ -14,6 +14,11 @@ type HostCue = {
   hostNote?: string;
 };
 
+type SmartGameRead = {
+  onMic: string;
+  note: string;
+};
+
 // NOTE: On-mic DJ lines intentionally never reveal the song title or artist.
 const STANDARD_DJ_LINES = [
   ({ current }: { current: number }) => `Alright, wrapping up Track ${current}. Check your corners, check your diagonals... let's see what the next drop has in store for us.`,
@@ -104,10 +109,22 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
   return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: line({ current: currentTrackNumber }), hostNote: currentTrackNumber >= 12 ? 'Optional: read the Song Trivia card. Confirm the preview has ended and no claim is waiting before advancing.' : 'Wait for the preview to finish, scan the claim queue, and make sure the Auto-Caller pace still matches the room.' };
 }
 
-function getHostGameRead(gameState: GameState, claims: Claim[], poolLength: number, activePlayers: number): string {
+function getHostGameRead(gameState: GameState, claims: Claim[], poolLength: number, activePlayers: number): SmartGameRead | null {
   const tracksHeard = gameState.history.length + (gameState.nowPlaying ? 1 : 0);
+  const sessionClaims = claims
+    .filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId)
+    .sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+  const latestClaim = sessionClaims[sessionClaims.length - 1];
+
+  // The winner cue already contains the complete spoken announcement. Avoid
+  // following it with a generic "anyone's game" line.
+  if (sessionClaims.some(claim => claim.status === 'valid')) return null;
+
   if (tracksHeard === 0) {
-    return 'The round has not started yet. Suggested callout: “Every card starts even, and the first song could help anyone.”';
+    return {
+      onMic: 'Every card starts even, and the first song could help anyone.',
+      note: 'The round has not started yet. Every player is beginning from the same position.',
+    };
   }
 
   const totalTracks = Math.max(1, tracksHeard + poolLength);
@@ -118,24 +135,32 @@ function getHostGameRead(gameState: GameState, claims: Claim[], poolLength: numb
     ? `${activePlayers} active card${activePlayers === 1 ? '' : 's'}`
     : 'the active cards';
 
-  const sessionClaims = claims
-    .filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId)
-    .sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
-  const latestClaim = sessionClaims[sessionClaims.length - 1];
   const openRoundPrefix = latestClaim && latestClaim.status !== 'valid'
     ? 'A claim was checked without confirming a winner, so everyone remains in the game. '
     : '';
 
   if (estimatedRoomChance < 0.12) {
-    return `${openRoundPrefix}Early round with ${activeCardText}: the board patterns are still wide open. Suggested callout: “Plenty of music ahead—every card is live.”`;
+    return {
+      onMic: 'Plenty of music ahead—every card is live.',
+      note: `${openRoundPrefix}Early round with ${activeCardText}: the board patterns are still wide open.`,
+    };
   }
   if (estimatedRoomChance < 0.35) {
-    return `${openRoundPrefix}The first promising patterns may be forming across ${activeCardText}, but there is no clear favorite. Suggested callout: “The boards are taking shape, and this is still anyone’s game.”`;
+    return {
+      onMic: 'The boards are taking shape, and this is still anyone’s game.',
+      note: `${openRoundPrefix}The first promising patterns may be forming across ${activeCardText}, but there is no clear favorite.`,
+    };
   }
   if (estimatedRoomChance < 0.68) {
-    return `${openRoundPrefix}The round is heating up and some cards may be within a few helpful tracks. Suggested callout: “Every song matters now—and this is still anyone’s game.”`;
+    return {
+      onMic: 'Every song matters now—and this is still anyone’s game.',
+      note: `${openRoundPrefix}The round is heating up and some cards may be within a few helpful tracks.`,
+    };
   }
-  return `${openRoundPrefix}This is a high-energy stretch: one well-placed song could complete a line on any active card. Suggested callout: “Stay with it—one track can change everything.”`;
+  return {
+    onMic: 'Stay with it—one track can change everything.',
+    note: `${openRoundPrefix}This is a high-energy stretch: one well-placed song could complete a line on any active card.`,
+  };
 }
  
 export default function Caller() {
@@ -382,7 +407,7 @@ export default function Caller() {
   const activeHostCue = gameState?.started
     ? getLiveHostCue(gameState, claims, pool.length, cueVariation)
     : pregameCues[currentPregameStep];
-  const privateGameRead = gameState?.started
+  const smartGameRead = gameState?.started
     ? getHostGameRead(gameState, claims, pool.length, activePlayers)
     : null;
   const currentTrack = gameState?.nowPlaying ? splitSong(gameState.nowPlaying) : null;
@@ -518,9 +543,38 @@ export default function Caller() {
                   <button onClick={() => setScriptFontSize('large')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'large' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Large text size">A+</button>
                   <button onClick={() => setScriptFontSize('xl')} className={`px-2 py-1 rounded transition-colors cursor-pointer ${scriptFontSize === 'xl' ? 'bg-[#33d8ff] text-black font-extrabold' : 'text-white/70 hover:text-white'}`} title="Extra Large text size">A++</button>
                 </div>
-                {gameState?.nowPlaying && (
-                  <button onClick={() => setCueVariation(prev => prev + 1)} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/70 hover:text-white transition-colors cursor-pointer" title="Show another DJ line">
-                    <RefreshCw className="w-3.5 h-3.5" />
+                {!gameState?.started ? (
+                  <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5">
+                    <button
+                      onClick={() => setTeleprompterStep(prev => Math.max(0, prev - 1))}
+                      disabled={currentPregameStep === 0}
+                      className="p-1.5 rounded-md text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                      title="Previous cue"
+                      aria-label="Previous cue"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="px-1 text-[10px] font-black tabular-nums text-white/55">{currentPregameStep + 1}/{pregameCues.length}</span>
+                    {currentPregameStep < pregameCues.length - 1 ? (
+                      <button
+                        onClick={() => setTeleprompterStep(prev => Math.min(pregameCues.length - 1, prev + 1))}
+                        className="p-1.5 rounded-md text-[#33d8ff] hover:bg-[#33d8ff]/10 cursor-pointer"
+                        title="Next cue"
+                        aria-label="Next cue"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button onClick={handleStartGame} className="px-2 py-1 rounded-md bg-[#ff4fd8] text-white text-[10px] font-black uppercase tracking-wider hover:brightness-110 cursor-pointer">Start</button>
+                    )}
+                  </div>
+                ) : gameState.nowPlaying ? (
+                  <button onClick={() => setCueVariation(prev => prev + 1)} className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/75 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider" title="Show another DJ line">
+                    <RefreshCw className="w-3.5 h-3.5" /> New DJ Line
+                  </button>
+                ) : (
+                  <button onClick={handleCallNext} disabled={callInFlight || pool.length === 0} className="px-2.5 py-1.5 rounded-lg bg-[#33d8ff] text-black text-[10px] font-black uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                    <Disc className="w-3.5 h-3.5" /> Play First
                   </button>
                 )}
                 <button onClick={() => setShowTeleprompter(true)} className="px-2.5 py-1.5 rounded-lg bg-[#ff4fd8]/20 hover:bg-[#ff4fd8]/30 border border-[#ff4fd8]/40 text-[#ff4fd8] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" title="Open Fullscreen Host Teleprompter">
@@ -528,36 +582,46 @@ export default function Caller() {
                 </button>
               </div>
             </div>
-            <div className="relative host-script-copy max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
-              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ffd76a] mb-1.5">
-                {activeHostCue.title}
-              </div>
-              <p className={`text-white/95 leading-relaxed m-0 transition-all ${
-                scriptFontSize === 'normal' ? 'text-sm md:text-base font-medium' : 
-                scriptFontSize === 'large' ? 'text-base md:text-lg xl:text-xl font-semibold' : 'text-lg md:text-xl xl:text-2xl font-bold'
-              }`}>
-                “{activeHostCue.script}”
-              </p>
-              {activeHostCue.hostNote && (
-                <div className="mt-2.5 border-l-2 border-[#ff4fd8]/45 pl-3">
-                  <p className="mb-0 text-xs sm:text-sm leading-relaxed text-white/60 font-medium">
-                    <span className="font-black uppercase tracking-wider text-[#ff4fd8]">Off-Mic Host Note:</span>{' '}
+            <div className="relative host-script-copy max-h-[320px] overflow-y-auto custom-scrollbar pr-1 grid grid-cols-1 md:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)] gap-3 items-start">
+              <section className="rounded-xl border border-[#33d8ff]/25 bg-[#33d8ff]/[0.06] p-3" aria-labelledby="compact-read-on-mic">
+                <div id="compact-read-on-mic" className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#33d8ff] mb-2">
+                  <span className="inline-flex items-center gap-1.5"><MessageSquareQuote className="w-3.5 h-3.5" /> Read on Mic</span>
+                  <span className="text-[#ffd76a] tracking-[0.16em]">{activeHostCue.title}</span>
+                </div>
+                <p className={`text-white/95 leading-relaxed m-0 transition-all ${
+                  scriptFontSize === 'normal' ? 'text-sm md:text-base font-medium' :
+                  scriptFontSize === 'large' ? 'text-base md:text-lg xl:text-xl font-semibold' : 'text-lg md:text-xl xl:text-2xl font-bold'
+                }`}>
+                  “{activeHostCue.script}”
+                </p>
+                {smartGameRead && (
+                  <div className="mt-3 pt-3 border-t border-[#33d8ff]/20">
+                    <p className="m-0 text-sm sm:text-base leading-relaxed text-[#b9f4ff] font-bold">
+                      “{smartGameRead.onMic}”
+                    </p>
+                  </div>
+                )}
+                {gameState?.nowPlaying && (
+                  <div className="mt-3 rounded-lg border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] px-3 py-2 text-[11px] sm:text-xs leading-relaxed text-white/75">
+                    <span className="font-black uppercase tracking-wider text-[#ffd76a]">Optional trivia:</span>{' '}
+                    {getSongFact(gameState.nowPlaying)}
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-[#ff4fd8]/25 bg-[#ff4fd8]/[0.05] p-3" aria-labelledby="compact-host-notes">
+                <div id="compact-host-notes" className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ff4fd8] mb-2">Notes</div>
+                {activeHostCue.hostNote && (
+                  <p className="m-0 text-xs sm:text-sm leading-relaxed text-white/68 font-medium">
                     {activeHostCue.hostNote}
                   </p>
-                  {privateGameRead && (
-                    <p className="mt-2 mb-0 text-xs sm:text-sm leading-relaxed text-[#33d8ff]/85 font-semibold">
-                      <span className="inline-flex items-center gap-1 font-black uppercase tracking-wider text-[#33d8ff]"><Sparkles className="w-3.5 h-3.5" /> Smart Game Read:</span>{' '}
-                      {privateGameRead}
-                    </p>
-                  )}
-                </div>
-              )}
-              {gameState?.nowPlaying && (
-                <div className="mt-3 rounded-xl border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] px-3 py-2 text-[11px] sm:text-xs leading-relaxed text-white/72">
-                  <span className="font-black uppercase tracking-wider text-[#ffd76a]">Bonus trivia:</span>{' '}
-                  {getSongFact(gameState.nowPlaying)}
-                </div>
-              )}
+                )}
+                {smartGameRead && (
+                  <p className="mt-2 mb-0 pt-2 border-t border-white/10 text-xs sm:text-sm leading-relaxed text-white/60 font-medium">
+                    {smartGameRead.note}
+                  </p>
+                )}
+              </section>
             </div>
           </div>
  
@@ -884,49 +948,54 @@ export default function Caller() {
                 {activeHostCue.title}
               </h2>
  
-              <div className="relative p-5 sm:p-7 md:p-9 bg-black/70 border-2 border-[#33d8ff]/45 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.16)] overflow-hidden">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(51,216,255,0.10),transparent_35%)]" />
-                
-                {/* Teleprompter audio progress bar */}
-                {gameState.nowPlaying && (
-                  <div className="absolute top-0 left-0 w-full h-1.5 bg-white/5">
-                    <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear shadow-[0_0_10px_#33d8ff]" style={{ width: `${audioProgress}%` }} />
-                  </div>
-                )}
+              <div className="grid gap-4">
+                <section className="relative p-5 sm:p-7 md:p-9 bg-black/70 border-2 border-[#33d8ff]/45 rounded-3xl shadow-[0_0_50px_rgba(51,216,255,0.16)] overflow-hidden" aria-labelledby="fullscreen-read-on-mic">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(51,216,255,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(139,92,246,0.10),transparent_35%)]" />
 
-                <div className="relative text-xs md:text-sm font-black uppercase tracking-widest text-[#ffd76a] mb-4 flex items-center gap-2">
-                  <MessageSquareQuote className="w-5 h-5 text-[#ffd76a]" />
-                  Read On Mic
-                </div>
-                <p className={`relative text-white font-bold leading-[1.35] m-0 text-balance ${teleprompterTextClass}`}>
-                  “{activeHostCue.script}”
-                </p>
-                {activeHostCue.hostNote && (
-                  <div className="relative mt-5 pt-5 border-t border-white/15">
-                    <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.24em] text-[#ff4fd8] mb-2">Off-Mic Host Note</div>
-                    <p className="text-base sm:text-lg md:text-2xl text-white/72 font-semibold leading-relaxed m-0 text-balance">
+                  {/* Teleprompter audio progress bar */}
+                  {gameState.nowPlaying && (
+                    <div className="absolute top-0 left-0 w-full h-1.5 bg-white/5">
+                      <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear shadow-[0_0_10px_#33d8ff]" style={{ width: `${audioProgress}%` }} />
+                    </div>
+                  )}
+
+                  <div id="fullscreen-read-on-mic" className="relative text-xs md:text-sm font-black uppercase tracking-widest text-[#33d8ff] mb-4 flex items-center gap-2">
+                    <MessageSquareQuote className="w-5 h-5" />
+                    Read on Mic
+                  </div>
+                  <p className={`relative text-white font-bold leading-[1.35] m-0 text-balance ${teleprompterTextClass}`}>
+                    “{activeHostCue.script}”
+                  </p>
+                  {smartGameRead && (
+                    <div className="relative mt-5 pt-5 border-t border-[#33d8ff]/20">
+                      <p className="text-lg sm:text-xl md:text-3xl text-[#b9f4ff] font-bold leading-relaxed m-0 text-balance">
+                        “{smartGameRead.onMic}”
+                      </p>
+                    </div>
+                  )}
+                  {gameState.nowPlaying && (
+                    <div className="relative mt-5 rounded-2xl border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] p-4 text-sm md:text-base leading-relaxed text-white/75">
+                      <span className="font-black uppercase tracking-wider text-[#ffd76a]">Optional trivia:</span>{' '}
+                      {getSongFact(gameState.nowPlaying)}
+                    </div>
+                  )}
+                </section>
+
+                <section className="relative p-5 sm:p-6 md:p-7 bg-[#ff4fd8]/[0.06] border border-[#ff4fd8]/30 rounded-3xl overflow-hidden" aria-labelledby="fullscreen-host-notes">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,79,216,0.10),transparent_42%)]" />
+                  <div id="fullscreen-host-notes" className="relative text-xs md:text-sm font-black uppercase tracking-widest text-[#ff4fd8] mb-3">Notes</div>
+                  {activeHostCue.hostNote && (
+                    <p className="relative text-base sm:text-lg md:text-2xl text-white/75 font-semibold leading-relaxed m-0 text-balance">
                       {activeHostCue.hostNote}
                     </p>
-                    {privateGameRead && (
-                      <div className="mt-4 rounded-2xl border border-[#33d8ff]/25 bg-[#33d8ff]/[0.08] p-4 md:p-5">
-                        <div className="flex items-center gap-2 text-[10px] md:text-xs font-black uppercase tracking-[0.22em] text-[#33d8ff] mb-2">
-                          <Sparkles className="w-4 h-4" /> Smart Game Read
-                        </div>
-                        <p className="text-sm sm:text-base md:text-xl text-white/80 font-semibold leading-relaxed m-0 text-balance">
-                          {privateGameRead}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                  {smartGameRead && (
+                    <p className="relative mt-4 mb-0 pt-4 border-t border-white/10 text-sm sm:text-base md:text-lg text-white/60 font-medium leading-relaxed text-balance">
+                      {smartGameRead.note}
+                    </p>
+                  )}
+                </section>
               </div>
-
-              {gameState.nowPlaying && (
-                <div className="mt-4 rounded-2xl border border-[#ffd76a]/20 bg-[#ffd76a]/[0.07] p-4 text-sm md:text-base leading-relaxed text-white/70">
-                  <span className="font-black uppercase tracking-wider text-[#ffd76a]">Song trivia:</span>{' '}
-                  {getSongFact(gameState.nowPlaying)}
-                </div>
-              )}
             </div>
  
             <div className="pt-5 mt-4 border-t border-white/20 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
