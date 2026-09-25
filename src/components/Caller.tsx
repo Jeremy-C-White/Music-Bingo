@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { subscribeToGameState, subscribeToClaims, startNewGame, resetGame, setNowPlaying, markTrackEnded, scheduleAutoCallerStart, setAutoCallerEnabled, dismissClaim, subscribeToPlayerCount } from '../lib/store';
 import { GameState, Claim } from '../lib/types';
-import { songs, shuffle, splitSong, getSongFact } from '../lib/data';
+import { songs, shuffle, splitSong, getSongFact, songTeasers } from '../lib/data';
 import { lookupPreview } from '../lib/itunes';
 import { Disc, Radio, Trophy, AlertTriangle, Sparkles, Clock, MessageSquareQuote, Maximize2, Minimize2, Mic2, RefreshCw, ChevronLeft, ChevronRight, Play, Volume2, VolumeX, Keyboard } from 'lucide-react';
 import { playCallSound } from '../lib/soundEffects';
@@ -19,16 +19,74 @@ type SmartGameRead = {
   note: string;
 };
 
-// NOTE: On-mic DJ lines intentionally never reveal the song title or artist.
-const STANDARD_DJ_LINES = [
-  ({ current }: { current: number }) => `Alright, wrapping up Track ${current}. Check your corners, check your diagonals... let's see what the next drop has in store for us.`,
-  ({ current }: { current: number }) => `That is Track ${current} in the books. If you didn't get that one, shake it off. We're shuffling the deck and bringing in the next song right now.`,
-  ({ current }: { current: number }) => `We are keeping the tempo up tonight. If you are sitting on four-in-a-row, cross your fingers and trust your ears. Let's roll the next track.`,
-  ({ current }: { current: number }) => `Hope you caught the hook on that one! Time to keep this party moving. Drop a reaction on your phone if you're one square away, and let's spin the next one.`,
-  ({ current }: { current: number }) => `Whether you knew that last track immediately or had to ask your neighbor, it's time to move forward. Dropping the next beat in three, two, one...`,
-  ({ current }: { current: number }) => `Take a quick scan of your board, music fans. Every single song changes the game, and the next one could be your golden ticket. Let's play it!`,
-  ({ current }: { current: number }) => `Track ${current} is fading out. If you're waiting on just one more square to complete your line, make some noise! Let's see if this next song is the one you need.`
+// NOTE: On-mic DJ lines are read as a song ends. They never reveal the title
+// or artist. `teaser` is the era-and-style line already shown on the stage
+// (e.g. "An '80s Synth-Pop Smash"); lines that use it have a plain version for
+// songs without one.
+type DjLineContext = { current: number; teaser: string | null };
+type DjLine = (context: DjLineContext) => string | null;
+
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+
+const STANDARD_DJ_LINES: DjLine[] = [
+  ({ current }) => `Alright, that's Track ${current}. Check your corners, check your diagonals... let's see what the next drop has in store for us.`,
+  ({ current }) => `And that's a wrap on Track ${current}! Eyes on your card: rows, columns, diagonals. Next song coming up.`,
+  ({ current }) => `Track ${current} is in the books. If you got it, mark it. If you didn't, there's always the next one. Here we go!`,
+  ({ teaser }) => teaser ? `That was ${lowerFirst(teaser)}. Did it land on your card? Give it a tap, and let's keep the music coming.` : `Did that one land on your card? Give it a tap, and let's keep the music coming.`,
+  () => `Quick board check! Anybody sitting on four in a row? Don't be shy, because the next song could be the one. Let's hear it.`,
+  ({ current }) => `Track ${current} fades out... and somewhere in this room, a card just got a whole lot closer to BINGO. Next track!`,
+  () => `If you knew that one in two seconds flat, take a bow. If not, no worries, the next song is already cued up.`,
+  ({ current }) => `Track ${current}, done and dusted. Remember, that center square is free, so the middle row, the middle column and both diagonals only need four. Next one!`,
+  ({ current, teaser }) => teaser ? `That was ${lowerFirst(teaser)}, and that's Track ${current} for the books. Corners, rows, diagonals, check 'em all. Here comes the next one.` : `That's Track ${current} for the books. Corners, rows, diagonals, check 'em all. Here comes the next one.`,
+  ({ current }) => `Alright, music fans, fingers off the screen for Track ${current}. Scan that card, and let's drop the next one.`,
+  () => `One more song closer to a winner! If you've got a full line, hit CALL BINGO right now. Otherwise, let's keep rolling.`,
+  ({ current }) => `Track ${current} is history. Find the square you're one away from and keep your ears open for it. Here we go!`,
+  ({ current }) => `Nice! That's ${current} tracks deep. The cards are filling up, so check every line before the next beat drops.`,
+  ({ teaser }) => teaser ? `That was ${lowerFirst(teaser)}. Hope your card was ready for it! Let's see what the next track brings.` : `Hope your card was ready for that one! Let's see what the next track brings.`,
+  () => `Let's pause the dance moves for one second and check those boards. Got it? Great. Next song, coming right up!`,
+  ({ current }) => `And scene! Track ${current} is complete. If you're waiting on one square, now's the time to make some noise. Next track!`,
+  ({ current }) => `Every song on this playlist is somebody's winning square. Was Track ${current} yours? Mark it, and let's keep going.`,
+  ({ current }) => `Keep those phones handy and those ears sharp. Track ${current} is done, and the next one's about to hit.`,
+  ({ current }) => `That's the end of Track ${current}. Double-check your marks and only tap what you actually heard. On to the next!`,
+  () => `Hope that one got you moving! Take a breath, take a look at your board, and let's find out what's next.`,
 ];
+
+const FINAL_STRETCH_LINES: DjLine[] = [
+  ({ current }) => `We are deep in the final stretch, finishing up Track ${current}. Only a few songs are left in the vault, which means somebody is dangerously close. If five are connected, hit CALL BINGO now. Let's spin the next one.`,
+  ({ current }) => `Track ${current} is done, and the vault is almost empty. Every song left could finish somebody's line, so check every row, column and diagonal. Here comes the next one!`,
+  () => `Pressure's on, everybody! Just a handful of songs to go. Look for that one missing square and keep your finger ready on CALL BINGO. Next track!`,
+  ({ current }) => `That's Track ${current}, and we are running out of music. Somebody has to be one square away... is it you? Let's find out.`,
+];
+
+/** Stable per-game shuffle so lines don't repeat until the list runs out, and each game plays them in a different order. */
+function seededOrder(length: number, seed: string): number[] {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
+  // mulberry32: small, well-mixed PRNG so different games get different orders.
+  let state = hash >>> 0;
+  const random = () => {
+    state = (state + 0x6D2B79F5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const order = Array.from({ length }, (_, index) => index);
+  for (let index = length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1));
+    [order[index], order[swap]] = [order[swap], order[index]];
+  }
+  return order;
+}
+
+function pickDjLine(lines: DjLine[], seed: string, step: number, context: DjLineContext): string {
+  const order = seededOrder(lines.length, seed);
+  for (let offset = 0; offset < lines.length; offset += 1) {
+    const text = lines[order[(Math.max(0, step) + offset) % lines.length]](context);
+    if (text) return text;
+  }
+  return lines[0]({ ...context, teaser: null }) ?? '';
+}
 
 function getPregameCues(activePlayers: number): HostCue[] {
   const roomStatus = activePlayers > 0
@@ -93,8 +151,21 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
     return { kicker: 'Opening Drop • Track 01', title: 'The Game Is Officially Live', script: 'That is our very first track of the night officially in the mix. Find it, mark it, and get comfortable, because we are rolling right into track number two.', hostNote: 'Let the preview finish and allow a short marking pause. If the room looks confused, read the Song Trivia card without revealing the title or artist.' };
   }
 
+  const lineContext: DjLineContext = {
+    current: currentTrackNumber,
+    teaser: songTeasers[gameState.nowPlaying] ?? null,
+  };
+  // Step through a per-game order, counting only the tracks that use the
+  // regular DJ lines (not the every-fifth-track milestone cues), so no line
+  // repeats until the whole list has been used. "New DJ Line" moves one further.
+  let regularTracksBefore = 0;
+  for (let track = 2; track < currentTrackNumber; track += 1) {
+    if (track % 5 !== 0 && track % 5 !== 1) regularTracksBefore += 1;
+  }
+  const lineStep = regularTracksBefore + variation;
+
   if (poolLength <= 5) {
-    return { kicker: 'Final Stretch • Pressure Is Up', title: 'Every Track Matters Now', script: `We are deep in the final stretch, finishing up Track ${currentTrackNumber}. We only have a few songs left in the vault, which means somebody is dangerously close. Check those near-bingo squares carefully, and if five are connected, hit CALL BINGO immediately. Let's spin the next one.`, hostNote: 'Slow the pace slightly and watch the claim queue closely. If a claim arrives, pause before calling another track.' };
+    return { kicker: 'Final Stretch • Pressure Is Up', title: 'Every Track Matters Now', script: pickDjLine(FINAL_STRETCH_LINES, `${gameState.sessionId}-final`, lineStep, lineContext), hostNote: 'Slow the pace slightly and watch the claim queue closely. If a claim arrives, pause before calling another track.' };
   }
 
   if (currentTrackNumber > 1 && currentTrackNumber % 5 === 1) {
@@ -105,8 +176,7 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
     return { kicker: `Milestone • ${currentTrackNumber} Tracks Reached`, title: 'Board Check', script: `That brings us to Track ${currentTrackNumber}. Take a quick second to look across your full card. Check every row, every column, and both diagonals, because a winning line can sneak up on you. If you see five connected marks, call it now!`, hostNote: 'Hold for a few seconds so players can check their cards. Scan the claim queue before advancing to the next track.' };
   }
 
-  const line = STANDARD_DJ_LINES[Math.abs(variation) % STANDARD_DJ_LINES.length];
-  return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: line({ current: currentTrackNumber }), hostNote: currentTrackNumber >= 12 ? 'Optional: read the Song Trivia card. Confirm the preview has ended and no claim is waiting before advancing.' : 'Wait for the preview to finish, scan the claim queue, and make sure the Auto-Caller pace still matches the room.' };
+  return { kicker: `Live Mix • Wrapping Track ${String(currentTrackNumber).padStart(2, '0')}`, title: 'DJ Talk Track', script: pickDjLine(STANDARD_DJ_LINES, gameState.sessionId, lineStep, lineContext), hostNote: currentTrackNumber >= 12 ? 'Optional: read the Song Trivia card. Confirm the preview has ended and no claim is waiting before advancing.' : 'Wait for the preview to finish, scan the claim queue, and make sure the Auto-Caller pace still matches the room.' };
 }
 
 function getHostGameRead(gameState: GameState, claims: Claim[], poolLength: number, activePlayers: number): SmartGameRead | null {
