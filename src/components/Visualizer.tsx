@@ -1352,7 +1352,7 @@ export default function Visualizer() {
       
       {!audioUnlocked && (
         <div className="absolute bottom-0 left-0 right-0 cursor-pointer select-none bg-[#33d8ff]/20 border-t border-[#33d8ff]/40 text-white text-center p-3 text-xs md:text-sm font-bold uppercase tracking-widest z-[1000] backdrop-blur-md">
-          Tap anywhere on screen to activate stage sound system! 🎧
+          Click or tap anywhere to turn on the stage sound! 🎧
         </div>
       )}
     </div>
