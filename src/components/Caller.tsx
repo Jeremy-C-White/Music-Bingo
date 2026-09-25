@@ -32,7 +32,7 @@ const STANDARD_DJ_LINES: DjLine[] = [
   ({ current }) => `Alright, that's Track ${current}. Check your corners, check your diagonals... let's see what the next drop has in store for us.`,
   ({ current }) => `And that's a wrap on Track ${current}! Eyes on your card: rows, columns, diagonals. Next song coming up.`,
   ({ current }) => `Track ${current} is in the books. If you got it, mark it. If you didn't, there's always the next one. Here we go!`,
-  ({ teaser }) => teaser ? `That was ${lowerFirst(teaser)}. Did it land on your card? Give it a tap, and let's keep the music coming.` : `Did that one land on your card? Give it a tap, and let's keep the music coming.`,
+  ({ teaser }) => teaser ? `That was ${lowerFirst(teaser)}. Did it land on your card? Mark it, and let's keep the music coming.` : `Did that one land on your card? Mark it, and let's keep the music coming.`,
   () => `Quick board check! Anybody sitting on four in a row? Don't be shy, because the next song could be the one. Let's hear it.`,
   ({ current }) => `Track ${current} fades out... and somewhere in this room, a card just got a whole lot closer to BINGO. Next track!`,
   () => `If you knew that one in two seconds flat, take a bow. If not, no worries, the next song is already cued up.`,
@@ -46,8 +46,8 @@ const STANDARD_DJ_LINES: DjLine[] = [
   () => `Let's pause the dance moves for one second and check those boards. Got it? Great. Next song, coming right up!`,
   ({ current }) => `And scene! Track ${current} is complete. If you're waiting on one square, now's the time to make some noise. Next track!`,
   ({ current }) => `Every song on this playlist is somebody's winning square. Was Track ${current} yours? Mark it, and let's keep going.`,
-  ({ current }) => `Keep those phones handy and those ears sharp. Track ${current} is done, and the next one's about to hit.`,
-  ({ current }) => `That's the end of Track ${current}. Double-check your marks and only tap what you actually heard. On to the next!`,
+  ({ current }) => `Keep those cards open and those ears sharp. Track ${current} is done, and the next one's about to hit.`,
+  ({ current }) => `That's the end of Track ${current}. Double-check your marks and only mark what you actually heard. On to the next!`,
   () => `Hope that one got you moving! Take a breath, take a look at your board, and let's find out what's next.`,
 ];
 
@@ -108,9 +108,9 @@ function getPregameCues(activePlayers: number): HostCue[] {
     },
     {
       kicker: 'Rules • Mark the Card',
-      title: 'Find It and Tap It',
-      script: "Rule two: if you recognize the song and it's anywhere on your card, tap that square to mark it. The FREE space in the middle is already marked for you. Only mark songs that have actually played, and if you tap one by mistake, just tap it again to undo it.",
-      hostNote: 'How to play, part 2: marking the card. Read it, then click Next Cue. If anyone looks unsure, point out the FREE center square and let them try tapping and untapping a tile.'
+      title: 'Find It and Mark It',
+      script: "Rule two: if you recognize the song and it's anywhere on your card, click or tap that square to mark it. The FREE space in the middle is already marked for you. Only mark songs that have actually played, and if you mark one by mistake, just click it again to undo it.",
+      hostNote: 'How to play, part 2: marking the card. Read it, then click Next Cue. If anyone looks unsure, point out the FREE center square and let them try marking and unmarking a square.'
     },
     {
       kicker: 'Rules • Call Bingo',
@@ -121,7 +121,7 @@ function getPregameCues(activePlayers: number): HostCue[] {
     {
       kicker: 'Final Check • Build the Energy',
       title: 'Ready to Start the Show',
-      script: "One more thing: tap the React button on your phone anytime to send some energy to the big screen. Fire, dancing, rock hands, whatever fits the moment, let's see it. Cards ready? Volume up? Competitive spirit activated? Then let's play Music Bingo!",
+      script: "One more thing: hit the React button at the top of your card anytime to send some energy to the big screen. Fire, dancing, rock hands, whatever fits the moment, let's see it. Cards ready? Volume up? Competitive spirit activated? Then let's play Music Bingo!",
       hostNote: 'Last cue. Read it, then press Start Game. Quick check first: the player count has settled, stage sound is on, and only one screen is playing audio so there is no echo.'
     }
   ];
