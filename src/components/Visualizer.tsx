@@ -35,7 +35,7 @@ export default function Visualizer() {
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [volume, setVolume] = useState(1);
   const [showAudioPanel, setShowAudioPanel] = useState(false);
-  const [trackBurstKey, setTrackBurstKey] = useState(0);
+  const [trackBurst, setTrackBurst] = useState<{ id: string; number: number } | null>(null);
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -101,6 +101,8 @@ export default function Visualizer() {
           initializedClaimsSessionRef.current = null;
           lastClaimsCountRef.current = 0;
           lastWinnerCountRef.current = 0;
+          lastShownTrackRef.current = 0;
+          setTrackBurst(null);
           setTotalClaims(0);
           setWinnerCount(0);
           setLatestWinnerName('');
@@ -182,6 +184,7 @@ export default function Visualizer() {
 
   useEffect(() => {
     if (!gameState?.nowPlaying) {
+      setTrackBurst(null);
       if (lastShownTrackRef.current !== 0) {
         lastShownTrackRef.current = 0;
         triggerEncouragement(null);
@@ -221,7 +224,10 @@ export default function Visualizer() {
     // 3. Track / Theme transition event
     if (lastShownTrackRef.current !== trackNumber) {
       lastShownTrackRef.current = trackNumber;
-      setTrackBurstKey(trackNumber);
+      setTrackBurst({
+        id: `${gameState.sessionId}-${trackNumber}-${gameState.trackStartedAt ?? 'started'}`,
+        number: trackNumber,
+      });
 
       // When starting a new 5-track set (e.g., Track 6 = Set 2, Track 11 = Set 3, etc.)
       if (trackNumber > 1 && trackNumber % 5 === 1) {
@@ -882,12 +888,12 @@ export default function Visualizer() {
             )}
 
             {/* A clear, room-readable track-number splash announces each new song. */}
-            {trackBurstKey > 0 && (
-              <div key={trackBurstKey} className="absolute inset-0 z-[35] pointer-events-none flex items-center justify-center overflow-hidden">
+            {trackBurst && (
+              <div key={trackBurst.id} className="absolute inset-0 z-[35] pointer-events-none flex items-center justify-center overflow-hidden">
                 <div className="absolute left-1/2 top-1/2 w-[125vmax] h-[125vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-35" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .6) 0deg 1.5deg, transparent 1.5deg 10deg, rgba(${theme.cr}, .38) 10deg 11.5deg, transparent 11.5deg 22deg)`, animation: 'mbTrackBurst 2.35s cubic-bezier(.16,1,.3,1) forwards' }} />
                 <div className="w-[36vmin] h-[36vmin] rounded-full border-[3px]" style={{ borderColor: theme.c, boxShadow: `0 0 80px 26px rgba(${theme.ar}, .48), inset 0 0 70px rgba(${theme.br}, .42)`, animation: 'mbTrackBurst 2.35s cubic-bezier(.16,1,.3,1) forwards' }} />
                 <div className="mb-track-stamp absolute text-[clamp(2.8rem,10vw,8.5rem)] font-black tracking-[-0.06em] text-white whitespace-nowrap" style={{ textShadow: `0 0 18px ${theme.a}, 0 0 48px ${theme.b}, 0 0 90px ${theme.c}` }}>
-                  TRACK {trackBurstKey}
+                  TRACK {trackBurst.number}
                 </div>
               </div>
             )}
