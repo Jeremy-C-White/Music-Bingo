@@ -103,19 +103,19 @@ function getPregameCues(activePlayers: number): HostCue[] {
     {
       kicker: 'Rules • Listen and Identify',
       title: 'How Each Track Works',
-      script: "I'll play a short clip from one song at a time. Listen for the melody, the chorus, or anything that helps you recognize it. I won't be saying the song name, so that part is all on your ears! Keep one eye on your card, because the clips keep moving and every track could be the square you need.",
+      script: "Alright, everybody, eyes up here for thirty seconds. There are only three rules, and knowing them is the difference between winning and watching somebody else win. Rule one: I'll play a short clip from one song at a time. Listen for the melody, the chorus, or anything that helps you recognize it. I won't be saying the song name, so that part is all on your ears! Keep one eye on your card, because the clips keep moving and every track could be the square you need.",
       hostNote: 'How to play, part 1: listening. Read it, then click Next Cue. During the game, never say a song title or artist out loud.'
     },
     {
       kicker: 'Rules • Mark the Card',
       title: 'Find It and Tap It',
-      script: "If you recognize the song and it's anywhere on your card, tap that square to mark it. The FREE space in the middle is already marked for you. Only mark songs that have actually played, and if you tap one by mistake, just tap it again to undo it.",
+      script: "Rule two: if you recognize the song and it's anywhere on your card, tap that square to mark it. The FREE space in the middle is already marked for you. Only mark songs that have actually played, and if you tap one by mistake, just tap it again to undo it.",
       hostNote: 'How to play, part 2: marking the card. Read it, then click Next Cue. If anyone looks unsure, point out the FREE center square and let them try tapping and untapping a tile.'
     },
     {
       kicker: 'Rules • Call Bingo',
       title: 'How to Win',
-      script: "To win, get five marked squares in a row: across, up and down, or corner to corner. The moment your line is complete, hit the CALL BINGO button on your card. It comes straight to me to check, so don't wait, don't whisper it, and definitely don't let somebody else beat you to the button!",
+      script: "Rule three: to win, get five marked squares in a row: across, up and down, or corner to corner. The moment your line is complete, hit the CALL BINGO button on your card. It comes straight to me to check, so don't wait, don't whisper it, and definitely don't let somebody else beat you to the button!",
       hostNote: 'How to play, part 3: winning. Read it, then click Next Cue. During the game, when a Bingo claim comes in, pause and only announce a winner once the claim shows Valid.'
     },
     {
