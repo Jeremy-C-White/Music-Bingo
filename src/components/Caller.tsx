@@ -122,7 +122,7 @@ function getPregameCues(activePlayers: number): HostCue[] {
       kicker: 'Final Check • Build the Energy',
       title: 'Ready to Start the Show',
       script: "One more thing: hit the React button at the top of your card anytime to send some energy to the big screen. Fire, dancing, rock hands, whatever fits the moment, let's see it. Cards ready? Volume up? Competitive spirit activated? Then let's play Music Bingo!",
-      hostNote: 'Last cue. Read it, then press Start Game. Quick check first: the player count has settled, stage sound is on, and only one screen is playing audio so there is no echo.'
+      hostNote: 'Last cue. Read it, then press Start Game. Quick check first: the player count has settled, stage sound is on, and only one screen is playing audio so there is no echo. During the game, read each Read on Mic line once it says Read now, which is right after each clip ends.'
     }
   ];
 
@@ -683,6 +683,10 @@ export default function Caller() {
   })();
   const displayedHostNote = liveHostNote ?? activeHostCue.hostNote;
 
+  // The on-mic line is spoken after the clip ends (or right away before Track 1
+  // and for a winner). While the clip plays, the line is dimmed and labeled.
+  const holdScriptForClip = Boolean(gameState?.started && gameState.nowPlaying && trackIsLive && sessionWinnerCount === 0);
+
   const deckStatus = !gameState?.started
     ? 'Lobby open'
     : !gameState.nowPlaying
@@ -896,20 +900,29 @@ export default function Caller() {
 
             {/* Script + notes */}
             <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(220px,30%)] gap-3">
-              <div ref={scriptBoxRef} className="host-fit-box relative min-h-0 rounded-xl border-2 border-[#33d8ff]/35 bg-black/55 p-4 sm:p-5 shadow-[0_0_40px_rgba(51,216,255,0.10)]">
+              <div ref={scriptBoxRef} className={`host-fit-box relative min-h-0 rounded-xl border-2 bg-black/55 p-4 sm:p-5 transition-[border-color,box-shadow] duration-500 ${holdScriptForClip ? 'border-white/15 shadow-none' : 'border-[#33d8ff]/70 shadow-[0_0_40px_rgba(51,216,255,0.22)]'}`}>
                 {gameState?.nowPlaying && (
                   <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl overflow-hidden bg-white/5">
                     <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear" style={{ width: `${displayProgress}%` }} />
                   </div>
                 )}
                 <div ref={scriptTextRef} style={{ fontSize: `${scriptFitSize}px` }}>
-                  <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-[#33d8ff] mb-[0.45em]">
-                    <MessageSquareQuote className="w-3.5 h-3.5" /> Read on Mic
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[#33d8ff] mb-[0.45em]">
+                    <span className="flex items-center gap-1.5"><MessageSquareQuote className="w-3.5 h-3.5" /> Read on Mic</span>
+                    {holdScriptForClip ? (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#ffd76a]/40 bg-[#ffd76a]/10 text-[#ffd76a] tracking-[0.14em]">
+                        <Clock className="w-3 h-3" /> After the clip ends
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full border border-[#4ade80]/40 bg-[#4ade80]/10 text-[#4ade80] tracking-[0.14em]">Read now</span>
+                    )}
                   </div>
+                  <div className={`transition-opacity duration-500 ${holdScriptForClip ? 'opacity-50' : 'opacity-100'}`}>
                   <p className="m-0 text-white font-bold leading-[1.32] text-pretty">“{activeHostCue.script}”</p>
                   {smartGameRead && (
                     <p className="mt-[0.6em] mb-0 pt-[0.55em] border-t border-[#33d8ff]/20 text-[0.78em] leading-[1.35] text-[#b9f4ff] font-bold">“{smartGameRead.onMic}”</p>
                   )}
+                  </div>
                 </div>
               </div>
 
