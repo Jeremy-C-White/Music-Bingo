@@ -38,7 +38,7 @@ const STANDARD_DJ_LINES: DjLine[] = [
   () => `If you knew that one in two seconds flat, take a bow. If not, no worries, the next song is already cued up.`,
   ({ current }) => `Track ${current}, done and dusted. Remember, that center square is free, so the middle row, the middle column and both diagonals only need four. Next one!`,
   ({ current, teaser }) => teaser ? `That was ${lowerFirst(teaser)}, and that's Track ${current} for the books. Corners, rows, diagonals, check 'em all. Here comes the next one.` : `That's Track ${current} for the books. Corners, rows, diagonals, check 'em all. Here comes the next one.`,
-  ({ current }) => `Alright, music fans, fingers off the screen for Track ${current}. Scan that card, and let's drop the next one.`,
+  ({ current }) => `Alright, music fans, that's Track ${current}. Scan that card, and let's drop the next one.`,
   () => `One more song closer to a winner! If you've got a full line, hit CALL BINGO right now. Otherwise, let's keep rolling.`,
   ({ current }) => `Track ${current} is history. Find the square you're one away from and keep your ears open for it. Here we go!`,
   ({ current }) => `Nice! That's ${current} tracks deep. The cards are filling up, so check every line before the next beat drops.`,
@@ -52,10 +52,10 @@ const STANDARD_DJ_LINES: DjLine[] = [
 ];
 
 const FINAL_STRETCH_LINES: DjLine[] = [
-  ({ current }) => `We are deep in the final stretch, finishing up Track ${current}. Only a few songs are left in the vault, which means somebody is dangerously close. If five are connected, hit CALL BINGO now. Let's spin the next one.`,
+  ({ current }) => `We're deep in the final stretch, finishing up Track ${current}. Only a few songs are left in the vault, which means somebody is dangerously close. If five are connected, hit CALL BINGO now. Let's spin the next one.`,
   ({ current }) => `Track ${current} is done, and the vault is almost empty. Every song left could finish somebody's line, so check every row, column and diagonal. Here comes the next one!`,
   () => `Pressure's on, everybody! Just a handful of songs to go. Look for that one missing square and keep your finger ready on CALL BINGO. Next track!`,
-  ({ current }) => `That's Track ${current}, and we are running out of music. Somebody has to be one square away... is it you? Let's find out.`,
+  ({ current }) => `That's Track ${current}, and we're running out of music. Somebody has to be one square away... is it you? Let's find out.`,
 ];
 
 /** Stable per-game shuffle so lines don't repeat until the list runs out, and each game plays them in a different order. */
@@ -90,38 +90,38 @@ function pickDjLine(lines: DjLine[], seed: string, step: number, context: DjLine
 
 function getPregameCues(activePlayers: number): HostCue[] {
   const roomStatus = activePlayers > 0
-    ? `${activePlayers} player${activePlayers === 1 ? '' : 's'} are already checked in, and we are about to turn this room into a music party.`
+    ? `${activePlayers === 1 ? 'Our first player is' : `${activePlayers} players are`} already checked in, and we're about to turn this room into a music party.`
     : 'As everyone finishes joining, get your bingo card open and make sure you can hear the shared music.';
 
   const cues: HostCue[] = [
     {
       kicker: 'Opening • Welcome the Room',
       title: 'Welcome to Music Bingo',
-      script: `What is up, everybody! Welcome to Music Bingo, where your playlist knowledge meets a little bit of luck. ${roomStatus} Tonight, you do not need to sing on key, know every artist, or have perfect dance moves. You just need to listen, find the songs on your card, and be ready to make some noise.`,
+      script: `What is up, everybody! Welcome to Music Bingo, where your playlist knowledge meets a little bit of luck. ${roomStatus} You don't need to sing on key, know every artist, or have perfect dance moves. You just need to listen, find the songs on your card, and be ready to make some noise.`,
       hostNote: 'Read this aloud, then click Next Cue (or press →). The next three cues explain how to play, so read every cue before you press Start Game. Before you begin: most players checked in, the stage screen visible, and the room can hear the music.'
     },
     {
       kicker: 'Rules • Listen and Identify',
       title: 'How Each Track Works',
-      script: 'I will play a short clip from one song at a time. Listen closely for the melody, the chorus, or any clue that helps you recognize it — I will not be naming the track, that part is on your ears! Keep one eye on your card because the clips keep moving, and every track could be the square you need.',
+      script: "I'll play a short clip from one song at a time. Listen for the melody, the chorus, or anything that helps you recognize it. I won't be saying the song name, so that part is all on your ears! Keep one eye on your card, because the clips keep moving and every track could be the square you need.",
       hostNote: 'How to play, part 1: listening. Read it, then click Next Cue. During the game, never say a song title or artist out loud.'
     },
     {
       kicker: 'Rules • Mark the Card',
       title: 'Find It and Tap It',
-      script: 'If you recognize the song and it appears anywhere on your five-by-five card, tap that tile to mark it. Your center FREE space is already marked and ready to help you. Only mark songs that have actually played, and tap a tile again if you need to correct a mistake.',
+      script: "If you recognize the song and it's anywhere on your card, tap that square to mark it. The FREE space in the middle is already marked for you. Only mark songs that have actually played, and if you tap one by mistake, just tap it again to undo it.",
       hostNote: 'How to play, part 2: marking the card. Read it, then click Next Cue. If anyone looks unsure, point out the FREE center square and let them try tapping and untapping a tile.'
     },
     {
       kicker: 'Rules • Call Bingo',
       title: 'How to Win',
-      script: 'Complete five marked tiles in one horizontal, vertical, or diagonal line. The moment your line is complete, hit the CALL BINGO button on your board. Your card comes straight to the host desk for verification, so do not wait, do not whisper it, and definitely do not let somebody else beat you to the button.',
+      script: "To win, get five marked squares in a row: across, up and down, or corner to corner. The moment your line is complete, hit the CALL BINGO button on your card. It comes straight to me to check, so don't wait, don't whisper it, and definitely don't let somebody else beat you to the button!",
       hostNote: 'How to play, part 3: winning. Read it, then click Next Cue. During the game, when a Bingo claim comes in, pause and only announce a winner once the claim shows Valid.'
     },
     {
       kicker: 'Final Check • Build the Energy',
       title: 'Ready to Start the Show',
-      script: 'Use the reaction button during the game to send some energy to the big screen. Fire, dancing, rock hands, whatever matches the moment, let us see it. Cards ready? Volume up? Competitive spirit activated? Then let us start Music Bingo!',
+      script: "One more thing: tap the React button on your phone anytime to send some energy to the big screen. Fire, dancing, rock hands, whatever fits the moment, let's see it. Cards ready? Volume up? Competitive spirit activated? Then let's play Music Bingo!",
       hostNote: 'Last cue. Read it, then press Start Game. Quick check first: the player count has settled, stage sound is on, and only one screen is playing audio so there is no echo.'
     }
   ];
@@ -135,7 +135,7 @@ function getPregameCues(activePlayers: number): HostCue[] {
 
 function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength: number, variation: number): HostCue {
   if (!gameState?.started) {
-    return { kicker: 'Lobby Open', title: 'Welcome the Players', script: 'Welcome everybody to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.', hostNote: 'Step through the intro cues below before pressing Start Game; they explain how to play.' };
+    return { kicker: 'Lobby Open', title: 'Welcome the Players', script: "Welcome, everybody, to Music Bingo! Get your card open, make sure you can hear the music, and get ready to test that playlist knowledge.", hostNote: 'Step through the intro cues below before pressing Start Game; they explain how to play.' };
   }
 
   const sessionClaims = claims.filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId);
@@ -143,18 +143,18 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
   const latestWinner = validClaims.slice().sort((a, b) => Number(b.timestamp) - Number(a.timestamp))[0];
 
   if (latestWinner) {
-    return { kicker: 'Winner Moment • Pause the Music', title: 'We Have an Official Bingo', script: `Hold everything! We have a verified bingo from ${latestWinner.playerName}. That card is official, that line is complete, and we have our winner! Everybody light up the reactions and make some noise for our Music Bingo champion!`, hostNote: 'Pause Auto-Caller and the music. Handle any prize or house rules, then use End & Reset only when the room is ready; resetting clears the current claims.' };
+    return { kicker: 'Winner Moment • Pause the Music', title: 'We Have an Official Bingo', script: `Hold everything! We have a bingo from ${latestWinner.playerName}, and I've checked the card: that line is complete and official. We have our winner! Everybody light up the reactions and make some noise for our Music Bingo champion!`, hostNote: 'Pause Auto-Caller and the music. Handle any prize or house rules, then use End & Reset only when the room is ready; resetting clears the current claims.' };
   }
 
   if (!gameState.nowPlaying) {
-    return { kicker: 'Game Live • First Track Ready', title: 'Kick Off the Music', script: 'The room is ready, the cards are live, and the only thing missing is the music. Remember, mark a square only when you recognize a song that appears on your own card. Let us drop the very first track and get this game moving!', hostNote: 'Check that the Visualizer has sound and the Caller is not also playing audio. Once the room confirms they can hear, play the first song.' };
+    return { kicker: 'Game Live • First Track Ready', title: 'Kick Off the Music', script: "The room is ready, the cards are live, and the only thing missing is the music. Remember, only mark a square when you recognize a song that's on your own card. Let's drop the very first track and get this game moving!", hostNote: 'Check that the Visualizer has sound and the Caller is not also playing audio. Once the room confirms they can hear, play the first song.' };
   }
 
   const currentTrackNumber = gameState.history.length + 1;
   const setNumber = Math.floor((currentTrackNumber - 1) / 5) + 1;
 
   if (currentTrackNumber === 1) {
-    return { kicker: 'Opening Drop • Track 01', title: 'The Game Is Officially Live', script: 'That is our very first track of the night officially in the mix. Find it, mark it, and get comfortable, because we are rolling right into track number two.', hostNote: 'Let the preview finish and allow a short marking pause. If the room looks confused, read the Song Trivia card without revealing the title or artist.' };
+    return { kicker: 'Opening Drop • Track 01', title: 'The Game Is Officially Live', script: "That's our very first track in the books! If it's on your card, mark it, and get comfortable, because we're rolling right into track number two.", hostNote: 'Let the preview finish and allow a short marking pause. If the room looks confused, read the Song Trivia card without revealing the title or artist.' };
   }
 
   const lineContext: DjLineContext = {
@@ -175,7 +175,7 @@ function getLiveHostCue(gameState: GameState | null, claims: Claim[], poolLength
   }
 
   if (currentTrackNumber > 1 && currentTrackNumber % 5 === 1) {
-    return { kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`, title: 'Fresh Set, Fresh Chances', script: `We are officially ${currentTrackNumber - 1} tracks deep into the game! Reset your focus, check your whole board, and let's kick off this next block of music.`, hostNote: 'Use this transition to check the room volume and player energy. Read the Song Trivia card or take a short pause if the room needs a breather.' };
+    return { kicker: `Energy Shift • Set ${String(setNumber).padStart(2, '0')}`, title: 'Fresh Set, Fresh Chances', script: `That's ${currentTrackNumber} tracks down! Reset your focus, check your whole card, and let's kick off the next set of songs.`, hostNote: 'Use this transition to check the room volume and player energy. Read the Song Trivia card or take a short pause if the room needs a breather.' };
   }
 
   if (currentTrackNumber % 5 === 0) {
