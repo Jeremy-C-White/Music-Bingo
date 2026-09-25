@@ -787,7 +787,7 @@ export default function Caller() {
                 <HistoryItem songKey={gameState.nowPlaying} label="NOW" isCurrent={true} />
               )}
               {gameState?.history.slice().reverse().map((songKey, i) => (
-                <HistoryItem key={i + songKey} songKey={songKey} label={`#${gameState.history.length - i}`} isCurrent={false} />
+                <HistoryItem key={songKey} songKey={songKey} label={`#${gameState.history.length - i}`} isCurrent={false} />
               ))}
             </div>
           </div>
