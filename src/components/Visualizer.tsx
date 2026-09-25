@@ -27,6 +27,8 @@ export default function Visualizer() {
   const currentTrackRef = useRef<string | null>(null);
   const playingTrackRef = useRef<string | null>(null);
   const playingLobbyMusicRef = useRef(false);
+  // Clips that already got their one automatic reload after a load error.
+  const retriedClipUrlsRef = useRef(new Set<string>());
   const audioAnimationRunRef = useRef(0);
   
   const [themeIndex, setThemeIndex] = useState(0);
@@ -1315,16 +1317,34 @@ export default function Visualizer() {
           });
           if (gameState?.nowPlaying) void markTrackEnded(gameState.nowPlaying);
         }}
-        onError={() => {
-          const audio = audioRef.current;
+        onError={event => {
+          const audio = event.currentTarget;
           const failedLobbyMusic = playingLobbyMusicRef.current;
-          if (audio) {
-            audio.pause();
-            audio.removeAttribute('src');
-            audio.load();
+          const failedUrl = audio.getAttribute('src') || audio.currentSrc || '';
+          // Ignore late errors from a clip we've already moved away from.
+          if (!failedUrl || (!failedLobbyMusic && playingTrackRef.current !== currentTrackRef.current)) return;
+
+          // A clip that fails to load is usually a momentary network or CDN hiccup
+          // (the same thing a page refresh fixes). Reload it once before giving up.
+          if (!failedLobbyMusic && !retriedClipUrlsRef.current.has(failedUrl)) {
+            retriedClipUrlsRef.current.add(failedUrl);
+            const trackAtError = currentTrackRef.current;
+            window.setTimeout(() => {
+              if (currentTrackRef.current !== trackAtError || audio.getAttribute('src') !== failedUrl) return;
+              audio.load();
+              if (!isAudioMuted && volume > 0 && audioUnlocked) {
+                void audio.play().catch(error => console.log('Audio playback info', error));
+              }
+            }, 1200);
+            return;
           }
+
+          audio.pause();
+          audio.removeAttribute('src');
+          audio.load();
           if (!failedLobbyMusic) {
-            setPreviewData(current => current ? { ...current, previewUrl: '' } : current);
+            // Only mark the clip that actually failed, never a newer track's preview.
+            setPreviewData(current => current && current.previewUrl === failedUrl ? { ...current, previewUrl: '' } : current);
           }
           setSongRemaining(0);
         }}
