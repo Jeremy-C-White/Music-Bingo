@@ -413,6 +413,20 @@ export default function Caller() {
   const validWinnersCount = claims.filter(c => c.status === 'valid').length;
   const tracksExhausted = gameState?.started === true && pool.length === 0;
   const trackTiming = getTrackTiming(gameState, clockNow);
+  // The record and progress ring follow the song playing in the room, not just
+  // this console's own speaker. When the stage owns the audio, this console is
+  // muted on purpose, so its own audio element never plays or reports progress.
+  const trackIsLive = Boolean(gameState?.nowPlaying)
+    && typeof gameState?.trackEndedAt !== 'number'
+    && !trackTiming.isComplete;
+  const stageProgress = !gameState?.nowPlaying
+    ? 0
+    : typeof gameState.trackEndedAt === 'number'
+      ? 100
+      : typeof gameState.trackStartedAt === 'number'
+        ? Math.min(100, Math.max(0, ((clockNow - gameState.trackStartedAt) / 30_000) * 100))
+        : 0;
+  const displayProgress = isAudioLocked ? stageProgress : audioProgress;
   const autoStartTiming = getAutoStartTiming(gameState, clockNow);
   const autoStartRemaining = autoStartTiming.remainingSeconds;
   const pregameCues = getPregameCues(activePlayers);
@@ -510,17 +524,17 @@ export default function Caller() {
               viewBox="0 0 100 100"
             >
               <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
-              {audioProgress > 0 && (
+              {displayProgress > 0 && (
                 <circle 
                   cx="50" cy="50" r="48" fill="none" stroke="#33d8ff" strokeWidth="2"
-                  strokeDasharray={`${(audioProgress / 100) * 301.59} 301.59`}
+                  strokeDasharray={`${(displayProgress / 100) * 301.59} 301.59`}
                   strokeLinecap="round"
                   className="transition-all duration-200 ease-linear"
                 />
               )}
             </svg>
 
-            <div className={`host-record relative z-20 w-[clamp(150px,24vh,250px)] h-[clamp(150px,24vh,250px)] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_36px_rgba(255,79,216,0.26)] border-[3px] border-white/10 p-2 flex items-center justify-center ${previewData?.previewUrl && !isAudioLocked ? 'is-spinning' : ''}`}>
+            <div className={`host-record relative z-20 w-[clamp(150px,24vh,250px)] h-[clamp(150px,24vh,250px)] rounded-full bg-gradient-to-br from-[#1a0510] to-[#04050d] shadow-[0_0_36px_rgba(255,79,216,0.26)] border-[3px] border-white/10 p-2 flex items-center justify-center ${trackIsLive ? 'is-spinning' : ''}`}>
               <div className="w-full h-full rounded-full bg-cover bg-center border border-white/20 relative overflow-hidden flex items-center justify-center" style={previewData?.artworkUrl ? { backgroundImage: `url(${previewData.artworkUrl})` } : {}}>
                 {!previewData?.artworkUrl && <Disc className="w-16 h-16 text-white/20" />}
                 <div className="absolute w-9 h-9 rounded-full bg-[#0a0b1e] border-2 border-[#ff4fd8]/50 z-10 shadow-[0_0_15px_#ff4fd8]"></div>
@@ -968,7 +982,7 @@ export default function Caller() {
                   {/* Teleprompter audio progress bar */}
                   {gameState.nowPlaying && (
                     <div className="absolute top-0 left-0 w-full h-1.5 bg-white/5">
-                      <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear shadow-[0_0_10px_#33d8ff]" style={{ width: `${audioProgress}%` }} />
+                      <div className="h-full bg-[#33d8ff] transition-all duration-200 ease-linear shadow-[0_0_10px_#33d8ff]" style={{ width: `${displayProgress}%` }} />
                     </div>
                   )}
 
