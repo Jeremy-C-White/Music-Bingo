@@ -758,7 +758,7 @@ export default function Board() {
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
                   <strong className="mb-1 block text-sm text-[#ff4fd8]">2. Mark Your Card</strong>
-                  If the song appears on your 5x5 grid, tap the tile to mark it. The center FREE space is already marked.
+                  If the song appears on your 5x5 grid, click or tap the tile to mark it. The center FREE space is already marked.
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
                   <strong className="mb-1 block text-sm text-[#33d8ff]">3. Call Bingo!</strong>
