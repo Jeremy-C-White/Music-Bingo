@@ -58,7 +58,10 @@ export default function Visualizer() {
   const isAutoStartCountdown = autoCallerEnabled && !gameState?.nowPlaying && autoStartRemaining > 0;
   const songHasEnded = typeof gameState?.trackEndedAt === 'number';
   const previewUnavailable = Boolean(gameState?.nowPlaying && previewData && !previewData.previewUrl);
-  const isLobbyMusic = gameState?.started !== true;
+  const isPreTrackIntro = gameState?.started === true
+    && !gameState.nowPlaying
+    && (gameState.history?.length || 0) === 0;
+  const isLobbyMusic = gameState?.started !== true || isPreTrackIntro;
   const activeAudioUrl = isLobbyMusic ? LOBBY_MUSIC_URL : (previewData?.previewUrl || '');
   const ownsStageAudio = audioUnlocked && !isAudioMuted && volume > 0;
   const dropCountdown = isAutoStartCountdown
@@ -614,6 +617,8 @@ export default function Visualizer() {
         @keyframes mbCountdownBar { to { transform: scaleX(1); } }
         @keyframes mbCountdownRing { to { stroke-dashoffset: 0; } }
         @keyframes mbNextDropCount { 0% { opacity: 0; transform: scale(.3) rotate(-6deg); filter: blur(10px); } 20% { opacity: 1; transform: scale(1.08) rotate(1deg); filter: blur(0); } 72% { opacity: 1; transform: scale(1); } 100% { opacity: .35; transform: scale(1.18); } }
+        @keyframes mbReadyWord { 0% { opacity: 0; transform: translateY(55%) scale(.48) rotate(-5deg); filter: blur(16px); } 62% { opacity: 1; transform: translateY(-4%) scale(1.08) rotate(1deg); filter: blur(0); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); filter: blur(0); } }
+        @keyframes mbReadyGlow { 0%,100% { opacity: .42; transform: scale(.9) rotate(-3deg); } 50% { opacity: .72; transform: scale(1.08) rotate(3deg); } }
 
         .mb-ambient { animation: mbAmbientDrift 20s ease-in-out infinite alternate; }
         .mb-spotlight { transform-origin: 50% 0%; mix-blend-mode: screen; filter: blur(18px); opacity: var(--bass-light, .55); }
@@ -714,7 +719,7 @@ export default function Visualizer() {
             {/* Stage Screen Tag */}
             <div className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-[#ff4fd8]/40 bg-[#ff4fd8]/15 text-[#ff4fd8] text-xs md:text-sm font-black tracking-[0.25em] uppercase mb-8 shadow-[0_0_25px_rgba(255,79,216,0.3)] backdrop-blur-md">
               <Flame className="w-5 h-5 text-[#ffd76a] animate-bounce" />
-              The Ultimate Party Game • Stage Screen Ready
+              The Ultimate Party Game
             </div>
 
             <p className="text-white/90 text-xl md:text-3xl leading-relaxed tracking-tight font-bold max-w-2xl m-0 mb-8 drop-shadow-lg text-center">
@@ -832,6 +837,50 @@ export default function Visualizer() {
               <div className="absolute -inset-[20%] opacity-20" style={{ background: `linear-gradient(115deg, transparent 36%, rgba(${theme.c}, .30) 49%, transparent 62%)`, animation: 'mbPanelShimmer 9s ease-in-out infinite' }} />
             </div>
 
+            {/* Keep the room energized after Start Game while Track 1 is still waiting. */}
+            {isPreTrackIntro && (
+              <div className="absolute inset-0 z-[95] flex items-center justify-center overflow-hidden bg-[#030612]/92 backdrop-blur-xl px-5 text-center">
+                <div
+                  className="absolute left-1/2 top-1/2 h-[110vmax] w-[110vmax] -translate-x-1/2 -translate-y-1/2 rounded-full"
+                  style={{
+                    background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .62) 0deg 2deg, transparent 2deg 12deg, rgba(${theme.br}, .42) 12deg 14deg, transparent 14deg 27deg)`,
+                    maskImage: 'radial-gradient(circle, transparent 0 8%, black 25%, transparent 68%)',
+                    animation: 'mbReadyGlow 5.5s ease-in-out infinite',
+                  }}
+                />
+                <div className="absolute h-[58vmin] w-[58vmin] rounded-full border-2 border-[var(--scene-c)]/55 shadow-[0_0_110px_32px_rgba(var(--scene-a-rgb),0.42),inset_0_0_90px_rgba(var(--scene-b-rgb),0.36)] mb-ring-pulse" />
+
+                <div className="relative z-10 flex max-w-6xl flex-col items-center">
+                  <div className="mb-5 text-[clamp(.8rem,1.8vw,1.35rem)] font-black uppercase tracking-[0.38em] text-[#ffd76a] drop-shadow-[0_0_22px_#ffd76a]">
+                    Game Night Starts Now
+                  </div>
+
+                  <div aria-label="Are you ready?" className="flex flex-col items-center text-[clamp(4.2rem,13vw,11rem)] font-black uppercase leading-[0.74] tracking-[-0.07em] text-white">
+                    {['ARE…', 'YOU…', 'READY?'].map((word, index) => (
+                      <span
+                        key={word}
+                        aria-hidden="true"
+                        className={index === 2 ? 'bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent' : ''}
+                        style={{
+                          animation: `mbReadyWord .9s cubic-bezier(.16,1,.3,1) ${index * 480}ms both`,
+                          textShadow: index === 2 ? 'none' : `0 0 24px ${theme.a}, 0 0 65px ${theme.b}`,
+                        }}
+                      >
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div aria-live="polite" className="mt-8 rounded-full border border-white/15 bg-white/10 px-6 py-3 text-[clamp(.78rem,1.7vw,1.2rem)] font-black uppercase tracking-[0.24em] text-white/90 shadow-2xl backdrop-blur-md">
+                    {isAutoStartCountdown ? `Track 1 Drops In ${autoStartRemaining}` : 'Track 1 Is Cued Up'}
+                  </div>
+                  <div className="mt-4 text-[clamp(.72rem,1.35vw,1rem)] font-bold uppercase tracking-[0.22em] text-white/55">
+                    Music up • Cards ready
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* A clear, room-readable track-number splash announces each new song. */}
             {trackBurstKey > 0 && (
               <div key={trackBurstKey} className="absolute inset-0 z-[35] pointer-events-none flex items-center justify-center overflow-hidden">
@@ -843,8 +892,8 @@ export default function Visualizer() {
               </div>
             )}
 
-            {/* A full-screen five-count launches Track 1 and separates later songs. */}
-            {autoCallerEnabled && (isAutoStartCountdown || trackTiming.isInterTrackDelay) && dropCountdown > 0 && (
+            {/* A full-screen five-count separates later auto-called songs. */}
+            {autoCallerEnabled && !isPreTrackIntro && (isAutoStartCountdown || trackTiming.isInterTrackDelay) && dropCountdown > 0 && (
               <div className="absolute inset-0 z-[90] pointer-events-none flex items-center justify-center overflow-hidden bg-[#030612]/94 backdrop-blur-xl">
                 <div className="absolute left-1/2 top-1/2 w-[135vmax] h-[135vmax] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40" style={{ background: `repeating-conic-gradient(from 0deg, rgba(${theme.ar}, .72) 0deg 2deg, transparent 2deg 11deg, rgba(${theme.cr}, .48) 11deg 13deg, transparent 13deg 24deg)`, animation: 'mbTrackBurst 5s cubic-bezier(.16,1,.3,1) forwards' }} />
                 <div className="absolute w-[48vmin] h-[48vmin] rounded-full border-[3px] opacity-80" style={{ borderColor: theme.c, boxShadow: `0 0 110px 32px rgba(${theme.ar}, .52), inset 0 0 90px rgba(${theme.br}, .45)`, animation: 'mbRingPulse 1s ease-in-out infinite' }} />
@@ -1030,7 +1079,7 @@ export default function Visualizer() {
                   )}
                 </div>
 
-                <h2 className="text-[clamp(2rem,4.6vw,4rem)] font-black leading-[0.98] tracking-tight mb-2 sm:mb-3 text-balance drop-shadow-2xl">
+                <h2 className="text-[clamp(2rem,4.6vw,4rem)] font-black leading-[1.08] tracking-tight mb-2 sm:mb-3 pb-[0.08em] text-balance drop-shadow-2xl">
                   {gameState.nowPlaying ? getSongTeaser(gameState.nowPlaying, gameState.history.length + 1) : 'Ready?'}
                 </h2>
 
