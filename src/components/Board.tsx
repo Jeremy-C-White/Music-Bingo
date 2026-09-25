@@ -599,7 +599,9 @@ export default function Board() {
               {completedLineCount > 0
                 ? `🔥 ${completedLineCount} Line${completedLineCount === 1 ? '' : 's'} Complete!`
                 : nearWins.length > 0
-                ? `⚡ ${nearWins.length} Tile Away!`
+                ? nearWins.length === 1
+                  ? '⚡ 1 away from BINGO!'
+                  : `⚡ 1 away · ${nearWins.length} ways to win`
                 : '🎧 Listening...'}
             </div>
           </div>
