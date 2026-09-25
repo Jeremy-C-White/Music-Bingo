@@ -8,6 +8,8 @@ import { lookupPreview } from '../lib/itunes';
 import { Music, Volume2, VolumeX, Trophy, Disc, Radio, Settings, Lightbulb, Type, Flame, PartyPopper, Sparkles } from 'lucide-react';
 import { getAutoStartTiming, getTrackTiming, INTER_TRACK_DELAY_SECONDS } from '../lib/timing';
 
+const LOBBY_MUSIC_URL = 'https://whije02.github.io/song/Nimbus.mp3';
+
 export default function Visualizer() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [previewData, setPreviewData] = useState<{previewUrl: string; artworkUrl: string} | null>(null);
@@ -24,6 +26,7 @@ export default function Visualizer() {
   const encouragementTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentTrackRef = useRef<string | null>(null);
   const playingTrackRef = useRef<string | null>(null);
+  const playingLobbyMusicRef = useRef(false);
   const audioAnimationRunRef = useRef(0);
   
   const [themeIndex, setThemeIndex] = useState(0);
@@ -55,20 +58,23 @@ export default function Visualizer() {
   const isAutoStartCountdown = autoCallerEnabled && !gameState?.nowPlaying && autoStartRemaining > 0;
   const songHasEnded = typeof gameState?.trackEndedAt === 'number';
   const previewUnavailable = Boolean(gameState?.nowPlaying && previewData && !previewData.previewUrl);
+  const isLobbyMusic = gameState?.started !== true;
+  const activeAudioUrl = isLobbyMusic ? LOBBY_MUSIC_URL : (previewData?.previewUrl || '');
   const dropCountdown = isAutoStartCountdown
     ? autoStartRemaining
     : Math.min(INTER_TRACK_DELAY_SECONDS, nextTrackRemaining);
 
   useEffect(() => {
     const unlockAudio = () => {
-      if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.play().then(() => {
-          setAudioUnlocked(true);
-        }).catch(e => console.log('Autoplay still prevented', e));
-      } else {
-        setAudioUnlocked(true);
-      }
+      // The browser requires a real user gesture before stage audio can play.
+      // The lobby track is already loaded, so this tap starts it immediately.
+      setAudioUnlocked(true);
       initAudioContext();
+
+      const audio = audioRef.current;
+      if (audio?.currentSrc && audio.paused && !isAudioMuted && volume > 0) {
+        void audio.play().catch(error => console.log('Audio playback info', error));
+      }
       
       ['click', 'touchstart', 'keydown'].forEach(evt => document.removeEventListener(evt, unlockAudio));
     };
@@ -80,7 +86,7 @@ export default function Visualizer() {
     return () => {
       ['click', 'touchstart', 'keydown'].forEach(evt => document.removeEventListener(evt, unlockAudio));
     };
-  }, [audioUnlocked]);
+  }, [audioUnlocked, isAudioMuted, volume]);
 
   useEffect(() => {
     const unsub = subscribeToGameState((state) => {
@@ -240,20 +246,21 @@ export default function Visualizer() {
     if (!audio) return;
     audio.volume = volume;
     if (volume === 0 && !audio.paused) audio.pause();
-    if (volume > 0 && !isAudioMuted && previewData?.previewUrl && audio.paused) {
+    if (volume > 0 && !isAudioMuted && audioUnlocked && activeAudioUrl && audio.paused) {
       void audio.play().catch(error => console.log('Audio playback info', error));
     }
-  }, [volume]);
+  }, [volume, isAudioMuted, audioUnlocked, activeAudioUrl]);
 
   // Audio source and mute handling.
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (isAudioMuted || volume === 0 || !previewData?.previewUrl) {
+    if (isAudioMuted || volume === 0 || !activeAudioUrl) {
       audio.pause();
-      if (!previewData?.previewUrl) {
+      if (!activeAudioUrl) {
         playingTrackRef.current = null;
+        playingLobbyMusicRef.current = false;
         audio.removeAttribute('src');
         audio.load();
       }
@@ -261,15 +268,17 @@ export default function Visualizer() {
       return;
     }
 
-    const targetUrl = previewData.previewUrl;
-    playingTrackRef.current = currentTrackRef.current;
+    playingLobbyMusicRef.current = isLobbyMusic;
+    playingTrackRef.current = isLobbyMusic ? null : currentTrackRef.current;
 
-    if (audio.src !== targetUrl) {
-      audio.src = targetUrl;
-      audio.loop = false;
+    if (audio.src !== activeAudioUrl) {
       audio.crossOrigin = "anonymous";
+      audio.src = activeAudioUrl;
       audio.load();
     }
+    audio.loop = isLobbyMusic;
+
+    if (!audioUnlocked) return;
 
     const playPromise = audio.play();
     if (playPromise !== undefined) {
@@ -281,7 +290,7 @@ export default function Visualizer() {
           console.log('Audio playback info', e);
         });
     }
-  }, [previewData, isAudioMuted]);
+  }, [activeAudioUrl, isLobbyMusic, isAudioMuted, volume, audioUnlocked]);
 
   useEffect(() => {
     const heartbeat = window.setInterval(() => {
@@ -1213,22 +1222,24 @@ export default function Visualizer() {
         ref={audioRef} 
         preload="auto"
         onLoadedMetadata={event => {
-          if (playingTrackRef.current === currentTrackRef.current) syncSongProgress(event.currentTarget, false);
+          if (!playingLobbyMusicRef.current && playingTrackRef.current === currentTrackRef.current) syncSongProgress(event.currentTarget, false);
         }}
         onPlaying={event => {
-          if (playingTrackRef.current === currentTrackRef.current) {
+          if (playingLobbyMusicRef.current) {
+            void setVisualizerAudioActive(true).catch(() => {});
+          } else if (playingTrackRef.current === currentTrackRef.current) {
             syncSongProgress(event.currentTarget, true);
             void setVisualizerAudioActive(true).catch(() => {});
           }
         }}
         onTimeUpdate={event => {
           const audio = event.currentTarget;
-          if (playingTrackRef.current === currentTrackRef.current && Number.isFinite(audio.duration) && audio.duration > 0) {
+          if (!playingLobbyMusicRef.current && playingTrackRef.current === currentTrackRef.current && Number.isFinite(audio.duration) && audio.duration > 0) {
             setSongRemaining(Math.max(0, Math.ceil(audio.duration - audio.currentTime)));
           }
         }}
         onPause={event => {
-          if (!event.currentTarget.ended && playingTrackRef.current === currentTrackRef.current) {
+          if (!playingLobbyMusicRef.current && !event.currentTarget.ended && playingTrackRef.current === currentTrackRef.current) {
             syncSongProgress(event.currentTarget, false);
           }
           void setVisualizerAudioActive(false).catch(() => {});
@@ -1239,6 +1250,7 @@ export default function Visualizer() {
           }
         }}
         onEnded={() => {
+          if (playingLobbyMusicRef.current) return;
           if (playingTrackRef.current !== currentTrackRef.current) return;
           void setVisualizerAudioActive(false).catch(() => {});
           setSongRemaining(0);
@@ -1252,19 +1264,22 @@ export default function Visualizer() {
         }}
         onError={() => {
           const audio = audioRef.current;
+          const failedLobbyMusic = playingLobbyMusicRef.current;
           if (audio) {
             audio.pause();
             audio.removeAttribute('src');
             audio.load();
           }
-          setPreviewData(current => current ? { ...current, previewUrl: '' } : current);
+          if (!failedLobbyMusic) {
+            setPreviewData(current => current ? { ...current, previewUrl: '' } : current);
+          }
           setSongRemaining(0);
           void setVisualizerAudioActive(false).catch(() => {});
         }}
       />
       
       {!audioUnlocked && (
-        <div className="absolute bottom-0 left-0 right-0 bg-[#33d8ff]/20 border-t border-[#33d8ff]/40 text-white text-center p-3 text-xs md:text-sm font-bold uppercase tracking-widest z-[1000] backdrop-blur-md">
+        <div className="absolute bottom-0 left-0 right-0 cursor-pointer select-none bg-[#33d8ff]/20 border-t border-[#33d8ff]/40 text-white text-center p-3 text-xs md:text-sm font-bold uppercase tracking-widest z-[1000] backdrop-blur-md">
           Tap anywhere on screen to activate stage sound system! 🎧
         </div>
       )}
