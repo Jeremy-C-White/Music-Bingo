@@ -136,13 +136,16 @@ export default function Board() {
   const [showWinModal, setShowWinModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [winClaim, setWinClaim] = useState<Partial<Claim> | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const [claimInFlight, setClaimInFlight] = useState(false);
 
   const [nearWins, setNearWins] = useState<number[]>([]);
   const [winningLines, setWinningLines] = useState<number[]>([]);
+  const [completedLineCount, setCompletedLineCount] = useState(0);
   const [hasConfirmedWin, setHasConfirmedWin] = useState(false);
 
   const prevNearWinsCount = useRef(0);
+  const initializedSessionRef = useRef<string | null>(null);
 
   const toggleEmojiPicker = () => {
     if (!showEmojiPicker && reactButtonRef.current) {
@@ -185,9 +188,11 @@ export default function Board() {
             const parsed = JSON.parse(stored);
             if (parsed.sessionId !== state.sessionId) {
               localStorage.removeItem(BOARD_STATE_KEY);
+              initializedSessionRef.current = null;
               setBoardSongs([]);
               setSelected(Array(25).fill(false));
               setHasConfirmedWin(false);
+              setWinClaim(null);
             }
           } catch (e) {}
         }
@@ -197,7 +202,7 @@ export default function Board() {
         if (currentStoredName && currentStoredName.length >= 2) {
           setInLobby(false);
           setWaiting(false);
-          initBoard(state.sessionId);
+          if (initializedSessionRef.current !== state.sessionId) initBoard(state.sessionId);
         }
       } else {
         setInLobby(true);
@@ -233,11 +238,18 @@ export default function Board() {
     if (gameState?.started) {
       setInLobby(false);
       setWaiting(false);
-      initBoard(gameState.sessionId);
+      if (initializedSessionRef.current !== gameState.sessionId) initBoard(gameState.sessionId);
     }
   };
 
+  const changePlayerName = () => {
+    localStorage.removeItem(PLAYER_NAME_KEY);
+    setWaiting(false);
+    setInLobby(true);
+  };
+
   const initBoard = (sessionId: string) => {
+    initializedSessionRef.current = sessionId;
     const stored = localStorage.getItem(BOARD_STATE_KEY);
     if (stored) {
       try {
@@ -245,6 +257,8 @@ export default function Board() {
         if (parsed.sessionId === sessionId && parsed.songs?.length === 25) {
           setBoardSongs(parsed.songs);
           setSelected(parsed.selected);
+          setHasConfirmedWin(parsed.hasConfirmedWin === true);
+          setWinClaim(parsed.winClaim || null);
           showToast('💾 Your saved board was restored.');
           return;
         }
@@ -265,6 +279,8 @@ export default function Board() {
         sessionId,
         songs: shuffled,
         selected: initialSelected,
+        hasConfirmedWin: false,
+        winClaim: null,
       })
     );
 
@@ -288,6 +304,8 @@ export default function Board() {
           sessionId: gameState.sessionId,
           songs: boardSongs,
           selected: newSelected,
+          hasConfirmedWin,
+          winClaim,
         })
       );
     }
@@ -330,6 +348,7 @@ export default function Board() {
 
     setNearWins(nearArr);
     setWinningLines(Array.from(win));
+    setCompletedLineCount(lines);
   };
 
   const handleCallBingo = async () => {
@@ -346,7 +365,8 @@ export default function Board() {
     }
 
     setClaimInFlight(true);
-    setWinClaim({ status: undefined });
+    setClaimError(null);
+    setWinClaim(null);
     setShowWinModal(true);
 
     try {
@@ -355,6 +375,18 @@ export default function Board() {
 
       if (claim.status === 'valid') {
         setHasConfirmedWin(true);
+        if (gameState.sessionId) {
+          localStorage.setItem(
+            BOARD_STATE_KEY,
+            JSON.stringify({
+              sessionId: gameState.sessionId,
+              songs: boardSongs,
+              selected,
+              hasConfirmedWin: true,
+              winClaim: claim,
+            })
+          );
+        }
         playBingoFanfare();
         const d = { origin: { y: 0.7 } };
         confetti({ ...d, particleCount: 110, spread: 90, startVelocity: 50 });
@@ -362,7 +394,7 @@ export default function Board() {
         confetti({ ...d, particleCount: 70, angle: 120, spread: 70, origin: { x: 0.85, y: 0.65 } });
       }
     } catch (e: any) {
-      setWinClaim({ status: undefined, reason: e.message });
+      setClaimError(e instanceof Error ? e.message : 'We could not check your bingo. Please try again.');
     } finally {
       setClaimInFlight(false);
     }
@@ -372,7 +404,7 @@ export default function Board() {
     setShowEmojiPicker(false);
     playPopSound(true);
     try {
-      await sendReaction(playerName, emoji);
+      await sendReaction(playerName, emoji, gameState?.sessionId || '');
       showToast(`Sent ${emoji} to the big screen!`);
     } catch (error) {
       showToast(`Failed to send ${emoji}.`);
@@ -384,10 +416,10 @@ export default function Board() {
 
   if (inLobby) {
     return (
-      <div className="relative min-h-screen overflow-hidden px-4 py-8 text-[#f7f8ff]">
+      <div className="relative min-h-dvh overflow-hidden px-4 py-8 text-[#f7f8ff]">
         <StageBackground theme={ambientTheme} />
 
-        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-lg items-center justify-center">
+        <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-lg items-center justify-center">
           <div className={`animate-pop-in relative w-full overflow-hidden rounded-[34px] p-[1px] ${primaryGlass}`}>
             <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_28%,transparent_70%,rgba(255,255,255,0.12))]" />
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
@@ -405,7 +437,7 @@ export default function Board() {
                   <span className="bg-gradient-to-r from-[#ffd76a] via-[#ff4fd8] to-[#33d8ff] bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(255,79,216,0.35)]">Bingo</span>
                 </h1>
                 <p className="mx-auto mt-4 max-w-sm text-sm font-medium text-white/[0.65] md:text-[15px]">
-                  Join the room, grab your card, and get ready for a more premium game board experience.
+                  Join the room, grab your card, and get ready to listen, mark tracks, and call BINGO.
                 </p>
               </div>
 
@@ -438,8 +470,13 @@ export default function Board() {
 
               {waiting && (
                 <div className="animate-pop-in mt-4 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-center text-sm text-white/70">
-                  <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#4ade80] animate-pulse" />
-                  {gameState?.started ? 'Entering game...' : 'Waiting for the host to start...'}
+                  <div>
+                    <span className="mr-2 inline-block h-2 w-2 rounded-full bg-[#4ade80] animate-pulse" />
+                    {gameState?.started ? 'Entering game...' : 'Waiting for the host to start...'}
+                  </div>
+                  <button onClick={changePlayerName} className="mt-2 text-xs font-black uppercase tracking-wider text-[#33d8ff] hover:text-white">
+                    Change name
+                  </button>
                 </div>
               )}
             </div>
@@ -450,10 +487,10 @@ export default function Board() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden px-2 py-2 text-[#f7f8ff] md:px-4 md:py-4 selection:bg-[#ff4fd8] selection:text-white">
+    <div className="relative min-h-dvh overflow-hidden px-2 py-2 text-[#f7f8ff] md:px-4 md:py-4 selection:bg-[#ff4fd8] selection:text-white">
       <StageBackground theme={ambientTheme} celebratory={hasCompletedLine} />
 
-      <div className="animate-pop-in relative z-10 mx-auto flex h-[calc(100vh-16px)] w-full max-w-4xl flex-1 flex-col gap-3 2xl:max-w-6xl 2xl:gap-5 3xl:max-w-7xl">
+      <div className="animate-pop-in relative z-10 mx-auto flex h-[calc(100dvh-16px)] w-full max-w-4xl flex-1 flex-col gap-3 2xl:max-w-6xl 2xl:gap-5 3xl:max-w-7xl">
         <header className={`relative z-50 flex flex-none flex-wrap items-center justify-between gap-3 overflow-visible rounded-[28px] px-4 py-3 md:px-6 2xl:px-8 2xl:py-5 ${primaryGlass}`}>
           <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[linear-gradient(135deg,rgba(255,255,255,0.14),transparent_28%,transparent_78%,rgba(255,255,255,0.10))]" />
           <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/75 to-transparent" />
@@ -469,9 +506,9 @@ export default function Board() {
                   <span className="h-2 w-2 rounded-full bg-[#4ade80] shadow-[0_0_12px_rgba(74,222,128,0.7)]" />
                   Live Session
                 </span>
-                <span className="hidden rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[#7fe8ff] md:inline-flex">
-                  Player: {playerName}
-                </span>
+                <button onClick={changePlayerName} className="hidden rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[#7fe8ff] transition-colors hover:border-[#33d8ff]/40 hover:bg-[#33d8ff]/10 md:inline-flex" title="Change player name">
+                  Player: {playerName} · Change
+                </button>
               </div>
             </div>
           </div>
@@ -559,8 +596,8 @@ export default function Board() {
               <p className="mt-0.5 text-[10px] text-white/60 md:text-xs 2xl:text-sm">Mark 5 tiles in a row, column, or diagonal to win.</p>
             </div>
             <div className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition-colors 2xl:px-4 2xl:py-2 2xl:text-xs ${secondaryGlass} ${winningLines.length > 0 ? 'text-[#ff4fd8] border-[#ff4fd8]/30 bg-[#ff4fd8]/10' : 'text-[#7fe8ff]'}`}>
-              {winningLines.length > 0
-                ? `🔥 ${winningLines.length / 5} Line${winningLines.length > 5 ? 's' : ''} Complete!`
+              {completedLineCount > 0
+                ? `🔥 ${completedLineCount} Line${completedLineCount === 1 ? '' : 's'} Complete!`
                 : nearWins.length > 0
                 ? `⚡ ${nearWins.length} Tile Away!`
                 : '🎧 Listening...'}
@@ -568,7 +605,7 @@ export default function Board() {
           </div>
 
           <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-3 py-3 md:px-5 md:py-5 2xl:px-8 2xl:py-8">
-            <div className="mb-1.5 grid w-full max-w-[min(100%,calc(100vh-280px))] grid-cols-5 gap-1 text-center text-sm font-black tracking-[0.28em] text-[#ffd76a] md:mb-2 md:gap-3 md:text-2xl 2xl:mb-3 2xl:max-w-[min(100%,calc(100vh-340px))] 2xl:gap-4 2xl:text-3xl 3xl:max-w-[min(100%,calc(100vh-400px))] 3xl:text-4xl">
+            <div className="mb-1.5 grid w-full max-w-[min(100%,calc(100dvh-280px))] grid-cols-5 gap-1 text-center text-sm font-black tracking-[0.28em] text-[#ffd76a] md:mb-2 md:gap-3 md:text-2xl 2xl:mb-3 2xl:max-w-[min(100%,calc(100dvh-340px))] 2xl:gap-4 2xl:text-3xl 3xl:max-w-[min(100%,calc(100dvh-400px))] 3xl:text-4xl">
               {['B', 'I', 'N', 'G', 'O'].map((letter, colIdx) => {
                 const columnSelectedCount = [0, 1, 2, 3, 4].filter((rowIdx) => selected[rowIdx * 5 + colIdx]).length;
                 const isColComplete = columnSelectedCount === 5;
@@ -598,7 +635,7 @@ export default function Board() {
               })}
             </div>
 
-            <div className="grid aspect-square w-full max-w-[min(100%,calc(100vh-280px))] grid-cols-5 gap-1 md:gap-3 2xl:max-w-[min(100%,calc(100vh-340px))] 2xl:gap-4 3xl:max-w-[min(100%,calc(100vh-400px))]">
+            <div className="grid aspect-square w-full max-w-[min(100%,calc(100dvh-280px))] grid-cols-5 gap-1 md:gap-3 2xl:max-w-[min(100%,calc(100dvh-340px))] 2xl:gap-4 3xl:max-w-[min(100%,calc(100dvh-400px))]">
               {boardSongs.map((song, i) => {
                 const isSelected = selected[i];
                 const isFree = i === 12;
@@ -747,7 +784,7 @@ export default function Board() {
             <div className="relative rounded-[29px] bg-[linear-gradient(180deg,rgba(16,22,37,0.92),rgba(12,17,31,0.96))] p-6 text-center">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,79,216,0.10),transparent_36%),radial-gradient(circle_at_bottom,rgba(51,216,255,0.10),transparent_34%)]" />
 
-              {!winClaim?.status ? (
+              {claimInFlight ? (
                 <>
                   <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Checking...</h2>
                   <div className="mb-6 flex items-center justify-center gap-2 text-sm text-white/80">
@@ -755,7 +792,18 @@ export default function Board() {
                     Validating your bingo with the host...
                   </div>
                 </>
-              ) : winClaim.status === 'valid' ? (
+              ) : claimError ? (
+                <>
+                  <h2 className="mb-2 bg-gradient-to-br from-[#f87171] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Couldn&apos;t Check</h2>
+                  <p className="mb-6 text-sm text-white/80">{claimError}</p>
+                  <button
+                    onClick={() => { setShowWinModal(false); setClaimError(null); }}
+                    className="relative z-10 mb-3 w-full rounded-2xl bg-[#33d8ff] py-3 font-black text-[#06121a] transition-all hover:brightness-110 active:scale-[0.98]"
+                  >
+                    Return and Try Again
+                  </button>
+                </>
+              ) : winClaim?.status === 'valid' ? (
                 <>
                   <h2 className="mb-2 bg-gradient-to-br from-[#ffd76a] via-white to-[#ff4fd8] bg-clip-text text-4xl font-black uppercase tracking-[-0.05em] text-transparent drop-shadow-[0_0_15px_rgba(255,215,106,0.3)]">BINGO!</h2>
                   <p className="mb-4 text-sm text-white/80">Your claim is in. The host has been notified.</p>
@@ -772,7 +820,7 @@ export default function Board() {
                     </div>
                   )}
                 </>
-              ) : winClaim.status === 'cheating' ? (
+              ) : winClaim?.status === 'cheating' ? (
                 <>
                   <h2 className="mb-2 bg-gradient-to-br from-[#f87171] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Not Quite Right</h2>
                   <p className="mb-6 text-sm text-white/80">
@@ -785,7 +833,7 @@ export default function Board() {
               ) : (
                 <>
                   <h2 className="mb-2 bg-gradient-to-br from-[#fb923c] to-white bg-clip-text text-3xl font-black uppercase tracking-[-0.05em] text-transparent">Almost!</h2>
-                  <p className="mb-6 text-sm text-white/80">{winClaim.reason || "The host did not find a complete line on your board. Keep going!"}</p>
+                  <p className="mb-6 text-sm text-white/80">{winClaim?.reason || "The host did not find a complete line on your board. Keep going!"}</p>
                 </>
               )}
 

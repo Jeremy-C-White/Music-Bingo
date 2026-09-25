@@ -18,6 +18,8 @@ export default function Visualizer() {
   const [encouragement, setEncouragement] = useState<{ kicker: string, title: string, sub: string, isClaim?: boolean, isWinner?: boolean } | null>(null);
   const lastClaimsCountRef = useRef(0);
   const lastWinnerCountRef = useRef(0);
+  const initializedClaimsSessionRef = useRef<string | null>(null);
+  const visualizerSessionRef = useRef<string | null>(null);
   const lastShownTrackRef = useRef(0);
   const encouragementTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentTrackRef = useRef<string | null>(null);
@@ -52,6 +54,7 @@ export default function Visualizer() {
   const autoStartRemaining = autoStartTiming.remainingSeconds;
   const isAutoStartCountdown = autoCallerEnabled && !gameState?.nowPlaying && autoStartRemaining > 0;
   const songHasEnded = typeof gameState?.trackEndedAt === 'number';
+  const previewUnavailable = Boolean(gameState?.nowPlaying && previewData && !previewData.previewUrl);
   const dropCountdown = isAutoStartCountdown
     ? autoStartRemaining
     : Math.min(INTER_TRACK_DELAY_SECONDS, nextTrackRemaining);
@@ -83,6 +86,17 @@ export default function Visualizer() {
     const unsub = subscribeToGameState((state) => {
       setGameState(state);
       if (state) {
+        if (visualizerSessionRef.current !== state.sessionId) {
+          visualizerSessionRef.current = state.sessionId;
+          initializedClaimsSessionRef.current = null;
+          lastClaimsCountRef.current = 0;
+          lastWinnerCountRef.current = 0;
+          setTotalClaims(0);
+          setWinnerCount(0);
+          setLatestWinnerName('');
+          setReactions([]);
+          triggerEncouragement(null);
+        }
         const trackChanged = state.nowPlaying !== currentTrackRef.current;
         currentTrackRef.current = state.nowPlaying;
         const trackNumber = (state.history?.length || 0) + (state.nowPlaying ? 1 : 0);
@@ -117,6 +131,11 @@ export default function Visualizer() {
       if (gameState?.sessionId) {
         const sessionClaims = claims.filter(c => c.sessionId === gameState.sessionId);
         const winners = sessionClaims.filter(c => c.status === 'valid');
+        if (initializedClaimsSessionRef.current !== gameState.sessionId) {
+          initializedClaimsSessionRef.current = gameState.sessionId;
+          lastClaimsCountRef.current = sessionClaims.length;
+          lastWinnerCountRef.current = winners.length;
+        }
         setTotalClaims(sessionClaims.length);
         setWinnerCount(winners.length);
         setLatestWinnerName(winners.length ? winners[winners.length - 1].playerName : '');
@@ -125,21 +144,13 @@ export default function Visualizer() {
 
     const unsubReactions = subscribeToReactions((newReactions) => {
       setReactions(newReactions);
-    });
+    }, gameState?.sessionId || '', Date.now());
     
     return () => {
       unsub();
       unsubClaims();
       unsubReactions();
     };
-  }, [gameState?.sessionId]);
-
-  useEffect(() => {
-    lastClaimsCountRef.current = 0;
-    lastWinnerCountRef.current = 0;
-    setTotalClaims(0);
-    setWinnerCount(0);
-    setLatestWinnerName('');
   }, [gameState?.sessionId]);
 
   const triggerEncouragement = (
@@ -222,25 +233,40 @@ export default function Visualizer() {
     }
   }, [gameState?.nowPlaying, gameState?.history?.length, totalClaims, winnerCount, latestWinnerName]);
 
-  // Audio setup
+  // Keep slider changes local to the audio element. Moving the slider should
+  // not repeatedly publish stage-audio state to Firestore.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = volume;
+    if (volume === 0 && !audio.paused) audio.pause();
+    if (volume > 0 && !isAudioMuted && previewData?.previewUrl && audio.paused) {
+      void audio.play().catch(error => console.log('Audio playback info', error));
+    }
+  }, [volume]);
+
+  // Audio source and mute handling.
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    audio.volume = volume;
-
-    if (isAudioMuted || volume === 0) {
+    if (isAudioMuted || volume === 0 || !previewData?.previewUrl) {
       audio.pause();
+      if (!previewData?.previewUrl) {
+        playingTrackRef.current = null;
+        audio.removeAttribute('src');
+        audio.load();
+      }
+      void setVisualizerAudioActive(false).catch(() => {});
       return;
     }
 
-    const targetUrl = previewData?.previewUrl || "https://whije02.github.io/song/Nimbus.mp3";
-    const isFallback = !previewData?.previewUrl;
+    const targetUrl = previewData.previewUrl;
     playingTrackRef.current = currentTrackRef.current;
 
     if (audio.src !== targetUrl) {
       audio.src = targetUrl;
-      audio.loop = isFallback;
+      audio.loop = false;
       audio.crossOrigin = "anonymous";
       audio.load();
     }
@@ -250,13 +276,28 @@ export default function Visualizer() {
       playPromise
         .then(() => {
           initAudioContext();
-          setVisualizerAudioActive(true);
         })
         .catch(e => {
           console.log('Audio playback info', e);
         });
     }
-  }, [previewData, isAudioMuted, volume]);
+  }, [previewData, isAudioMuted]);
+
+  useEffect(() => {
+    const heartbeat = window.setInterval(() => {
+      const audio = audioRef.current;
+      if (audio && !audio.paused && !audio.ended && audio.volume > 0) {
+        void setVisualizerAudioActive(true).catch(() => {});
+      }
+    }, 8000);
+    const markInactive = () => void setVisualizerAudioActive(false).catch(() => {});
+    window.addEventListener('pagehide', markInactive);
+    return () => {
+      window.clearInterval(heartbeat);
+      window.removeEventListener('pagehide', markInactive);
+      markInactive();
+    };
+  }, []);
 
   const initAudioContext = () => {
     if (analyserRef.current || !audioRef.current) {
@@ -1058,7 +1099,7 @@ export default function Visualizer() {
                     />
                   </div>
                   <div className={`mt-2 text-[9px] sm:text-[10px] lg:text-xs font-black tracking-[0.22em] uppercase ${songHasEnded ? 'text-[#ffd76a]' : 'text-white/40'}`}>
-                    {songHasEnded ? 'Song Complete' : songRemaining > 0 ? 'Song Time Remaining' : 'Loading Track'}
+                    {songHasEnded ? 'Song Complete' : previewUnavailable ? 'Preview Unavailable' : songRemaining > 0 ? 'Song Time Remaining' : 'Loading Track'}
                   </div>
                 </div>
                 <div aria-live="polite" className={`flex-none text-[clamp(2rem,4.4vw,4rem)] font-black tabular-nums leading-none ${songHasEnded ? 'text-[#ffd76a] drop-shadow-[0_0_40px_#ffd76a] animate-pulse' : 'text-[var(--scene-c)] drop-shadow-[0_0_30px_var(--scene-c)]'}`}>
@@ -1148,15 +1189,16 @@ export default function Visualizer() {
                     left: `${leftPercent}%`,
                     '--rot': `${rot}deg`,
                     animationDelay: `${delay}s`,
-                    transform: `scale(${scale})`
                   } as React.CSSProperties}
                 >
-                  <div className="relative mb-2">
-                    <span className="mb-reaction-halo absolute inset-[-22%] rounded-full bg-white/30 blur-xl" />
-                    <div className="relative text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)]">{reaction.emoji}</div>
-                  </div>
-                  <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
-                    {reaction.playerName}
+                  <div className="flex flex-col items-center" style={{ transform: `scale(${scale})` }}>
+                    <div className="relative mb-2">
+                      <span className="mb-reaction-halo absolute inset-[-22%] rounded-full bg-white/30 blur-xl" />
+                      <div className="relative text-5xl md:text-7xl drop-shadow-[0_0_25px_rgba(255,255,255,0.8)]">{reaction.emoji}</div>
+                    </div>
+                    <div className="bg-black/80 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap shadow-2xl">
+                      {reaction.playerName}
+                    </div>
                   </div>
                 </div>
               );
@@ -1174,7 +1216,10 @@ export default function Visualizer() {
           if (playingTrackRef.current === currentTrackRef.current) syncSongProgress(event.currentTarget, false);
         }}
         onPlaying={event => {
-          if (playingTrackRef.current === currentTrackRef.current) syncSongProgress(event.currentTarget, true);
+          if (playingTrackRef.current === currentTrackRef.current) {
+            syncSongProgress(event.currentTarget, true);
+            void setVisualizerAudioActive(true).catch(() => {});
+          }
         }}
         onTimeUpdate={event => {
           const audio = event.currentTarget;
@@ -1186,6 +1231,7 @@ export default function Visualizer() {
           if (!event.currentTarget.ended && playingTrackRef.current === currentTrackRef.current) {
             syncSongProgress(event.currentTarget, false);
           }
+          void setVisualizerAudioActive(false).catch(() => {});
         }}
         onSeeked={event => {
           if (playingTrackRef.current === currentTrackRef.current) {
@@ -1194,6 +1240,7 @@ export default function Visualizer() {
         }}
         onEnded={() => {
           if (playingTrackRef.current !== currentTrackRef.current) return;
+          void setVisualizerAudioActive(false).catch(() => {});
           setSongRemaining(0);
           audioAnimationRunRef.current += 1;
           setSongProgressAnimation({
@@ -1204,13 +1251,15 @@ export default function Visualizer() {
           if (gameState?.nowPlaying) void markTrackEnded(gameState.nowPlaying);
         }}
         onError={() => {
-          if (audioRef.current && audioRef.current.src !== "https://whije02.github.io/song/Nimbus.mp3") {
-            audioRef.current.src = "https://whije02.github.io/song/Nimbus.mp3";
-            audioRef.current.loop = true;
-            if (!isAudioMuted && volume > 0) {
-              audioRef.current.play().catch(() => {});
-            }
+          const audio = audioRef.current;
+          if (audio) {
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
           }
+          setPreviewData(current => current ? { ...current, previewUrl: '' } : current);
+          setSongRemaining(0);
+          void setVisualizerAudioActive(false).catch(() => {});
         }}
       />
       

@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Sparkles, Radio, Tv, Gamepad2, Music, Volume2, ShieldCheck, Trophy, Flame } from 'lucide-react';
-import Board from './components/Board';
-import Caller from './components/Caller';
-import Visualizer from './components/Visualizer';
+
+const Board = lazy(() => import('./components/Board'));
+const Caller = lazy(() => import('./components/Caller'));
+const Visualizer = lazy(() => import('./components/Visualizer'));
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Music Bingo Home',
@@ -126,7 +127,7 @@ function Home() {
 
       {/* Footer */}
       <footer className="w-full max-w-5xl flex justify-center py-6 mt-12 relative z-10 border-t border-white/10 text-xs text-white/40 font-bold uppercase tracking-widest gap-8">
-        <span className="flex items-center gap-2"><Volume2 className="w-4 h-4 text-[#33d8ff]" /> Spotify Previews</span>
+        <span className="flex items-center gap-2"><Volume2 className="w-4 h-4 text-[#33d8ff]" /> iTunes Previews</span>
         <span className="flex items-center gap-2"><Trophy className="w-4 h-4 text-[#ffd76a]" /> Auto-Validation</span>
         <span className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-[#ff4fd8]" /> Realtime Sync</span>
       </footer>
@@ -138,12 +139,14 @@ export default function App() {
   return (
     <HashRouter>
       <PageTitle />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/board" element={<Board />} />
-        <Route path="/caller" element={<Caller />} />
-        <Route path="/visualizer" element={<Visualizer />} />
-      </Routes>
+      <Suspense fallback={<div className="flex min-h-dvh items-center justify-center bg-[#0a0b1e] text-sm font-black uppercase tracking-[0.25em] text-[#33d8ff]">Loading Music Bingo…</div>}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/board" element={<Board />} />
+          <Route path="/caller" element={<Caller />} />
+          <Route path="/visualizer" element={<Visualizer />} />
+        </Routes>
+      </Suspense>
     </HashRouter>
   );
 }

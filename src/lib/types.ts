@@ -4,12 +4,14 @@ export interface GameState {
   nowPlaying: string | null;
   history: string[];
   visualizerAudioActive: boolean;
+  visualizerAudioUpdatedAt?: number | null;
   updatedAt: number;
   trackStartedAt?: number | null;
   nextTrackAt?: number | null;
   trackEndedAt?: number | null;
   autoStartAt?: number | null;
   autoCallerEnabled?: boolean;
+  winnerCount?: number;
 }
 
 export interface Claim {

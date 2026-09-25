@@ -1,20 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Music Bingo
 
-# Run and deploy your AI Studio app
+A browser-based Music Bingo party game with a host console, individual player cards, and a big-screen visualizer. The app synchronizes the room through Firebase and uses short iTunes preview clips for the music.
 
-This contains everything you need to run your app locally.
+## Play
 
-View your app in AI Studio: https://ai.studio/apps/3da9b412-e1d1-4555-b8c9-1151f8bf1a79
+The hosted game is available at [jeremy-c-white.github.io/Music-Bingo](https://jeremy-c-white.github.io/Music-Bingo/).
 
-## Run Locally
+- **Host & Caller:** start or reset a round, call tracks, control Auto-Caller, follow the talk track, and review bingo claims.
+- **Player Card:** enter a name, receive a randomized card, mark songs, send reactions, and call bingo.
+- **Stage Visuals:** project the current track, timer, winner moments, and room reactions. Keep this page unmuted if it should provide the room audio.
 
-**Prerequisites:**  Node.js
+For the cleanest sound, use one browser tab for room audio. The host console automatically mutes its preview while the visualizer is actively playing.
 
+## Run locally
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Requires Node.js 22 or newer.
+
+```bash
+npm ci
+npm run dev
+```
+
+Open the local address shown in the terminal. No API key or local environment file is required.
+
+## Quality checks
+
+```bash
+npm run lint
+npm run build
+```
+
+Pushes to `main` are built and deployed to GitHub Pages by the included workflow.

@@ -2,19 +2,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /games/current {
-      // Allow anyone to read the game state. 
+      // The current hosting setup has no sign-in layer, so the host controls
+      // still require public access. Player-submitted data is constrained below.
       allow read, write: if true;
-      
+
       match /claims/{claimId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow create: if
+          request.resource.data.keys().hasOnly([
+            'timestamp', 'playerName', 'sessionId', 'songs', 'selected',
+            'status', 'reason', 'winningLines', 'historyCountAtClaim',
+            'lastCalledAtClaim', 'position'
+          ]) &&
+          request.resource.data.timestamp is int &&
+          request.resource.data.playerName is string &&
+          request.resource.data.playerName.size() >= 2 &&
+          request.resource.data.playerName.size() <= 40 &&
+          request.resource.data.sessionId == get(/databases/$(database)/documents/games/current).data.sessionId &&
+          request.resource.data.songs is list &&
+          request.resource.data.songs.size() == 25 &&
+          request.resource.data.selected is list &&
+          request.resource.data.selected.size() == 25 &&
+          request.resource.data.status in ['valid', 'cheating', 'no_line'] &&
+          request.resource.data.historyCountAtClaim is int;
+        allow update: if false;
+        allow delete: if true;
       }
 
       match /players/{playerId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow create, update: if
+          request.resource.data.keys().hasOnly(['name', 'lastSeen']) &&
+          request.resource.data.name is string &&
+          request.resource.data.name.size() >= 2 &&
+          request.resource.data.name.size() <= 40 &&
+          request.resource.data.lastSeen is int;
+        allow delete: if true;
       }
-      
+
       match /reactions/{reactionId} {
-        allow read, write: if true;
+        allow read: if true;
+        allow create: if
+          request.resource.data.keys().hasOnly(['playerName', 'emoji', 'sessionId', 'timestamp']) &&
+          request.resource.data.playerName is string &&
+          request.resource.data.playerName.size() >= 2 &&
+          request.resource.data.playerName.size() <= 40 &&
+          request.resource.data.emoji is string &&
+          request.resource.data.emoji.size() <= 8 &&
+          request.resource.data.sessionId == get(/databases/$(database)/documents/games/current).data.sessionId &&
+          request.resource.data.timestamp is int;
+        allow update: if false;
+        allow delete: if true;
       }
     }
   }

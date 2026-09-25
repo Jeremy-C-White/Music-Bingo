@@ -8,24 +8,96 @@ import { INTER_TRACK_DELAY_MS, TRACK_CYCLE_MS } from './timing';
 export const GAME_DOC_ID = 'current';
 const gameDocRef = doc(db, 'games', GAME_DOC_ID);
 const claimsCollection = collection(db, 'games', GAME_DOC_ID, 'claims');
+const playersCollection = collection(db, 'games', GAME_DOC_ID, 'players');
+const reactionsCollection = collection(db, 'games', GAME_DOC_ID, 'reactions');
+
+function normalizeGameState(data: Partial<GameState>): GameState {
+  return {
+    sessionId: typeof data.sessionId === 'string' ? data.sessionId : '',
+    started: data.started === true,
+    nowPlaying: typeof data.nowPlaying === 'string' ? data.nowPlaying : null,
+    history: Array.isArray(data.history) ? data.history : [],
+    visualizerAudioActive: data.visualizerAudioActive === true,
+    visualizerAudioUpdatedAt: typeof data.visualizerAudioUpdatedAt === 'number' ? data.visualizerAudioUpdatedAt : null,
+    updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
+    trackStartedAt: typeof data.trackStartedAt === 'number' ? data.trackStartedAt : null,
+    nextTrackAt: typeof data.nextTrackAt === 'number' ? data.nextTrackAt : null,
+    trackEndedAt: typeof data.trackEndedAt === 'number' ? data.trackEndedAt : null,
+    autoStartAt: typeof data.autoStartAt === 'number' ? data.autoStartAt : null,
+    autoCallerEnabled: data.autoCallerEnabled === true,
+    winnerCount: typeof data.winnerCount === 'number' ? data.winnerCount : 0,
+  };
+}
+
+function verifyClaim(boardSongs: string[], selected: boolean[], gameState: GameState) {
+  if (boardSongs.length !== 25 || selected.length !== 25 || boardSongs[12] !== 'FREE SPACE') {
+    return {
+      status: 'cheating' as const,
+      reason: 'Board data was incomplete or malformed.',
+      winningLines: [] as { label: string; indices: number[] }[],
+      historyCountAtClaim: gameState.history.length + (gameState.nowPlaying ? 1 : 0),
+      lastCalledAtClaim: gameState.nowPlaying || (gameState.history[gameState.history.length - 1] ?? null),
+    };
+  }
+
+  const historySet = new Set(gameState.history);
+  if (gameState.nowPlaying) historySet.add(gameState.nowPlaying);
+  const invalidMarks = boardSongs.filter((song, index) => index !== 12 && selected[index] && !historySet.has(song));
+  const validWinningLines: { label: string; indices: number[] }[] = [];
+  let detectedLineCount = 0;
+
+  const describePattern = (index: number) => {
+    if (index <= 4) return `Row ${index + 1}`;
+    if (index <= 9) return `Column ${index - 4}`;
+    return index === 10 ? 'Diagonal ↘' : 'Diagonal ↙';
+  };
+
+  WIN_PATTERNS.forEach((pattern, index) => {
+    if (!pattern.every(tile => selected[tile])) return;
+    detectedLineCount += 1;
+    if (pattern.every(tile => tile === 12 || historySet.has(boardSongs[tile]))) {
+      validWinningLines.push({ label: describePattern(index), indices: pattern });
+    }
+  });
+
+  let status: Claim['status'] = 'no_line';
+  let reason = 'No complete bingo line detected on this board.';
+  if (validWinningLines.length > 0) {
+    status = 'valid';
+    reason = '';
+  } else if (detectedLineCount > 0 && invalidMarks.length > 0) {
+    status = 'cheating';
+    const bad = invalidMarks.slice(0, 5).join(', ');
+    reason = `Marked songs that were never called: ${bad}${invalidMarks.length > 5 ? ', …' : ''}`;
+  }
+
+  return {
+    status,
+    reason,
+    winningLines: validWinningLines,
+    historyCountAtClaim: historySet.size,
+    lastCalledAtClaim: gameState.nowPlaying || (gameState.history[gameState.history.length - 1] ?? null),
+  };
+}
+
+async function clearCollection(collectionRef: typeof claimsCollection) {
+  const snapshot = await getDocs(collectionRef);
+  await Promise.all(snapshot.docs.map(item => deleteDoc(item.ref)));
+}
+
+async function clearRoundData() {
+  await Promise.all([
+    clearCollection(claimsCollection),
+    clearCollection(reactionsCollection),
+    clearCollection(playersCollection),
+  ]);
+}
 
 export function subscribeToGameState(callback: (state: GameState | null) => void) {
   return onSnapshot(gameDocRef, (docSnap) => {
     if (docSnap.exists()) {
       const data = docSnap.data() as Partial<GameState>;
-      callback({
-        sessionId: typeof data.sessionId === 'string' ? data.sessionId : '',
-        started: data.started === true,
-        nowPlaying: typeof data.nowPlaying === 'string' ? data.nowPlaying : null,
-        history: Array.isArray(data.history) ? data.history : [],
-        visualizerAudioActive: data.visualizerAudioActive === true,
-        updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
-        trackStartedAt: typeof data.trackStartedAt === 'number' ? data.trackStartedAt : null,
-        nextTrackAt: typeof data.nextTrackAt === 'number' ? data.nextTrackAt : null,
-        trackEndedAt: typeof data.trackEndedAt === 'number' ? data.trackEndedAt : null,
-        autoStartAt: typeof data.autoStartAt === 'number' ? data.autoStartAt : null,
-        autoCallerEnabled: data.autoCallerEnabled === true,
-      });
+      callback(normalizeGameState(data));
     } else {
       callback(null);
     }
@@ -34,27 +106,50 @@ export function subscribeToGameState(callback: (state: GameState | null) => void
 
 export function subscribeToClaims(callback: (claims: Claim[]) => void) {
   const q = query(claimsCollection, orderBy('timestamp', 'asc'));
-  return onSnapshot(q, (snapshot) => {
-    const claims = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Claim));
-    
-    // Sort valid claims to assign positions
-    let validCounter = 0;
-    const processed = claims.map(c => {
-      let position = undefined;
-      if (c.status === 'valid') {
-        validCounter++;
-        position = validCounter;
+  return onSnapshot(q, async (snapshot) => {
+    try {
+      const currentGameSnapshot = await getDoc(gameDocRef);
+      if (!currentGameSnapshot.exists()) {
+        callback([]);
+        return;
       }
-      return { ...c, position };
-    });
-    
-    callback(processed);
+      const currentGame = normalizeGameState(currentGameSnapshot.data() as Partial<GameState>);
+      let fallbackPosition = 0;
+      const processed = snapshot.docs.map(item => {
+        const claim = { id: item.id, ...item.data() } as Claim;
+        const calledAtClaim = [...currentGame.history, ...(currentGame.nowPlaying ? [currentGame.nowPlaying] : [])]
+          .slice(0, Math.max(0, claim.historyCountAtClaim || 0));
+        const claimTimeGame = {
+          ...currentGame,
+          history: calledAtClaim,
+          nowPlaying: null,
+        };
+        const verification = verifyClaim(
+          Array.isArray(claim.songs) ? claim.songs : [],
+          Array.isArray(claim.selected) ? claim.selected : [],
+          claimTimeGame
+        );
+        const storedPosition = verification.status === 'valid' && typeof claim.position === 'number'
+          ? claim.position
+          : undefined;
+        if (storedPosition) fallbackPosition = Math.max(fallbackPosition, storedPosition);
+        const position = verification.status === 'valid'
+          ? storedPosition ?? ++fallbackPosition
+          : undefined;
+        return { ...claim, ...verification, position };
+      });
+      callback(processed);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.GET, 'games/current');
+      callback([]);
+    }
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/claims'));
 }
 
 export async function startNewGame() {
   try {
   const sessionId = Date.now().toString();
+  await clearRoundData();
   
   // Create or overwrite current game state
   await setDoc(gameDocRef, {
@@ -63,12 +158,14 @@ export async function startNewGame() {
     nowPlaying: null,
     history: [],
     visualizerAudioActive: false,
+    visualizerAudioUpdatedAt: null,
     updatedAt: Date.now(),
     trackStartedAt: null,
     nextTrackAt: null,
     trackEndedAt: null,
     autoStartAt: null,
-    autoCallerEnabled: false
+    autoCallerEnabled: false,
+    winnerCount: 0
   });
   
   return sessionId;
@@ -86,18 +183,17 @@ export async function resetGame() {
       nowPlaying: null,
       history: [],
       visualizerAudioActive: false,
+      visualizerAudioUpdatedAt: null,
       updatedAt: Date.now(),
       trackStartedAt: null,
       nextTrackAt: null,
       trackEndedAt: null,
       autoStartAt: null,
-      autoCallerEnabled: false
+      autoCallerEnabled: false,
+      winnerCount: 0
     });
 
-    // Clear claims subcollection
-    const snap = await getDocs(claimsCollection);
-    const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
-    await Promise.all(deletePromises);
+    await clearRoundData();
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'games/current');
     throw err;
@@ -214,6 +310,7 @@ export async function setVisualizerAudioActive(active: boolean) {
   try {
   await updateDoc(gameDocRef, {
     visualizerAudioActive: active,
+    visualizerAudioUpdatedAt: Date.now(),
     updatedAt: Date.now()
   });
   } catch (err) {
@@ -224,70 +321,64 @@ export async function setVisualizerAudioActive(active: boolean) {
 
 export async function submitClaim(playerName: string, boardSongs: string[], selected: boolean[], gameState: GameState) {
   try {
-  // Integrity check
-  if (boardSongs[12] !== 'FREE SPACE' || boardSongs.length !== 25) {
-    throw new Error('Board data malformed.');
-  }
-  
-  const historySet = new Set(gameState.history);
-  if (gameState.nowPlaying) historySet.add(gameState.nowPlaying);
-  
-  const invalidMarks: { index: number; song: string }[] = [];
-  for (let i = 0; i < 25; i++) {
-    if (i === 12) continue; // FREE SPACE
-    if (selected[i] && !historySet.has(boardSongs[i])) {
-      invalidMarks.push({ index: i, song: boardSongs[i] });
+    if (boardSongs.length !== 25 || selected.length !== 25 || boardSongs[12] !== 'FREE SPACE') {
+      throw new Error('Your saved board is incomplete. Refresh the board and try again.');
     }
-  }
-  
-  const validWinningLines: { label: string; indices: number[] }[] = [];
-  let allDetectedLines = 0;
-  
-  const describePattern = (idx: number) => {
-    if (idx <= 4) return 'Row ' + (idx + 1);
-    if (idx <= 9) return 'Column ' + (idx - 4);
-    if (idx === 10) return 'Diagonal ↘';
-    if (idx === 11) return 'Diagonal ↙';
-    return 'Line';
-  };
-  
-  WIN_PATTERNS.forEach((pattern, idx) => {
-    if (pattern.every(i => selected[i])) {
-      allDetectedLines++;
-      const patternValid = pattern.every(i => i === 12 || historySet.has(boardSongs[i]));
-      if (patternValid) {
-        validWinningLines.push({ label: describePattern(idx), indices: pattern });
+
+    const normalizedName = playerName.trim();
+    if (normalizedName.length < 2) throw new Error('Please enter your player name before calling bingo.');
+
+    const claimKeySource = `${gameState.sessionId}|${normalizedName.toLowerCase()}|${boardSongs.join('|')}`;
+    let claimHash = 2166136261;
+    for (let index = 0; index < claimKeySource.length; index += 1) {
+      claimHash ^= claimKeySource.charCodeAt(index);
+      claimHash = Math.imul(claimHash, 16777619);
+    }
+    const claimRef = doc(claimsCollection, `${gameState.sessionId}_${(claimHash >>> 0).toString(36)}`);
+
+    const existingClaimsSnapshot = await getDocs(claimsCollection);
+    const existingValidPositions = existingClaimsSnapshot.docs
+      .map(item => item.data() as Partial<Claim>)
+      .filter(item => item.sessionId === gameState.sessionId && item.status === 'valid')
+      .map(item => typeof item.position === 'number' ? item.position : 0);
+    const existingWinnerBaseline = Math.max(existingValidPositions.length, 0, ...existingValidPositions);
+
+    return await runTransaction(db, async transaction => {
+      const [existingClaimSnapshot, currentGameSnapshot] = await Promise.all([
+        transaction.get(claimRef),
+        transaction.get(gameDocRef),
+      ]);
+      if (existingClaimSnapshot.exists()) {
+        return { id: existingClaimSnapshot.id, ...existingClaimSnapshot.data() } as Claim;
       }
-    }
-  });
-  
-  let status: 'valid' | 'cheating' | 'no_line' = 'no_line';
-  let reason = 'No complete bingo line detected on this board.';
-  
-  if (validWinningLines.length > 0) {
-    status = 'valid';
-    reason = '';
-  } else if (allDetectedLines > 0 && invalidMarks.length > 0) {
-    status = 'cheating';
-    const bad = invalidMarks.slice(0, 5).map(m => m.song).join(', ');
-    reason = 'Marked songs that were never called: ' + bad + (invalidMarks.length > 5 ? ', …' : '');
-  }
-  
-  const claim: Omit<Claim, 'id' | 'position'> = {
-    timestamp: Date.now(),
-    playerName,
-    sessionId: gameState.sessionId,
-    songs: boardSongs,
-    selected,
-    status,
-    reason,
-    winningLines: validWinningLines,
-    historyCountAtClaim: historySet.size,
-    lastCalledAtClaim: gameState.nowPlaying || (gameState.history.length ? gameState.history[gameState.history.length - 1] : null)
-  };
-  
-  await addDoc(claimsCollection, claim);
-  return claim;
+      if (!currentGameSnapshot.exists()) throw new Error('The current game could not be found.');
+
+      const currentGame = normalizeGameState(currentGameSnapshot.data() as Partial<GameState>);
+      if (!currentGame.started || currentGame.sessionId !== gameState.sessionId) {
+        throw new Error('That round has ended. Return to the board for the current game.');
+      }
+
+      const verification = verifyClaim(boardSongs, selected, currentGame);
+      const currentWinnerCount = Math.max(currentGame.winnerCount || 0, existingWinnerBaseline);
+      const position = verification.status === 'valid' ? currentWinnerCount + 1 : undefined;
+      const claim: Claim = {
+        id: claimRef.id,
+        timestamp: Date.now(),
+        playerName: normalizedName,
+        sessionId: currentGame.sessionId,
+        songs: boardSongs,
+        selected,
+        ...verification,
+        ...(position ? { position } : {}),
+      };
+
+      if (position) {
+        transaction.update(gameDocRef, { winnerCount: position });
+      }
+      const { id: _id, ...storedClaim } = claim;
+      transaction.set(claimRef, storedClaim);
+      return claim;
+    });
   } catch (err) {
     handleFirestoreError(err, OperationType.CREATE, 'games/current/claims');
     throw err;
@@ -296,11 +387,7 @@ export async function submitClaim(playerName: string, boardSongs: string[], sele
 
 export async function dismissClaim(claimId: string) {
   try {
-  // We can just add a 'dismissed' flag or delete it. Let's delete it.
-  // Wait, no, we shouldn't delete claims entirely if we want them out of view for caller, 
-  // but deletion is easiest. Let's delete it.
-  const { deleteDoc, doc } = await import('firebase/firestore');
-  await deleteDoc(doc(db, 'games', GAME_DOC_ID, 'claims', claimId));
+    await deleteDoc(doc(db, 'games', GAME_DOC_ID, 'claims', claimId));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, 'games/current/claims');
     throw err;
@@ -326,27 +413,28 @@ export interface Reaction {
   id: string;
   playerName: string;
   emoji: string;
+  sessionId?: string;
   timestamp: number;
 }
 
-export function subscribeToReactions(callback: (reactions: Reaction[]) => void) {
-  const reactionsCollection = collection(db, 'games', GAME_DOC_ID, 'reactions');
+export function subscribeToReactions(callback: (reactions: Reaction[]) => void, sessionId = '', since = Date.now()) {
   const q = query(reactionsCollection, orderBy('timestamp', 'desc'), limit(30));
   
   return onSnapshot(q, (snapshot) => {
     const reactions = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Reaction));
+      .map(doc => ({ id: doc.id, ...doc.data() } as Reaction))
+      .filter(reaction => reaction.timestamp >= since && (!sessionId || reaction.sessionId === sessionId));
     callback(reactions);
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/reactions'));
 }
 
-export async function sendReaction(playerName: string, emoji: string) {
+export async function sendReaction(playerName: string, emoji: string, sessionId: string) {
   if (!playerName || !playerName.trim() || !emoji) throw new Error("Missing name or emoji");
   try {
-    const reactionsCollection = collection(db, 'games', GAME_DOC_ID, 'reactions');
     await addDoc(reactionsCollection, {
       playerName: playerName.trim(),
       emoji,
+      sessionId,
       timestamp: Date.now()
     });
   } catch (err) {
@@ -356,14 +444,19 @@ export async function sendReaction(playerName: string, emoji: string) {
 }
 
 export function subscribeToPlayerCount(callback: (count: number) => void) {
-  const playersCollection = collection(db, 'games', GAME_DOC_ID, 'players');
-  return onSnapshot(playersCollection, (snapshot) => {
+  let latestPlayers: { lastSeen?: number }[] = [];
+  const publishCount = () => {
     const now = Date.now();
-    // Count players seen within the last 30 seconds
-    const activeCount = snapshot.docs.filter(doc => {
-      const data = doc.data();
-      return data.lastSeen && (now - data.lastSeen) < 30000;
-    }).length;
+    const activeCount = latestPlayers.filter(player => player.lastSeen && (now - player.lastSeen) < 30000).length;
     callback(activeCount);
+  };
+  const unsubscribe = onSnapshot(playersCollection, (snapshot) => {
+    latestPlayers = snapshot.docs.map(item => item.data() as { lastSeen?: number });
+    publishCount();
   }, (err) => handleFirestoreError(err, OperationType.LIST, 'games/current/players'));
+  const interval = window.setInterval(publishCount, 5000);
+  return () => {
+    window.clearInterval(interval);
+    unsubscribe();
+  };
 }

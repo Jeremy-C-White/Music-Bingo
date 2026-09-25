@@ -175,6 +175,7 @@ export default function Caller() {
   const autoStartInFlightRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const currentTrackRef = useRef<string | null>(null);
   
   // Upgraded: Host Volume & Audio Progress tracking
   const [volume, setVolume] = useState(0.6);
@@ -210,8 +211,7 @@ export default function Caller() {
   useEffect(() => {
     const unsubState = subscribeToGameState((state) => {
       setGameState(state);
-      // Lock host audio if the visualizer is playing to prevent echo
-      setIsAudioLocked(state?.visualizerAudioActive || false);
+      currentTrackRef.current = state?.nowPlaying ?? null;
 
       if (state?.sessionId && sessionIdRef.current && state.sessionId !== sessionIdRef.current) {
         setAudioProgress(0);
@@ -232,8 +232,10 @@ export default function Caller() {
         });
         
         if (state.nowPlaying) {
+          const requestedTrack = state.nowPlaying;
           const { title, artist } = splitSong(state.nowPlaying);
           lookupPreview(title, artist).then(data => {
+            if (currentTrackRef.current !== requestedTrack) return;
             setPreviewData(data);
             setAudioProgress(0); // Reset progress on new song
           });
@@ -247,6 +249,18 @@ export default function Caller() {
     const unsubClaims = subscribeToClaims((allClaims) => setClaims(allClaims));
     return () => { unsubState(); unsubClaims(); };
   }, []);
+
+  // The visualizer reports a short heartbeat while it owns the room audio.
+  // Ignore an old "active" flag after a tab closes or loses connectivity.
+  useEffect(() => {
+    const syncAudioLock = () => {
+      const heartbeatAge = Date.now() - (gameState?.visualizerAudioUpdatedAt || 0);
+      setIsAudioLocked(gameState?.visualizerAudioActive === true && heartbeatAge < 20_000);
+    };
+    syncAudioLock();
+    const interval = window.setInterval(syncAudioLock, 5_000);
+    return () => window.clearInterval(interval);
+  }, [gameState?.visualizerAudioActive, gameState?.visualizerAudioUpdatedAt]);
  
   useEffect(() => {
     const unsubPlayers = subscribeToPlayerCount((count) => setActivePlayers(count));
@@ -460,7 +474,7 @@ export default function Caller() {
               Players: <strong className="text-white ml-1">{activePlayers}</strong>
             </span>
             <span className="rounded-xl border border-white/10 bg-black/35 px-3 py-2 shadow-inner text-center whitespace-nowrap">
-              Called: <strong className="text-white ml-1">{gameState?.history.length || 0}</strong>
+              Called: <strong className="text-white ml-1">{(gameState?.history.length || 0) + (gameState?.nowPlaying ? 1 : 0)}</strong>
             </span>
             <span className="rounded-xl border border-white/10 bg-black/35 px-3 py-2 shadow-inner text-center whitespace-nowrap">
               Remaining: <strong className="text-white ml-1">{pool.length}</strong>
@@ -669,7 +683,7 @@ export default function Caller() {
                 
                 {/* Spacebar Hint */}
                 <div className="flex justify-center text-[10px] text-white/40 font-bold uppercase tracking-widest">
-                  <Keyboard className="w-3.5 h-3.5 mr-1" /> Press [Space] to skip
+                  <Keyboard className="w-3.5 h-3.5 mr-1" /> Press [Space] to call next
                 </div>
  
                 {/* Auto Caller Mode Toggle */}
