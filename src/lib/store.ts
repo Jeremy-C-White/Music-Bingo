@@ -80,6 +80,15 @@ function verifyClaim(boardSongs: string[], selected: boolean[], gameState: GameS
   };
 }
 
+function hashClaimKey(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
 async function clearCollection(collectionRef: typeof claimsCollection) {
   const snapshot = await getDocs(collectionRef);
   await Promise.all(snapshot.docs.map(item => deleteDoc(item.ref)));
@@ -200,18 +209,40 @@ export async function resetGame() {
   }
 }
 
-export async function setNowPlaying(songKey: string, history: string[]) {
+export async function setNowPlaying(songKey: string, expectedNowPlaying: string | null, expectedSessionId: string): Promise<boolean> {
   try {
-  const trackStartedAt = Date.now();
-  await updateDoc(gameDocRef, {
-    nowPlaying: songKey,
-    history: history,
-    updatedAt: trackStartedAt,
-    trackStartedAt,
-    nextTrackAt: trackStartedAt + TRACK_CYCLE_MS,
-    trackEndedAt: null,
-    autoStartAt: null
-  });
+    return await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(gameDocRef);
+      if (!snapshot.exists()) return false;
+
+      const data = snapshot.data() as Partial<GameState>;
+      const currentSong = typeof data.nowPlaying === 'string' ? data.nowPlaying : null;
+      if (
+        data.started !== true ||
+        data.sessionId !== expectedSessionId ||
+        currentSong !== expectedNowPlaying ||
+        currentSong === songKey
+      ) {
+        return false;
+      }
+
+      const liveHistory = Array.isArray(data.history) ? [...data.history] : [];
+      if (currentSong && liveHistory[liveHistory.length - 1] !== currentSong) {
+        liveHistory.push(currentSong);
+      }
+
+      const trackStartedAt = Date.now();
+      transaction.update(gameDocRef, {
+        nowPlaying: songKey,
+        history: liveHistory,
+        updatedAt: trackStartedAt,
+        trackStartedAt,
+        nextTrackAt: trackStartedAt + TRACK_CYCLE_MS,
+        trackEndedAt: null,
+        autoStartAt: null,
+      });
+      return true;
+    });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, 'games/current');
     throw err;
@@ -329,12 +360,8 @@ export async function submitClaim(playerName: string, boardSongs: string[], sele
     if (normalizedName.length < 2) throw new Error('Please enter your player name before calling bingo.');
 
     const claimKeySource = `${gameState.sessionId}|${normalizedName.toLowerCase()}|${boardSongs.join('|')}`;
-    let claimHash = 2166136261;
-    for (let index = 0; index < claimKeySource.length; index += 1) {
-      claimHash ^= claimKeySource.charCodeAt(index);
-      claimHash = Math.imul(claimHash, 16777619);
-    }
-    const claimRef = doc(claimsCollection, `${gameState.sessionId}_${(claimHash >>> 0).toString(36)}`);
+    const validClaimId = `${gameState.sessionId}_${hashClaimKey(claimKeySource)}`;
+    const attemptId = `${validClaimId}_${hashClaimKey(selected.map(marked => marked ? '1' : '0').join(''))}`;
 
     const existingClaimsSnapshot = await getDocs(claimsCollection);
     const existingValidPositions = existingClaimsSnapshot.docs
@@ -344,13 +371,7 @@ export async function submitClaim(playerName: string, boardSongs: string[], sele
     const existingWinnerBaseline = Math.max(existingValidPositions.length, 0, ...existingValidPositions);
 
     return await runTransaction(db, async transaction => {
-      const [existingClaimSnapshot, currentGameSnapshot] = await Promise.all([
-        transaction.get(claimRef),
-        transaction.get(gameDocRef),
-      ]);
-      if (existingClaimSnapshot.exists()) {
-        return { id: existingClaimSnapshot.id, ...existingClaimSnapshot.data() } as Claim;
-      }
+      const currentGameSnapshot = await transaction.get(gameDocRef);
       if (!currentGameSnapshot.exists()) throw new Error('The current game could not be found.');
 
       const currentGame = normalizeGameState(currentGameSnapshot.data() as Partial<GameState>);
@@ -359,6 +380,15 @@ export async function submitClaim(playerName: string, boardSongs: string[], sele
       }
 
       const verification = verifyClaim(boardSongs, selected, currentGame);
+      // A valid card keeps one stable ID so refreshing cannot create a second
+      // winner. Failed attempts include the marked squares, so correcting the
+      // board creates a fresh attempt instead of returning the old failure.
+      const claimRef = doc(claimsCollection, verification.status === 'valid' ? validClaimId : attemptId);
+      const existingClaimSnapshot = await transaction.get(claimRef);
+      if (existingClaimSnapshot.exists()) {
+        return { id: existingClaimSnapshot.id, ...existingClaimSnapshot.data() } as Claim;
+      }
+
       const currentWinnerCount = Math.max(currentGame.winnerCount || 0, existingWinnerBaseline);
       const position = verification.status === 'valid' ? currentWinnerCount + 1 : undefined;
       const claim: Claim = {

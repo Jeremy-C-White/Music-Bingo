@@ -60,6 +60,7 @@ export default function Visualizer() {
   const previewUnavailable = Boolean(gameState?.nowPlaying && previewData && !previewData.previewUrl);
   const isLobbyMusic = gameState?.started !== true;
   const activeAudioUrl = isLobbyMusic ? LOBBY_MUSIC_URL : (previewData?.previewUrl || '');
+  const ownsStageAudio = audioUnlocked && !isAudioMuted && volume > 0;
   const dropCountdown = isAutoStartCountdown
     ? autoStartRemaining
     : Math.min(INTER_TRACK_DELAY_SECONDS, nextTrackRemaining);
@@ -264,7 +265,6 @@ export default function Visualizer() {
         audio.removeAttribute('src');
         audio.load();
       }
-      void setVisualizerAudioActive(false).catch(() => {});
       return;
     }
 
@@ -292,21 +292,21 @@ export default function Visualizer() {
     }
   }, [activeAudioUrl, isLobbyMusic, isAudioMuted, volume, audioUnlocked]);
 
+  // Once the stage sound system is unlocked, this page owns room audio for
+  // the whole time it remains unmuted—not only while a clip is playing. That
+  // keeps the host console silent during the gap between tracks.
   useEffect(() => {
-    const heartbeat = window.setInterval(() => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused && !audio.ended && audio.volume > 0) {
-        void setVisualizerAudioActive(true).catch(() => {});
-      }
-    }, 8000);
+    const publishOwnership = () => void setVisualizerAudioActive(ownsStageAudio).catch(() => {});
+    publishOwnership();
+    const heartbeat = ownsStageAudio ? window.setInterval(publishOwnership, 8000) : null;
     const markInactive = () => void setVisualizerAudioActive(false).catch(() => {});
     window.addEventListener('pagehide', markInactive);
     return () => {
-      window.clearInterval(heartbeat);
+      if (heartbeat !== null) window.clearInterval(heartbeat);
       window.removeEventListener('pagehide', markInactive);
       markInactive();
     };
-  }, []);
+  }, [ownsStageAudio]);
 
   const initAudioContext = () => {
     if (analyserRef.current || !audioRef.current) {
@@ -1242,7 +1242,6 @@ export default function Visualizer() {
           if (!playingLobbyMusicRef.current && !event.currentTarget.ended && playingTrackRef.current === currentTrackRef.current) {
             syncSongProgress(event.currentTarget, false);
           }
-          void setVisualizerAudioActive(false).catch(() => {});
         }}
         onSeeked={event => {
           if (playingTrackRef.current === currentTrackRef.current) {
@@ -1252,7 +1251,6 @@ export default function Visualizer() {
         onEnded={() => {
           if (playingLobbyMusicRef.current) return;
           if (playingTrackRef.current !== currentTrackRef.current) return;
-          void setVisualizerAudioActive(false).catch(() => {});
           setSongRemaining(0);
           audioAnimationRunRef.current += 1;
           setSongProgressAnimation({
@@ -1274,7 +1272,6 @@ export default function Visualizer() {
             setPreviewData(current => current ? { ...current, previewUrl: '' } : current);
           }
           setSongRemaining(0);
-          void setVisualizerAudioActive(false).catch(() => {});
         }}
       />
       

@@ -366,14 +366,13 @@ export default function Caller() {
     
     callInFlightRef.current = true;
     setCallInFlight(true);
-    playCallSound();
     
     const nextSong = pool[pool.length - 1];
-    const nextHistory = [...gameState.history];
-    if (gameState.nowPlaying) nextHistory.push(gameState.nowPlaying);
     
     try {
-      await setNowPlaying(nextSong, nextHistory);
+      const didAdvance = await setNowPlaying(nextSong, gameState.nowPlaying, gameState.sessionId);
+      if (!didAdvance) return;
+      playCallSound();
       setClockNow(Date.now());
       setCueVariation(0);
     } catch (e) {
