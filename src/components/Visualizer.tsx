@@ -10,7 +10,42 @@ import { getAutoStartTiming, getTrackTiming, INTER_TRACK_DELAY_SECONDS } from '.
 
 const LOBBY_MUSIC_URL = 'https://whije02.github.io/song/Nimbus.mp3';
 
+/**
+ * Keeps the screen from dimming or locking while this page is open, so the
+ * stage and host screens stay on for the whole game. Browsers drop the lock
+ * whenever the tab is hidden, so it is requested again when the page returns.
+ * Silently does nothing on browsers without the Screen Wake Lock API.
+ */
+function useScreenWakeLock() {
+  useEffect(() => {
+    type WakeLockSentinelLike = { release: () => Promise<void> };
+    const wakeLockApi = (navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> } }).wakeLock;
+    if (!wakeLockApi) return;
+
+    let lock: WakeLockSentinelLike | null = null;
+    let cancelled = false;
+    const request = async () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      try {
+        lock = await wakeLockApi.request('screen');
+      } catch {
+        // Not allowed right now (e.g. battery saver); the screen may sleep as usual.
+      }
+    };
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void request(); };
+
+    void request();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      void lock?.release().catch(() => {});
+    };
+  }, []);
+}
+
 export default function Visualizer() {
+  useScreenWakeLock();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [previewData, setPreviewData] = useState<{previewUrl: string; artworkUrl: string} | null>(null);
   const [totalClaims, setTotalClaims] = useState(0);
@@ -211,16 +246,11 @@ export default function Visualizer() {
       return;
     }
 
-    // 2. Bingo Claim event
-    if (totalClaims > 0 && totalClaims > lastClaimsCountRef.current) {
+    // 2. A claim that wasn't a win stays off the big screen, so nobody else gets
+    // interrupted. Only verified winners are announced (above); the host still
+    // sees every claim on the console.
+    if (totalClaims > lastClaimsCountRef.current) {
       lastClaimsCountRef.current = totalClaims;
-      triggerEncouragement({
-        isClaim: true,
-        kicker: '📣 Hold Everything',
-        title: 'BINGO!',
-        sub: totalClaims > 1 ? `Claim #${totalClaims} just hit the host's desk — verifying now…` : `A claim just hit the host's desk — verifying now…`
-      }, 4000);
-      return;
     }
 
     // 3. Track / Theme transition event
