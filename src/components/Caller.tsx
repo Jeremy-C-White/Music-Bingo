@@ -278,7 +278,42 @@ function useFitText(maxPx: number, minPx: number, contentKey: string) {
   return { boxRef, textRef, size };
 }
 
+/**
+ * Keeps the screen from dimming or locking while this page is open, so the
+ * stage and host screens stay on for the whole game. Browsers drop the lock
+ * whenever the tab is hidden, so it is requested again when the page returns.
+ * Silently does nothing on browsers without the Screen Wake Lock API.
+ */
+function useScreenWakeLock() {
+  useEffect(() => {
+    type WakeLockSentinelLike = { release: () => Promise<void> };
+    const wakeLockApi = (navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> } }).wakeLock;
+    if (!wakeLockApi) return;
+
+    let lock: WakeLockSentinelLike | null = null;
+    let cancelled = false;
+    const request = async () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      try {
+        lock = await wakeLockApi.request('screen');
+      } catch {
+        // Not allowed right now (e.g. battery saver); the screen may sleep as usual.
+      }
+    };
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') void request(); };
+
+    void request();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      void lock?.release().catch(() => {});
+    };
+  }, []);
+}
+
 export default function Caller() {
+  useScreenWakeLock();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [pool, setPool] = useState<string[]>([]);
@@ -441,6 +476,23 @@ export default function Caller() {
     return () => clearTimeout(timer);
   }, [autoCallerActive, gameState?.sessionId, gameState?.started, gameState?.nowPlaying, gameState?.trackStartedAt, gameState?.nextTrackAt, gameState?.autoStartAt, gameState?.autoCallerEnabled, pool.length, callInFlight]);
 
+  // A verified Bingo pauses Auto-Caller so the next song doesn't start over the
+  // celebration. The host can turn it back on to keep playing for 2nd place.
+  const sessionWinnerCount = claims.filter(claim => claim.status === 'valid' && (!gameState?.sessionId || claim.sessionId === gameState.sessionId)).length;
+  const seenWinnerCountRef = useRef<number | null>(null);
+  const [autoPausedForWinner, setAutoPausedForWinner] = useState(false);
+  useEffect(() => {
+    const previous = seenWinnerCountRef.current;
+    seenWinnerCountRef.current = sessionWinnerCount;
+    if (sessionWinnerCount === 0) setAutoPausedForWinner(false);
+    // Skip the very first claims load (e.g. reopening the console mid-game).
+    if (previous === null || sessionWinnerCount <= previous || !autoCallerActive) return;
+    setAutoCallerActive(false);
+    setAutoPausedForWinner(true);
+    void setAutoCallerEnabled(false).catch(error => console.error('Could not pause Auto-Caller for the winner:', error));
+  }, [sessionWinnerCount]);
+  useEffect(() => { if (autoCallerActive) setAutoPausedForWinner(false); }, [autoCallerActive]);
+
   // A completed deck should stop Auto-Caller and return the host to a clear
   // end-of-round state instead of leaving controls looking mysteriously stuck.
   useEffect(() => {
@@ -591,7 +643,10 @@ export default function Caller() {
     const sessionClaims = claims.filter(claim => !gameState.sessionId || claim.sessionId === gameState.sessionId);
     const hasWinner = sessionClaims.some(claim => claim.status === 'valid');
     if (hasWinner) {
-      return `${autoCallerActive ? 'Pause Auto-Caller first. ' : ''}Celebrate the winner and handle any prizes. When the room is ready for a new game, use End Round & Reset (it clears the claims).`;
+      const autoNote = autoCallerActive
+        ? 'Auto-Caller is on, so the game keeps going for the next place. '
+        : autoPausedForWinner ? 'Auto-Caller paused itself for the winner; turn it back on if you want to keep playing for 2nd place. ' : '';
+      return `${autoNote}Celebrate the winner and handle any prizes. When the room is ready for a new game, use End Round & Reset (it clears the claims).`;
     }
 
     if (!gameState.nowPlaying) {
